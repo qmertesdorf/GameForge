@@ -1,0 +1,17 @@
+# Godot 4 editor cache / generated
+.godot/
+
+# Build outputs
+/builds/
+*.apk
+*.aab
+*.ipa
+
+# Secrets — never commit
+*.keystore
+*.p12
+*.mobileprovision
+
+# OS cruft
+.DS_Store
+Thumbs.db
