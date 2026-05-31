@@ -67,18 +67,22 @@ Method 1.5 above is the first half of this hook, now **live** for logic-heavy ge
 
 ## Method 3 — Re-skin re-validation (`playable → styled`, after the `asset` skill)
 
-When `asset` has re-skinned a `playable` title, re-run the same gates on the rewired game and advance to the terminal `styled` status on success:
+When `asset` has re-skinned a `playable` title — via the **`svg`** *or* the **`raster`** method — re-run the same gates on the rewired game and advance to the terminal `styled` status on success. The gates are method-agnostic:
 
-1. **Headless import + run clean** — `godot --headless --path games/<id>/ --quit-after 120`, exit 0 with no `SCRIPT ERROR` / `ERROR:` / "Failed to load". Proves the SVGs import and the rewired scene runs.
+1. **Headless import + run clean** — `godot --headless --path games/<id>/ --quit-after 120`, exit 0 with no `SCRIPT ERROR` / `ERROR:` / "Failed to load". Proves the textures (`.svg` or `.png`) imported and the rewired scene runs. (Confirm the `asset` skill ran `--import` first, or `load("res://art/...")` returns null.)
 2. **`selftest.gd` still `SELFTEST OK`** (if the title has one) — proves the swap changed only visuals, not logic.
-3. **Human A/B playtest** — the owner confirms the SVG version (a) looks more designed than the primitive original, (b) **reads as one coherent visual system** rather than mismatched shapes, and (c) plays identically.
+3. **Human A/B playtest** — the owner confirms the re-skin (a) looks more designed than the primitive original, (b) **reads as one coherent visual system** rather than mismatched assets, and (c) plays identically.
 
-On all three passing:
+**Raster-only additional checks (when `asset_pass.method == "raster"`):**
+- **Mobile-density sanity** — each `recipes[].master_resolution` is a high-res power-of-two master (downscaled to footprint, never upscaled) and each `import_settings` enables mipmaps. A sprite that is blurry/aliased at the footprint, or generated below its on-screen size, is an `asset` finding (wrong master/import), not a validator pass.
+- **IP-safety A/B** — the owner explicitly confirms **nothing resembles trademarked/copyrighted characters, logos, or celebrity likeness**. If anything does, it is a hard fail (app-store + legal risk): record it, attribute it to `asset` (weak `negative` prompt / non-generic prompt), and do **not** advance.
+
+On all gates passing:
 ```
 node tools/manifest.mjs set-status <id> styled
 node tools/manifest.mjs validate <id>
 ```
-On failure, record the specific issue in `validation.issues`, attribute it to `asset` (e.g. "asset: left the primitive obstacle drawing under the sprite — double-draw", or "asset: SVGs individually fine but palette/stroke don't cohere — visual_system gap"), and do **not** advance to `styled`. The game stays `playable`; the fix is a specific `asset` SKILL.md edit.
+On failure, record the specific issue in `validation.issues`, attribute it to a skill, and do **not** advance — the game stays `playable`. Examples: "asset: left the primitive obstacle drawing under the sprite — double-draw"; "asset: sprites individually fine but don't cohere — prompt_scaffold/style gap"; "asset: hero master generated at 256² — blurry on xxxhdpi, wrong master_resolution"; "comfy.mjs: ComfyUI unreachable — infra, re-run after starting the server". The fix is a specific `asset`/`comfy.mjs` prose or recipe change.
 
 ## Notes
 - Some Godot CLI flags vary slightly by 4.x point release; if `--quit-after` is unavailable, fall back to `--headless --path games/<id>/ --quit` after confirming `--import` succeeds. Verify against the pinned version.
