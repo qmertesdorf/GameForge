@@ -1,9 +1,13 @@
 extends Node2D
 
-# Neon Dash II — self-contained endless runner with juice, layered visuals,
-# and fair tuning. All rendering via _draw() (draw_rect / draw_line / draw_circle);
-# collision via Rect2 AABB. No physics bodies, no child scene instancing, so it
-# runs cleanly under --headless. TAB-indented.
+# Neon Dash II — endless runner with juice, layered visuals, and fair tuning.
+# M1 SVG re-skin: world actors (player / obstacle / orb) are now Sprite2D nodes
+# textured from games/runner-0002/art/*.svg. The background (bg/grid/stars/ground)
+# stays procedural in _draw(); particles + HUD + flash move to a higher-z Overlay
+# child so they stay above the sprites. Movement, collision, spawning, scoring,
+# input, game-over/restart, and all juice timers are UNCHANGED — only the visual
+# representation of the three actors changed. Collision still via Rect2 AABB.
+# TAB-indented.
 
 const VIEW_W: float = 720.0
 const VIEW_H: float = 1280.0
@@ -29,6 +33,11 @@ const TIER_ACCENTS: Array = [
 const GROUND_Y: float = 1080.0
 const PLAYER_X: float = 160.0
 const PLAYER_SIZE: float = 64.0
+
+# --- SVG re-skin: crisp core of every SVG spans 60u of a 100u viewBox; the glow
+# halo bleeds into the remaining padding. A sprite is scaled footprint / SVG_CORE
+# so its crisp core matches the primitive's original footprint. ---
+const SVG_CORE: float = 60.0
 
 # --- Physics tuning ---
 const GRAVITY: float = 2800.0
@@ -83,6 +92,7 @@ var squash_timer: float = 0.0          # >0 = squash (land), tracks via squash_k
 var squash_kind: int = 0               # 1 = takeoff (stretch), 2 = land (squash)
 var score_pulse: float = 0.0           # decaying scale boost on HUD when orb grabbed
 var bg_scroll: float = 0.0
+var current_shake: Vector2 = Vector2.ZERO  # computed per-frame; shared by bg draw + sprites
 
 # Background star dots (precomputed, drift slowly with parallax).
 var stars: Array = []   # each: { "pos": Vector2, "r": float, "speed": float }
@@ -91,14 +101,24 @@ var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
 var _font: Font = null
 var _font_size: int = 32
 
+# --- SVG re-skin nodes ---
+var _tex_player: Texture2D = null
+var _tex_obstacle: Texture2D = null
+var _tex_orb: Texture2D = null
+var player_sprite: Sprite2D = null
+var obstacle_sprites: Array = []   # pooled Sprite2D, one per live obstacle
+var orb_sprites: Array = []        # pooled Sprite2D, one per live (alive) orb
+var overlay: Node2D = null
+
 
 func _ready() -> void:
 	_rng.randomize()
-	# Headless-safe default font lookup; guard so a null never crashes _draw().
+	# Headless-safe default font lookup; guard so a null never crashes the HUD.
 	if ThemeDB.fallback_font != null:
 		_font = ThemeDB.fallback_font
 		_font_size = ThemeDB.fallback_font_size
 	_build_stars()
+	_build_sprites()
 	_reset()
 
 
@@ -110,6 +130,24 @@ func _build_stars() -> void:
 			"r": _rng.randf_range(1.0, 3.0),
 			"speed": _rng.randf_range(0.15, 0.45),  # parallax fraction of scroll speed
 		})
+
+
+# Create the textured actor nodes + the top overlay layer (M1 SVG re-skin).
+func _build_sprites() -> void:
+	_tex_player = load("res://art/player.svg")
+	_tex_obstacle = load("res://art/obstacle.svg")
+	_tex_orb = load("res://art/orb.svg")
+
+	player_sprite = Sprite2D.new()
+	player_sprite.texture = _tex_player
+	player_sprite.z_index = 1
+	add_child(player_sprite)
+
+	overlay = Node2D.new()
+	overlay.set_script(load("res://Overlay.gd"))
+	overlay.z_index = 5
+	add_child(overlay)
+	overlay.game = self
 
 
 func _reset() -> void:
@@ -135,7 +173,11 @@ func _reset() -> void:
 	squash_kind = 0
 	score_pulse = 0.0
 	bg_scroll = 0.0
+	current_shake = Vector2.ZERO
+	_update_sprites()
 	queue_redraw()
+	if overlay != null:
+		overlay.queue_redraw()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -187,11 +229,20 @@ func _process(delta: float) -> void:
 	if score_pulse > 0.0:
 		score_pulse = max(0.0, score_pulse - delta * 3.0)
 
+	# Screen shake offset, computed once per frame and shared by the background
+	# draw and every actor sprite so they shake together.
+	current_shake = Vector2.ZERO
+	if shake_timer > 0.0:
+		var amt: float = (shake_timer / SHAKE_TIME) * SHAKE_MAG
+		current_shake = Vector2(_rng.randf_range(-amt, amt), _rng.randf_range(-amt, amt))
+
 	# Particles keep animating even on game over.
 	_update_particles(delta)
 
 	if game_over:
+		_update_sprites()
 		queue_redraw()
+		overlay.queue_redraw()
 		return
 
 	elapsed += delta
@@ -273,7 +324,9 @@ func _process(delta: float) -> void:
 		kept_orbs.append(orb)
 	orbs = kept_orbs
 
+	_update_sprites()
 	queue_redraw()
+	overlay.queue_redraw()
 
 
 func _spawn_obstacle() -> void:
@@ -337,26 +390,78 @@ func _accent() -> Color:
 	return TIER_ACCENTS[tier % TIER_ACCENTS.size()]
 
 
-# Helper: draw a neon shape as an oversized low-alpha halo plus a crisp core.
-func _draw_glow_rect(r: Rect2, c: Color) -> void:
-	var grow: Vector2 = r.size * 0.35 + Vector2(6, 6)
-	var halo: Rect2 = Rect2(r.position - grow * 0.5, r.size + grow)
-	draw_rect(halo, Color(c.r, c.g, c.b, 0.20), true)
-	draw_rect(r, c, true)
+# === SVG re-skin: position/scale the textured actor nodes to match the primitive
+# footprints they replaced. One Sprite2D per live obstacle / alive orb (pooled).
+# All offset by current_shake so they shake with the background. ===
+func _update_sprites() -> void:
+	if player_sprite == null:
+		return
 
+	# Player: same squash/stretch the old _draw() applied, anchored at the feet.
+	var sx2: float = 1.0
+	var sy: float = 1.0
+	if squash_timer > 0.0:
+		var k: float = squash_timer / SQUASH_TIME  # 1 -> 0
+		var amt2: float = 0.15 * k
+		if squash_kind == 1:
+			# takeoff: stretch tall
+			sx2 = 1.0 - amt2
+			sy = 1.0 + amt2
+		else:
+			# land: squash wide
+			sx2 = 1.0 + amt2
+			sy = 1.0 - amt2
+	var pw: float = PLAYER_SIZE * sx2
+	var ph: float = PLAYER_SIZE * sy
+	player_sprite.position = Vector2(PLAYER_X + PLAYER_SIZE * 0.5, (player_y + PLAYER_SIZE) - ph * 0.5) + current_shake
+	player_sprite.scale = Vector2(pw / SVG_CORE, ph / SVG_CORE)
 
-func _draw_glow_circle(center: Vector2, radius: float, c: Color) -> void:
-	draw_circle(center, radius * 1.9, Color(c.r, c.g, c.b, 0.20))
-	draw_circle(center, radius, c)
+	# Obstacles: grow the pool as needed, place one sprite per live obstacle,
+	# hide the rest. Tint the white SVG to the per-instance neon color.
+	while obstacle_sprites.size() < obstacles.size():
+		var os: Sprite2D = Sprite2D.new()
+		os.texture = _tex_obstacle
+		os.z_index = 1
+		add_child(os)
+		obstacle_sprites.append(os)
+	for i in range(obstacle_sprites.size()):
+		var osp: Sprite2D = obstacle_sprites[i]
+		if i < obstacles.size():
+			var r: Rect2 = obstacles[i]["rect"]
+			osp.visible = true
+			osp.position = r.position + r.size * 0.5 + current_shake
+			osp.scale = Vector2(r.size.x / SVG_CORE, r.size.y / SVG_CORE)
+			osp.modulate = obstacles[i]["color"]
+		else:
+			osp.visible = false
+
+	# Orbs: same pooling, only the alive ones, with the pulse scale.
+	var live: Array = []
+	for orb in orbs:
+		if orb["alive"]:
+			live.append(orb)
+	while orb_sprites.size() < live.size():
+		var qs: Sprite2D = Sprite2D.new()
+		qs.texture = _tex_orb
+		qs.z_index = 1
+		add_child(qs)
+		orb_sprites.append(qs)
+	for i in range(orb_sprites.size()):
+		var qsp: Sprite2D = orb_sprites[i]
+		if i < live.size():
+			var pulse: float = 1.0 + 0.18 * sin(live[i]["phase"])
+			qsp.visible = true
+			qsp.position = live[i]["pos"] + current_shake
+			qsp.scale = Vector2.ONE * (2.0 * ORB_RADIUS * pulse / SVG_CORE)
+		else:
+			qsp.visible = false
 
 
 func _draw() -> void:
-	# Screen shake: offset the whole draw origin by a decaying random vector.
-	var shake: Vector2 = Vector2.ZERO
-	if shake_timer > 0.0:
-		var amt: float = (shake_timer / SHAKE_TIME) * SHAKE_MAG
-		shake = Vector2(_rng.randf_range(-amt, amt), _rng.randf_range(-amt, amt))
-	draw_set_transform(shake, 0.0, Vector2.ONE)
+	# Background + ground only. Actors are Sprite2D children (z_index 1); the HUD,
+	# particles and flash are drawn by the Overlay child (z_index 5). Background and
+	# ground shake with the actors via the shared current_shake offset.
+	draw_set_transform(current_shake, 0.0, Vector2.ONE)
 
 	# === Background layer ===
 	draw_rect(Rect2(0.0, 0.0, VIEW_W, VIEW_H), COLOR_BG, true)
@@ -384,73 +489,43 @@ func _draw() -> void:
 			sx += VIEW_W
 		draw_circle(Vector2(sx, sp.y), s["r"], Color(accent.r, accent.g, accent.b, 0.35))
 
-	# === Play layer ===
+	# === Play layer (ground only; actors are sprites) ===
 	# Glowing ground line (halo + crisp).
 	draw_line(Vector2(0.0, GROUND_Y), Vector2(VIEW_W, GROUND_Y), Color(accent.r, accent.g, accent.b, 0.30), 10.0)
 	draw_line(Vector2(0.0, GROUND_Y), Vector2(VIEW_W, GROUND_Y), accent, 3.0)
 
-	# Obstacles with glow halos.
-	for ob in obstacles:
-		_draw_glow_rect(ob["rect"], ob["color"])
 
-	# Orbs (pulsing gold, glow halo).
-	for orb in orbs:
-		if not orb["alive"]:
-			continue
-		var pulse: float = 1.0 + 0.18 * sin(orb["phase"])
-		_draw_glow_circle(orb["pos"], ORB_RADIUS * pulse, COLOR_ORB)
-
-	# Particles (short-lived fading dots).
+# Drawn by the Overlay child (above the actor sprites): particles, HUD, crash flash.
+func draw_overlay(ci: CanvasItem) -> void:
+	# Particles (short-lived fading dots) — shake with the world.
 	for p in particles:
 		var t: float = 1.0 - (p["life"] / p["max"])
 		var pc: Color = p["color"]
-		draw_circle(p["pos"], 5.0 * t + 1.0, Color(pc.r, pc.g, pc.b, t))
+		ci.draw_circle(p["pos"] + current_shake, 5.0 * t + 1.0, Color(pc.r, pc.g, pc.b, t))
 
-	# Player square with squash/stretch + glow halo.
-	var sx2: float = 1.0
-	var sy: float = 1.0
-	if squash_timer > 0.0:
-		var k: float = squash_timer / SQUASH_TIME  # 1 -> 0
-		var amt2: float = 0.15 * k
-		if squash_kind == 1:
-			# takeoff: stretch tall
-			sx2 = 1.0 - amt2
-			sy = 1.0 + amt2
-		else:
-			# land: squash wide
-			sx2 = 1.0 + amt2
-			sy = 1.0 - amt2
-	var pw: float = PLAYER_SIZE * sx2
-	var ph: float = PLAYER_SIZE * sy
-	# Anchor at the player's feet so squash/stretch stays grounded.
-	var px: float = PLAYER_X + (PLAYER_SIZE - pw) * 0.5
-	var py: float = (player_y + PLAYER_SIZE) - ph
-	_draw_glow_rect(Rect2(px, py, pw, ph), COLOR_PLAYER)
-
-	# === HUD layer (drawn last, no shake so the score stays steady) ===
-	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	# === HUD layer (no shake so the score stays steady) ===
 	if _font != null:
 		var pulse_size: int = _font_size + 24 + int(score_pulse * 18.0)
 		var score_str: String = "%d" % int(score)
 		# Approximate centering using string width.
 		var sw: float = _font.get_string_size(score_str, HORIZONTAL_ALIGNMENT_LEFT, -1.0, pulse_size).x
-		draw_string(_font, Vector2((VIEW_W - sw) * 0.5, 100.0), score_str, HORIZONTAL_ALIGNMENT_LEFT, -1.0, pulse_size, COLOR_WHITE)
+		ci.draw_string(_font, Vector2((VIEW_W - sw) * 0.5, 100.0), score_str, HORIZONTAL_ALIGNMENT_LEFT, -1.0, pulse_size, COLOR_WHITE)
 
 		# Combo readout under the score when above 1x.
 		if combo > 1:
 			var cstr: String = "x%d" % combo
 			var cw: float = _font.get_string_size(cstr, HORIZONTAL_ALIGNMENT_LEFT, -1.0, _font_size).x
-			draw_string(_font, Vector2((VIEW_W - cw) * 0.5, 150.0), cstr, HORIZONTAL_ALIGNMENT_LEFT, -1.0, _font_size, COLOR_ORB)
+			ci.draw_string(_font, Vector2((VIEW_W - cw) * 0.5, 150.0), cstr, HORIZONTAL_ALIGNMENT_LEFT, -1.0, _font_size, COLOR_ORB)
 
 		if game_over:
 			var go_str: String = "GAME OVER"
 			var gw: float = _font.get_string_size(go_str, HORIZONTAL_ALIGNMENT_LEFT, -1.0, _font_size + 12).x
-			draw_string(_font, Vector2((VIEW_W - gw) * 0.5, VIEW_H * 0.5), go_str, HORIZONTAL_ALIGNMENT_LEFT, -1.0, _font_size + 12, COLOR_OBSTACLE_A)
+			ci.draw_string(_font, Vector2((VIEW_W - gw) * 0.5, VIEW_H * 0.5), go_str, HORIZONTAL_ALIGNMENT_LEFT, -1.0, _font_size + 12, COLOR_OBSTACLE_A)
 			var tap_str: String = "TAP TO RESTART"
 			var tw: float = _font.get_string_size(tap_str, HORIZONTAL_ALIGNMENT_LEFT, -1.0, _font_size).x
-			draw_string(_font, Vector2((VIEW_W - tw) * 0.5, VIEW_H * 0.5 + 50.0), tap_str, HORIZONTAL_ALIGNMENT_LEFT, -1.0, _font_size, COLOR_PLAYER)
+			ci.draw_string(_font, Vector2((VIEW_W - tw) * 0.5, VIEW_H * 0.5 + 50.0), tap_str, HORIZONTAL_ALIGNMENT_LEFT, -1.0, _font_size, COLOR_PLAYER)
 
 	# === Crash flash (full-screen decaying white overlay, on top of everything) ===
 	if flash_timer > 0.0:
 		var a: float = (flash_timer / FLASH_TIME) * 0.8
-		draw_rect(Rect2(0.0, 0.0, VIEW_W, VIEW_H), Color(1, 1, 1, a), true)
+		ci.draw_rect(Rect2(0.0, 0.0, VIEW_W, VIEW_H), Color(1, 1, 1, a), true)

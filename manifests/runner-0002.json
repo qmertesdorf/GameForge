@@ -2,7 +2,7 @@
   "id": "runner-0002",
   "name": "Neon Dash II",
   "created_at": "2026-05-31T00:37:58.390Z",
-  "updated_at": "2026-05-31T00:46:28.687Z",
+  "updated_at": "2026-05-31T17:57:19.677Z",
   "status": "validated",
   "concept": {
     "genre": "endless runner",
@@ -37,22 +37,22 @@
   },
   "assets": [
     {
-      "type": "primitive",
+      "type": "sprite",
       "name": "player",
-      "source": "Main.gd:_draw",
-      "origin": "generated"
+      "source": "art/player.svg",
+      "origin": "svg"
     },
     {
-      "type": "primitive",
+      "type": "sprite",
       "name": "obstacle",
-      "source": "Main.gd:_draw",
-      "origin": "generated"
+      "source": "art/obstacle.svg",
+      "origin": "svg"
     },
     {
-      "type": "primitive",
+      "type": "sprite",
       "name": "orb",
-      "source": "Main.gd:_draw",
-      "origin": "generated"
+      "source": "art/orb.svg",
+      "origin": "svg"
     },
     {
       "type": "primitive",
@@ -76,5 +76,36 @@
     "compliance": null,
     "store": null,
     "maintenance": null
+  },
+  "asset_pass": {
+    "method": "svg",
+    "visual_system": {
+      "palette": [
+        "#080810",
+        "#22e6ff",
+        "#ff3df0",
+        "#ffe14d",
+        "#ffd23d"
+      ],
+      "stroke": "2.5px light edge stroke on the crisp core; glow layers unstroked",
+      "form": "sharp-cornered geometric, rounded corners (rx 10-12), low detail",
+      "shading": "flat fill + stacked low-alpha glow halo (3 layers, no SVG filters; ThorVG-safe)",
+      "scale": "crisp core spans 60u of a 100u viewBox; sprite scaled footprint/60 so the core matches the primitive footprint and the glow bleeds into the padding"
+    },
+    "reskinned": [
+      "player",
+      "obstacle",
+      "orb"
+    ],
+    "left_primitive": [
+      "ground",
+      "background",
+      "particles",
+      "screen-shake",
+      "flash",
+      "squash-stretch"
+    ],
+    "art_path": "games/runner-0002/art/",
+    "notes": "art_direction is geometric neon — well within SVG scope (not representational). Obstacle SVG authored white and tinted per-instance (magenta/yellow) via Sprite2D.modulate to preserve the two-color variety. Background parallax grid+stars and all juice kept procedural (motion, not art). World actors are Sprite2D (z 1) above the background _draw(); HUD/particles/flash moved to an Overlay child (z 5) so they stay above the sprites."
   }
 }
