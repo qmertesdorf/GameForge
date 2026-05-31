@@ -1,6 +1,6 @@
 ---
 name: asset
-description: Use when re-skinning a playable Godot game with coherent Claude-authored SVG art. Derives a visual system from concept.art_direction, authors SVGs, rewires primitive _draw() to Sprite2D/TextureRect, records asset_pass, and sets status to "styled".
+description: Use when re-skinning a playable Godot game with coherent Claude-authored art. Branches on concept.art_direction into two methods — svg (geometric/UI, authored inline) or raster (representational/illustrated, generated as RGBA PNGs via local ComfyUI+SDXL+LayerDiffuse through tools/comfy.mjs). Derives a visual system, rewires primitive _draw() to textures, records asset_pass, and hands off to validator for "styled".
 ---
 
 # asset
@@ -10,6 +10,15 @@ Replace a `playable` game's deliberate **primitive** visuals with real, coherent
 ```
 concept → builder → validator → [playable] → asset → validator(re-run) → [styled]
 ```
+
+## Choosing the method (branch on `concept.art_direction`)
+
+This skill has **two methods**, picked from `art_direction`. Both share *all* the rewiring craft below (texture-on-disk → `Sprite2D`/`TextureRect`/`draw_texture*`, footprint placement, primitive removal, the run-007 immediate-mode lessons) — only how the texture is *produced* differs.
+
+- **geometric / neon / flat / hyper-casual / UI** → **`svg`** method (authored inline as text; the rest of this skill below). Resolution-independent, covers every density bucket from one file.
+- **representational / character / creature / illustrated / textured** → **`raster`** method (generated RGBA PNGs via local ComfyUI + SDXL + LayerDiffuse; see **The `raster` method** section). This is the art SVG does *badly* — a painted hero, a creature, a textured surface.
+
+This is the same "SVG aesthetic boundary" the SVG method documents — `raster` is now where the skill **goes** when it hits a representational concept, instead of only flagging it. A single run may be **mixed-method** (some entities `raster`, some `svg`, some left `primitive`); see the raster section's "Mixed-method honesty".
 
 ## Inputs
 - `manifests/<id>.json` with a populated `concept` block and `status = "playable"`.
@@ -86,6 +95,62 @@ Commit the generated `*.svg.import` sidecars alongside the art (expected Godot o
 
 **Failure attribution (the POC value):** a bad re-skin is always attributable — you authored a poor SVG, mis-positioned/mis-scaled a sprite, or failed to remove the underlying primitive. Each is a specific, fixable prose gap.
 
+## The `raster` method (representational art via local SD)
+
+Use this when the method branch sent you to `raster`. It produces **RGBA sprites** (native transparency at generation time) that hand-authored SVG cannot do well. The deliverable is still a sharp **system**: every "this sprite looks bad" must trace to a fixable cause — a weak prompt scaffold, a wrong style profile/param, a mis-placed sprite, a left-in primitive, or an *infra* failure in `comfy.mjs` — never an unattributable blob.
+
+### Prerequisite (assumed running, like Godot)
+ComfyUI runs headless as a local server (default `http://127.0.0.1:8188`) with an SDXL checkpoint and the **ComfyUI-layerdiffuse** node installed. It is **not** managed by this skill — the owner starts it. Before generating, confirm it is reachable and see what checkpoints exist:
+```
+node tools/comfy.mjs --check
+```
+Expected: `comfy OK at http://127.0.0.1:8188 — N checkpoint(s): ...`. If it prints `UNREACHABLE`, **stop** and ask the owner to start ComfyUI (or `! <launch command>`). A failure here is *infra*, attributable to the stack, not to your art judgment — never work around it by faking a PNG.
+
+### Step 0 (raster) — visual system first, with style as a first-class choice
+Do the normal Step 0 (palette, form, shading, scale). For raster, additionally:
+
+**(a) Select the per-game style profile — explicitly.** Art style is a **first-class, per-game parameter**; it is what lets *one* skill make *different-looking* games. From `art_direction`, choose:
+- a **checkpoint** (e.g. a painterly SDXL finetune vs. a flat-cartoon vs. a pixel-art checkpoint),
+- optional **LoRA(s)**,
+- the **style fragment** of the prompt (e.g. `"painterly, illustrated, soft brushwork"`).
+
+Justify "this `art_direction` → this profile" exactly as you justify the SVG visual system. Record it verbatim in `asset_pass.visual_system.style` (`{ checkpoint, loras[], style_prompt }`). Two different games **should** look deliberately different because they picked different profiles — that difference is the goal, not a failure.
+
+**(b) Fix the shared prompt scaffold.** Write one base prompt string (style fragment + shared scene/lighting/background terms) and one fixed sampler/steps/cfg. **Every** sprite in this game is generated as `scaffold + this actor's subject` from that one scaffold, so the set reads as a single designed family. Record it in `asset_pass.visual_system.prompt_scaffold`.
+
+**"Each sprite is fine but they don't cohere"** is the same *primary failure* the SVG method guards against — here prevented by the profile + shared scaffold + fixed params, **not** by independent per-actor prompts. Incoherence within one game is a finding about the **scaffold/profile**, never about an individual PNG.
+
+### Per-entity flow
+For each entity you decide to make raster:
+1. **Recipe** — compose the JSON recipe: `prompt` = `scaffold + this actor's subject`; plus `negative`, `seed`, `sampler`, `steps`, `cfg`, `checkpoint`, optional `lora`, `layerdiffuse: true`, and `master_resolution` (see Resolution below). Keep `sampler`/`steps`/`cfg` identical across the game's sprites.
+2. **Generate** — `node tools/comfy.mjs gen <id> <name> '<recipe-json>'` → writes `games/<id>/art/<name>.png` (RGBA). On a graph/unreachable error it fails loudly — fix the *infra/recipe*, do not fake the file.
+3. **Import** — run the headless import pass so Godot makes the `.png.import` sidecar + cached texture **before** re-validation:
+   ```
+   godot --headless --path games/<id>/ --import
+   ```
+4. **Configure mobile import settings** (see Resolution & mobile density) — edit the generated `games/<id>/art/<name>.png.import` so it is mobile-grade, then re-run `--import`.
+5. **Rewire** — identical to the SVG swap below: prefer `draw_texture*`-in-place for the builder's default single-`_draw()` games, else pooled `Sprite2D`/`TextureRect`; place at the primitive's original footprint; **remove/guard** the matching primitive (no double-draw); **game logic untouched**.
+
+### Mixed-method honesty (inverted boundary)
+The SVG method flags when representational art needs raster. Raster **inverts** it: if an actor is genuinely better as crisp vector or a primitive — a UI/HP bar, a geometric pickup, a HUD frame — you are **allowed to leave it `svg` or `primitive`**, and you must **say so**. A run can be mixed-method. Record per-entity which is `raster` vs `svg` vs `primitive` (`reskinned`/`left_primitive` + `assets[].origin`) so a partial raster pass is a legible choice, not a silent gap.
+
+### Resolution & mobile density (recovering what SVG gave for free)
+SVG covered every Android density bucket (mdpi → xxxhdpi) from one file. Raster forfeits that, so replace it deliberately or the output is **not** app-store-ready:
+- **Generate high-res masters.** Size each sprite's `master_resolution` for the **largest** density bucket it occupies on screen — a generous power-of-two master (e.g. **512²** for a minor prop, **1024²** for a hero actor). Always **downscale from the master**, never upscale, so it stays crisp on xxxhdpi.
+- **Set mobile import settings explicitly.** In each `games/<id>/art/<name>.png.import`, set `mipmaps/generate=true` (clean minification), a linear `filter`, and a 2D-mobile-appropriate compression (lossless for small sprite counts; VRAM-compressed if the title grows). Do **not** accept Godot's editor defaults silently. Record the choice in the recipe's `import_settings` (`{ mipmaps, filter, compression }`).
+- **Footprint mapping unchanged.** The sprite scales to the primitive's on-screen footprint at runtime; the master being larger than the footprint is *correct* (high-DPI headroom), not waste to "fix" by shrinking the master.
+
+Texture **atlasing** and whole-title APK **size budgeting** are **M2** packaging concerns — out of scope here. Generating proper masters now is what makes that later step possible.
+
+### Content & IP safety
+SDXL can emit outputs resembling trademarked/copyrighted characters — an app-store rejection and legal risk. So:
+- Put IP guards in **every** recipe's `negative` prompt: `"logo, watermark, text, trademarked character, brand, celebrity likeness"`.
+- Keep prompts to **generic descriptors** — never name a franchise, studio, or character.
+- The **human A/B** is the safety review: the owner confirms nothing looks like protected IP **before** `styled`. (Model/output licensing is settled in the research note — SDXL Community License, outputs owned for commercial use under the revenue threshold; re-verify the threshold at ship time.)
+
+### Determinism (state this plainly)
+The committed **PNG is canonical** — a fresh clone runs identically. `recipes[]` is **provenance, not a bit-exact regeneration guarantee**: GPU matmul + RNG are non-deterministic, so the same recipe regenerates a *close* image, never the same pixels. "I have the seed" ≠ "I can reproduce the art."
+
 ## Recording the pass
 
 1. Flip the re-skinned `assets[]` entries (arrays replace wholesale — pass the **full** array, re-skinned entries as `origin:"svg"`, untouched ones as-is):
@@ -101,6 +166,12 @@ Commit the generated `*.svg.import` sidecars alongside the art (expected Godot o
    node tools/manifest.mjs validate <id>
    ```
    Expected: `<id> OK`.
+
+**For the `raster` method**, the `asset_pass` you merge in step 2 additionally carries the style profile, the shared scaffold, and one recipe per generated PNG (arrays replace wholesale — pass the full `recipes[]`):
+```
+node tools/manifest.mjs merge <id> "{\"asset_pass\": {\"method\":\"raster\",\"visual_system\":{\"palette\":[...],\"form\":\"...\",\"shading\":\"...\",\"scale\":\"...\",\"prompt_scaffold\":\"...\",\"style\":{\"checkpoint\":\"...\",\"loras\":[...],\"style_prompt\":\"...\"}},\"reskinned\":[...],\"left_primitive\":[...],\"art_path\":\"games/<id>/art/\",\"notes\":\"...\",\"recipes\":[{\"name\":\"hero\",\"checkpoint\":\"...\",\"prompt\":\"...\",\"negative\":\"...\",\"seed\":123,\"sampler\":\"...\",\"steps\":30,\"cfg\":6.5,\"master_resolution\":1024,\"layerdiffuse\":true,\"lora\":\"...\",\"import_settings\":{\"mipmaps\":true,\"filter\":\"linear\",\"compression\":\"lossless\"}}]}}"
+```
+Flip each raster entity's `assets[]` entry to `origin:"raster"` (e.g. `{"type":"sprite","name":"hero","source":"art/hero.png","origin":"raster"}`); leave `svg`/`primitive` entities as they are.
 
 ## Hand off to the validator
 
