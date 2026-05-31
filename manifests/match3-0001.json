@@ -2,8 +2,8 @@
   "id": "match3-0001",
   "name": "Prism Cascade",
   "created_at": "2026-05-31T00:55:09.244Z",
-  "updated_at": "2026-05-31T01:07:09.434Z",
-  "status": "validated",
+  "updated_at": "2026-05-31T01:10:02.524Z",
+  "status": "playable",
   "concept": {
     "genre": "match-3",
     "core_loop": "drag to swap two adjacent gems to line up 3+ of a color; matches clear, the board cascades down and refills, and chained clears build a combo multiplier; race a timer bar that drains continuously and tops up on every match; difficulty: the drain rate steps up every ~20s so survival demands bigger combos over time",
@@ -96,7 +96,8 @@
   "validation": {
     "issues": [],
     "opens_in_editor": true,
-    "runs": true
+    "runs": true,
+    "core_loop_functional": true
   },
   "_reserved": {
     "compliance": null,
