@@ -1,0 +1,78 @@
+{
+  "id": "runner-0002",
+  "name": "Neon Dash II",
+  "created_at": "2026-05-31T00:37:58.390Z",
+  "updated_at": "2026-05-31T00:43:14.351Z",
+  "status": "generated",
+  "concept": {
+    "genre": "endless runner",
+    "core_loop": "tap to jump over neon obstacles and grab glowing orbs for a score-multiplier combo; survive as the world ramps; difficulty starts gentle and steps up every ~8s into a faster color tier, up to a hard speed cap",
+    "mechanics": [
+      "jump (with short coyote-time)",
+      "gravity",
+      "ground collision",
+      "obstacle spawning",
+      "obstacle collision",
+      "orb pickups (reward beat: combo multiplier)",
+      "score",
+      "speed tiers that change accent color",
+      "game over",
+      "tap to restart"
+    ],
+    "art_direction": "neon vector on near-black (#080810); cyan (#22e6ff) player square with additive glow halo and squash/stretch on jump+land; magenta (#ff3df0) and yellow (#ffe14d) obstacle bars with glow; gold (#ffd23d) orbs that pulse; layered background with a faint parallax grid plus slower-drifting star dots so there is no dead space; readable large score top-center; juice: white flash + short screen shake on crash, score pulse + small particle burst on orb pickup; accent hue shifts as the speed tier climbs",
+    "target_platforms": [
+      "android"
+    ],
+    "differentiation_notes": "layers an orb-collection combo and visible speed tiers on top of bare survival, with feel (shake/flash/squash) so it reads as an intentional toy rather than a tech demo"
+  },
+  "build": {
+    "engine": "godot",
+    "engine_version": "4.6.3.stable",
+    "language": "gdscript",
+    "project_path": "games/runner-0002/",
+    "addons": [],
+    "export_presets": [
+      "android"
+    ]
+  },
+  "assets": [
+    {
+      "type": "primitive",
+      "name": "player",
+      "source": "Main.gd:_draw",
+      "origin": "generated"
+    },
+    {
+      "type": "primitive",
+      "name": "obstacle",
+      "source": "Main.gd:_draw",
+      "origin": "generated"
+    },
+    {
+      "type": "primitive",
+      "name": "orb",
+      "source": "Main.gd:_draw",
+      "origin": "generated"
+    },
+    {
+      "type": "primitive",
+      "name": "ground",
+      "source": "Main.gd:_draw",
+      "origin": "generated"
+    },
+    {
+      "type": "primitive",
+      "name": "background",
+      "source": "Main.gd:_draw",
+      "origin": "generated"
+    }
+  ],
+  "validation": {
+    "issues": []
+  },
+  "_reserved": {
+    "compliance": null,
+    "store": null,
+    "maintenance": null
+  }
+}
