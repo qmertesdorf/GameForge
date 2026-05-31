@@ -1,5 +1,5 @@
 import { test, expect, describe } from "vitest";
-import { validate, newManifest, setStatus, STATUSES } from "./manifest.mjs";
+import { validate, newManifest, setStatus, STATUSES, merge } from "./manifest.mjs";
 
 // A hand-built, fully-valid manifest used as the baseline across tests.
 function validManifest() {
@@ -102,5 +102,29 @@ describe("setStatus", () => {
 
   test("treats re-setting the same status as a no-op", () => {
     expect(setStatus(base(), "concept").status).toBe("concept");
+  });
+});
+
+describe("merge", () => {
+  const base = () => newManifest({ id: "a", name: "A" }, "2026-05-30T12:00:00Z");
+
+  test("deep-merges a nested block and stamps updated_at", () => {
+    const m = merge(base(), { concept: { genre: "endless runner", mechanics: ["jump"] } }, "2026-05-30T13:00:00Z");
+    expect(m.concept.genre).toBe("endless runner");
+    expect(m.concept.mechanics).toEqual(["jump"]);
+    expect(m.updated_at).toBe("2026-05-30T13:00:00Z");
+    expect(m.status).toBe("concept"); // untouched
+  });
+
+  test("replaces arrays wholesale rather than concatenating", () => {
+    const once = merge(base(), { concept: { mechanics: ["jump"] } });
+    const twice = merge(once, { concept: { mechanics: ["jump", "double-jump"] } });
+    expect(twice.concept.mechanics).toEqual(["jump", "double-jump"]);
+  });
+
+  test("does not mutate the input manifest", () => {
+    const original = base();
+    merge(original, { concept: { genre: "match-3" } });
+    expect(original.concept.genre).toBeUndefined();
   });
 });

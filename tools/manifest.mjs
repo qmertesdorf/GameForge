@@ -68,3 +68,24 @@ export function setStatus(manifest, status, now = new Date().toISOString()) {
   }
   return { ...manifest, status, updated_at: now };
 }
+
+function deepMerge(base, patch) {
+  if (Array.isArray(patch)) return patch.slice();
+  if (patch && typeof patch === "object") {
+    const out = Array.isArray(base) ? {} : { ...(base ?? {}) };
+    for (const [k, v] of Object.entries(patch)) {
+      const canRecurse =
+        v && typeof v === "object" && !Array.isArray(v) &&
+        base?.[k] && typeof base[k] === "object" && !Array.isArray(base[k]);
+      out[k] = canRecurse ? deepMerge(base[k], v) : Array.isArray(v) ? v.slice() : v;
+    }
+    return out;
+  }
+  return patch;
+}
+
+export function merge(manifest, patch, now = new Date().toISOString()) {
+  const merged = deepMerge(manifest, patch);
+  merged.updated_at = now;
+  return merged;
+}
