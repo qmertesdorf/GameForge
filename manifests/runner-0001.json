@@ -2,8 +2,8 @@
   "id": "runner-0001",
   "name": "Neon Dash",
   "created_at": "2026-05-31T00:17:56.976Z",
-  "updated_at": "2026-05-31T00:20:08.976Z",
-  "status": "generated",
+  "updated_at": "2026-05-31T00:21:04.068Z",
+  "status": "validated",
   "concept": {
     "genre": "endless runner",
     "core_loop": "tap to jump over oncoming neon obstacles; survive as long as possible while the world scrolls faster; score climbs with distance",
@@ -54,7 +54,9 @@
     }
   ],
   "validation": {
-    "issues": []
+    "issues": [],
+    "opens_in_editor": true,
+    "runs": true
   },
   "_reserved": {
     "compliance": null,
