@@ -70,3 +70,130 @@ describe("injectRecipe", () => {
     expect(() => injectRecipe(fixtureTemplate(), r)).toThrow(/prompt/);
   });
 });
+
+import { check, gen } from "./comfy.mjs";
+import { mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join as pjoin } from "node:path";
+
+// Build a fake fetch that routes by method+path and records calls. Each route
+// value is either a response spec or a function(callIndex) returning one, so a
+// route can change across polls. A response spec mimics the slice of the fetch
+// Response API the tool uses: { ok, status, json(), arrayBuffer() }.
+function mockFetch(routes) {
+  const calls = [];
+  const counts = {};
+  const fn = async (url, opts = {}) => {
+    const method = (opts.method || "GET").toUpperCase();
+    const path = new URL(url).pathname;
+    const key = `${method} ${path}`;
+    calls.push({ key, url, opts });
+    const route = routes[key];
+    if (route === undefined) throw new Error(`unrouted ${key}`);
+    const idx = counts[key] = (counts[key] ?? 0) + 1;
+    const spec = typeof route === "function" ? route(idx) : route;
+    if (spec instanceof Error) throw spec;
+    return {
+      ok: spec.ok ?? true,
+      status: spec.status ?? 200,
+      async json() { return spec.body; },
+      async arrayBuffer() { return spec.bytes ?? new ArrayBuffer(0); }
+    };
+  };
+  fn.calls = calls;
+  return fn;
+}
+
+describe("check", () => {
+  test("reports reachable + the available checkpoints", async () => {
+    const fetch = mockFetch({
+      "GET /system_stats": { body: { system: {} } },
+      "GET /object_info/CheckpointLoaderSimple": {
+        body: { CheckpointLoaderSimple: { input: { required: { ckpt_name: [["a.safetensors", "b.safetensors"]] } } } }
+      }
+    });
+    const res = await check({ fetch, host: "http://127.0.0.1:8188" });
+    expect(res.reachable).toBe(true);
+    expect(res.checkpoints).toEqual(["a.safetensors", "b.safetensors"]);
+  });
+
+  test("reports unreachable when the connection is refused", async () => {
+    const fetch = mockFetch({ "GET /system_stats": new Error("ECONNREFUSED") });
+    const res = await check({ fetch, host: "http://127.0.0.1:8188" });
+    expect(res.reachable).toBe(false);
+    expect(res.error).toMatch(/ECONNREFUSED/);
+  });
+});
+
+describe("gen", () => {
+  const recipe = () => ({
+    name: "hero", checkpoint: "a.safetensors", prompt: "a forest spirit",
+    negative: "logo, text", seed: 7, sampler: "dpmpp_2m", steps: 30, cfg: 6.5,
+    master_resolution: 512, layerdiffuse: true
+  });
+
+  function withDirs(run) {
+    const templatesDir = mkdtempSync(pjoin(tmpdir(), "cf-tpl-"));
+    const gamesDir = mkdtempSync(pjoin(tmpdir(), "cf-games-"));
+    writeFileSync(pjoin(templatesDir, "sdxl-layerdiffuse.json"), JSON.stringify({
+      "6": { class_type: "CLIPTextEncode", inputs: { text: "%prompt%" } },
+      "9": { class_type: "SaveImage", inputs: { images: ["8", 0] } }
+    }));
+    try { return run({ templatesDir, gamesDir }); }
+    finally { rmSync(templatesDir, { recursive: true, force: true }); rmSync(gamesDir, { recursive: true, force: true }); }
+  }
+
+  const HISTORY_DONE = {
+    body: { abc: { outputs: { "9": { images: [{ filename: "ComfyUI_0001.png", subfolder: "", type: "output" }] } } } }
+  };
+
+  test("happy path: submits, polls, downloads, writes the PNG", async () => {
+    await withDirs(async ({ templatesDir, gamesDir }) => {
+      const fetch = mockFetch({
+        "POST /prompt": { body: { prompt_id: "abc" } },
+        "GET /history/abc": HISTORY_DONE,
+        "GET /view": { bytes: new TextEncoder().encode("PNGDATA").buffer }
+      });
+      const res = await gen("creature-0001", "hero", recipe(), { fetch, templatesDir, gamesDir, pollIntervalMs: 0 });
+      const outPath = pjoin(gamesDir, "creature-0001", "art", "hero.png");
+      expect(existsSync(outPath)).toBe(true);
+      expect(readFileSync(outPath, "utf8")).toBe("PNGDATA");
+      expect(res.prompt_id).toBe("abc");
+      expect(res.path).toBe(outPath);
+    });
+  });
+
+  test("polls /history until the result appears", async () => {
+    await withDirs(async ({ templatesDir, gamesDir }) => {
+      const fetch = mockFetch({
+        "POST /prompt": { body: { prompt_id: "abc" } },
+        "GET /history/abc": (n) => (n < 3 ? { body: {} } : HISTORY_DONE),
+        "GET /view": { bytes: new TextEncoder().encode("PNGDATA").buffer }
+      });
+      await gen("creature-0001", "hero", recipe(), { fetch, templatesDir, gamesDir, pollIntervalMs: 0 });
+      const historyCalls = fetch.calls.filter((c) => c.key === "GET /history/abc").length;
+      expect(historyCalls).toBe(3);
+    });
+  });
+
+  test("throws on a graph error and writes no file", async () => {
+    await withDirs(async ({ templatesDir, gamesDir }) => {
+      const fetch = mockFetch({
+        "POST /prompt": { ok: false, status: 400, body: { error: { message: "node 6 missing input" }, node_errors: {} } }
+      });
+      await expect(gen("creature-0001", "hero", recipe(), { fetch, templatesDir, gamesDir, pollIntervalMs: 0 }))
+        .rejects.toThrow(/graph error|node 6/);
+      expect(existsSync(pjoin(gamesDir, "creature-0001", "art", "hero.png"))).toBe(false);
+    });
+  });
+
+  test("throws with the host when ComfyUI is unreachable", async () => {
+    await withDirs(async ({ templatesDir, gamesDir }) => {
+      const fetch = mockFetch({ "POST /prompt": new Error("ECONNREFUSED") });
+      await expect(gen("creature-0001", "hero", recipe(),
+        { fetch, host: "http://127.0.0.1:8188", templatesDir, gamesDir, pollIntervalMs: 0 }))
+        .rejects.toThrow(/127\.0\.0\.1:8188|unreachable/);
+      expect(existsSync(pjoin(gamesDir, "creature-0001", "art", "hero.png"))).toBe(false);
+    });
+  });
+});

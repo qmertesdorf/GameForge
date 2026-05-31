@@ -47,3 +47,119 @@ export function injectRecipe(template, recipe) {
   };
   return walk(template);
 }
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Ping ComfyUI and list installed checkpoints. Never throws on a down server —
+// returns { reachable:false, error } so --check can report it cleanly.
+export async function check({ fetch = globalThis.fetch, host = COMFY_HOST } = {}) {
+  try {
+    const stats = await fetch(`${host}/system_stats`);
+    if (!stats.ok) return { reachable: false, host, error: `system_stats HTTP ${stats.status}` };
+    const info = await fetch(`${host}/object_info/CheckpointLoaderSimple`);
+    const body = await info.json();
+    const checkpoints = body?.CheckpointLoaderSimple?.input?.required?.ckpt_name?.[0] ?? [];
+    return { reachable: true, host, checkpoints };
+  } catch (e) {
+    return { reachable: false, host, error: String(e.message ?? e) };
+  }
+}
+
+function templateName(recipe) {
+  return recipe.layerdiffuse ? "sdxl-layerdiffuse" : "sdxl";
+}
+
+// Pull the first output image descriptor out of a /history entry.
+function firstImage(historyEntry) {
+  const outputs = historyEntry?.outputs ?? {};
+  for (const nodeId of Object.keys(outputs)) {
+    const imgs = outputs[nodeId]?.images;
+    if (Array.isArray(imgs) && imgs.length) return imgs[0];
+  }
+  return null;
+}
+
+// Turn a recipe into a committed RGBA PNG at games/<id>/art/<name>.png.
+// Fails loudly (with host/graph context) so any failure is attributable to infra.
+export async function gen(id, name, recipe, {
+  fetch = globalThis.fetch,
+  host = COMFY_HOST,
+  templatesDir = TEMPLATES_DIR,
+  gamesDir = GAMES_DIR,
+  pollIntervalMs = 1000,
+  maxPolls = 600
+} = {}) {
+  const tplPath = join(templatesDir, `${templateName(recipe)}.json`);
+  const template = JSON.parse(readFileSync(tplPath, "utf8"));
+  const workflow = injectRecipe(template, recipe);
+
+  let submit;
+  try {
+    submit = await fetch(`${host}/prompt`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt: workflow })
+    });
+  } catch (e) {
+    throw new Error(`comfy: ComfyUI unreachable at ${host} (${String(e.message ?? e)}) — start the server or set COMFY_HOST`);
+  }
+  if (!submit.ok) {
+    const err = await submit.json().catch(() => ({}));
+    throw new Error(`comfy: graph error from ${host}/prompt (HTTP ${submit.status}): ${JSON.stringify(err.error ?? err)}`);
+  }
+  const { prompt_id } = await submit.json();
+
+  let image = null;
+  for (let i = 0; i < maxPolls; i++) {
+    const hist = await fetch(`${host}/history/${prompt_id}`);
+    const body = await hist.json();
+    const entry = body?.[prompt_id];
+    if (entry) {
+      image = firstImage(entry);
+      if (image) break;
+      throw new Error(`comfy: prompt ${prompt_id} finished with no image output (graph error?)`);
+    }
+    await sleep(pollIntervalMs);
+  }
+  if (!image) throw new Error(`comfy: timed out waiting for prompt ${prompt_id} after ${maxPolls} polls`);
+
+  const params = new URLSearchParams({ filename: image.filename, subfolder: image.subfolder ?? "", type: image.type ?? "output" });
+  const view = await fetch(`${host}/view?${params}`);
+  const bytes = Buffer.from(await view.arrayBuffer());
+
+  const artDir = join(gamesDir, id, "art");
+  mkdirSync(artDir, { recursive: true });
+  const outPath = join(artDir, `${name}.png`);
+  writeFileSync(outPath, bytes);
+  return { path: outPath, prompt_id };
+}
+
+async function cli(argv) {
+  const [cmd, ...rest] = argv;
+  if (cmd === "--check") {
+    const res = await check();
+    if (res.reachable) {
+      console.log(`comfy OK at ${res.host} — ${res.checkpoints.length} checkpoint(s): ${res.checkpoints.join(", ")}`);
+    } else {
+      console.error(`comfy UNREACHABLE at ${res.host}: ${res.error}`);
+      process.exit(1);
+    }
+    return;
+  }
+  if (cmd === "gen") {
+    const [id, name, recipeJson] = rest;
+    if (!id || !name || !recipeJson) {
+      console.error("usage: node tools/comfy.mjs gen <id> <asset-name> '<recipe-json>'");
+      process.exit(2);
+    }
+    const res = await gen(id, name, JSON.parse(recipeJson));
+    console.log(`wrote ${res.path} (prompt ${res.prompt_id})`);
+    return;
+  }
+  console.error("usage: node tools/comfy.mjs <--check | gen <id> <asset-name> '<recipe-json>'>");
+  process.exit(2);
+}
+
+if (fileURLToPath(import.meta.url) === process.argv[1]) {
+  cli(process.argv.slice(2)).catch((e) => { console.error(e.message); process.exit(1); });
+}
