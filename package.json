@@ -1,0 +1,15 @@
+{
+  "name": "gameforge",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "GameForge POC — skills + manifest tooling that turn a prompt into a playable Godot game.",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "vitest": "^3.0.0",
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1"
+  }
+}
