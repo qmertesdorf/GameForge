@@ -20,7 +20,7 @@ Turn a one-line prompt into a structured, differentiated design concept and reco
 
 2. **Derive the concept.** From the prompt, decide:
    - `genre` — short noun phrase (e.g. "endless runner", "match-3", "top-down shooter").
-   - `core_loop` — one or two sentences describing the second-to-second loop AND its **difficulty curve** (e.g. "tap to jump, avoid obstacles, score climbs with distance; starts gentle and ramps speed every ~10s up to a cap"). Naming the curve gives `builder` something to tune toward.
+   - `core_loop` — one or two sentences describing the second-to-second loop AND its **difficulty curve** (e.g. "tap to jump, avoid obstacles, score climbs with distance; starts gentle and ramps speed every ~10s up to a cap"). Naming the curve gives `builder` something to tune toward. **State the player's moment-to-moment decision** — answer "what is the player choosing each second?" A loop with no live decision plays as "brainless" even when it runs correctly (POC run-003: an auto-firing shooter). If simplifying controls for mobile removes the decision (auto-aim, auto-fire), restore one another way (a dodge/dash, a targetable special, limited ammo that forces aim, a risk/reward pickup).
    - `mechanics` — a short list of the concrete mechanics the builder must implement (e.g. ["jump", "obstacle spawning", "score", "game over + restart"]). Keep it minimal but complete — every item here is something `builder` must wire up. Include **at least one progression or reward beat** beyond bare survival (e.g. milestone pickups, a combo/streak, or speed tiers that change the visuals) so the loop has somewhere to go.
    - `art_direction` — a coherent primitive-art direction that `builder` can *execute*, not just a palette. Specify: a named palette + shape language, a **background treatment** (so there's no dead space — e.g. parallax lines/stars/gradient), and at least one **motion/feedback beat** (e.g. "screen flash + shake on death, score pulses on milestone"). Example: "neon vector on near-black; bright cyan/magenta shapes with additive glow; faint parallax grid scrolling behind; white flash + shake on crash." Be specific — vague art direction is the top cause of bland output.
    - `target_platforms` — `["android"]` for the POC.
@@ -44,6 +44,12 @@ Turn a one-line prompt into a structured, differentiated design concept and reco
    node tools/manifest.mjs validate <id>
    ```
    Expected: `<id> OK`. The manifest is now at `status = "concept"` — hand off to `builder`.
+
+## Hybrid / combination concepts (when the prompt blends two genres)
+A combination prompt ("match-3 + survival", "runner + shooter") is handled by the same steps above — but a blend has one extra failure mode: the two genres **coexist** instead of **fusing**, so it plays as "genre A with something random happening at the same time" (POC run-004). The concept is where the fusion is won or lost. Make it explicit:
+- **Name the forcing function.** State, in `core_loop`, what makes the *second* genre's pressure continuously reshape the player's choices in the *first*. Answer: "what stops the player from just playing genre A and ignoring genre B?" If there is no good answer, the genres are not actually blended — fix the concept, don't hand a hollow blend to `builder`.
+- **Tie them through one shared resource or decision.** The strongest blends route both genres through a single resource the player must split (run-004: matches that could fuel offense OR defense). Put that contention in `core_loop` and `mechanics`.
+- **Make the blend — not either genre — the differentiator.** `differentiation_notes` should explain why the *combination* is the hook, not just that it's "genre A but also B."
 
 ## Notes
 - Do NOT invent assets here. Art is the builder's job (deliberate primitives); this skill only sets `art_direction` to steer it.

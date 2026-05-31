@@ -49,6 +49,19 @@ A loop that is unfair or arbitrarily paced reads as broken even when it "works":
 - **Start gentle, ramp gradually.** Define an explicit starting difficulty (speed/spawn rate) and a slow ramp with a hard cap (`MAX_*` constants), so the first ~10s is forgiving and tension builds.
 - Pull the intended curve from `concept.core_loop` if it specifies one; otherwise choose sane defaults and note them in a comment.
 
+## Hybrid / dual-loop concepts (REQUIRED when `concept.genre` blends two genres)
+A blended concept (e.g. "match-3 + survival") is still just another concept the steps below consume — but the scaffold and rules above assume a **single** actor/threat loop. When the concept fuses two subsystems, the dominant failure mode is **two systems that merely coexist on screen instead of fusing into one loop** — a playtester reads it as "genre A, with something random happening at the same time" (POC run-004). Wire the fusion deliberately:
+- **Name and honor the shared-resource tension.** Identify the single resource both subsystems compete for (run-004: the player's matches — each swap could serve offense *or* defense). That *contention* is the game; make spending the resource on one subsystem visibly cost the other, so the player must choose.
+- **State the concurrency contract explicitly** (in a comment): does the real-time subsystem keep advancing during the other subsystem's discrete actions (swaps / resolves / animations)? "It keeps advancing" is usually what creates pressure — but make it a deliberate, tuned choice, not an accident.
+- **Make the cross-subsystem causal link SALIENT.** The player must see and feel that action A drove effect B — a bright tracer from the match to the threat, a wall pulse on repair, a number that visibly jumps. A correct-but-invisible link is exactly what reads as "random stuff happening at once."
+- **Tune fairness across BOTH axes.** The dominant strategy must neither trivially win nor be unwinnable: a steady stream of the offense action should be *able* to out-pace the capped threat, while ignoring the defense action should reliably lose. Watch the threat/HP values over your 3000-frame headless run to confirm — and if the genre is logic-heavy, assert it in `selftest.gd` (below).
+
+## Godot 4.6 GDScript typing (REQUIRED — this prevents build-error loops)
+Godot 4.6 enforces strict typing and treats an inferred `Variant` as an error. Three consecutive POC runs lost (or would have lost) build iterations to exactly this, so follow it from the first draft — doing so took the two most logic-dense builds to **zero** build iterations:
+- **Never `:=`-infer off a `Variant`-returning expression.** Indexing an *untyped* `Array`/`Dictionary` returns `Variant`; so do `clamp`, `lerp`, `min`, `max`, `abs` (even with float args). Annotate the receiving variable explicitly: `var x: float = clamp(v, 0.0, 1.0)`, `var c: Color = lerp(a, b, t)`, `var cell: int = grid[i]`.
+- **`Array.filter()` / `Array.map()` return an *untyped* `Array`** — assigning to a typed `Array[T]` needs an explicit annotation or a rebuilt typed array.
+- **Prefer typed containers** where natural (e.g. `var board: Array = []`), but always annotate the read site rather than relying on inference.
+
 ## Reference scaffold (adapt to the genre)
 
 `games/<id>/project.godot`:
@@ -136,5 +149,16 @@ Create `Main.tscn` as a text scene referencing `Main.gd` on the root node, plus 
 ## Notes
 - Importing a `.gd` script generates a sibling `<name>.gd.uid` file. This is expected Godot 4.x output, not stray junk — commit it alongside the script.
 
-## Forward-looking (not required in POC)
-The future automated `core_loop_functional` check expects a headless **self-test** scene that simulates input over N frames and asserts state changes. If cheap, emit `games/<id>/selftest.gd` now so the hook exists; otherwise leave it for the `validator`'s documented plug-in point.
+## Self-test for logic-heavy genres (REQUIRED when the loop has non-trivial state logic)
+"Runs headless without errors" does NOT prove the loop is correct — a match-3 with broken match-detection, or a hybrid whose offense match never actually damages the threat, will pass the programmatic gate and only fail a human (POC runs 002–004). For logic-heavy genres (puzzle/grid, state machines, multi-subsystem hybrids), emit `games/<id>/selftest.gd`: a headless `SceneTree` script that loads the game, drives the core action over N frames (drive state directly or synthesize `InputEvent`s — never wait on real input), ASSERTS observable state changes, then prints exactly `SELFTEST OK` and exits 0, or `SELFTEST FAIL: <reason>` and exits non-zero. Assert what a human would check, e.g.:
+- a known swap that should clear cells actually reduces the gem count / fires the match path,
+- after a forced resolve the board has no floating gaps,
+- an offense match lowers the threat's HP and a defense match raises wall HP (the hybrid's whole point),
+- `_game_over()` fires when the loss condition is forced.
+Keep it deterministic and headless-safe. The `validator` runs it automatically and will `fail` the build on `SELFTEST FAIL`. For a trivially simple arcade loop where a state assertion adds nothing, you may skip it — but say so explicitly in the build notes so the omission is a deliberate, legible choice, not a gap.
+
+Run your own self-test before handing off:
+```
+& "<godot exe>" --headless --path games/<id>/ --script res://selftest.gd
+```
+Expect exit 0 and `SELFTEST OK`. Fix the loop logic (not the assertion) until it passes.
