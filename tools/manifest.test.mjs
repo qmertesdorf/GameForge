@@ -128,3 +128,51 @@ describe("merge", () => {
     expect(original.concept.genre).toBeUndefined();
   });
 });
+
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, readFileSync as rf, writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join as pjoin } from "node:path";
+import { fileURLToPath as f2p } from "node:url";
+
+const CLI = f2p(new URL("./manifest.mjs", import.meta.url));
+
+function runCli(args, dir) {
+  return execFileSync(process.execPath, [CLI, ...args], {
+    env: { ...process.env, GAMEFORGE_MANIFEST_DIR: dir },
+    encoding: "utf8"
+  });
+}
+
+describe("CLI", () => {
+  test("create → merge → set-status → validate round-trips on disk", () => {
+    const dir = mkdtempSync(pjoin(tmpdir(), "gf-"));
+    try {
+      runCli(["create", "runner-0001", "Neon Dash"], dir);
+      runCli(["merge", "runner-0001", JSON.stringify({ concept: { genre: "endless runner" } })], dir);
+      runCli(["set-status", "runner-0001", "generated"], dir);
+      const out = runCli(["validate", "runner-0001"], dir);
+      expect(out).toMatch(/OK/);
+
+      const m = JSON.parse(rf(pjoin(dir, "runner-0001.json"), "utf8"));
+      expect(m.status).toBe("generated");
+      expect(m.concept.genre).toBe("endless runner");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("validate exits non-zero on a hand-corrupted manifest", () => {
+    const dir = mkdtempSync(pjoin(tmpdir(), "gf-"));
+    try {
+      runCli(["create", "bad-0001", "Bad"], dir);
+      const p = pjoin(dir, "bad-0001.json");
+      const m = JSON.parse(rf(p, "utf8"));
+      m.status = "shipped";
+      writeFileSync(p, JSON.stringify(m));
+      expect(() => runCli(["validate", "bad-0001"], dir)).toThrow();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});

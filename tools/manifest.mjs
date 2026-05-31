@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import Ajv from "ajv/dist/2020.js";
@@ -7,6 +7,7 @@ import addFormats from "ajv-formats";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, "..");
 const SCHEMA_PATH = join(REPO_ROOT, "schema", "manifest.schema.json");
+const MANIFEST_DIR = process.env.GAMEFORGE_MANIFEST_DIR || join(REPO_ROOT, "manifests");
 
 let _validator;
 function getValidator() {
@@ -88,4 +89,62 @@ export function merge(manifest, patch, now = new Date().toISOString()) {
   const merged = deepMerge(manifest, patch);
   merged.updated_at = now;
   return merged;
+}
+
+export function manifestPath(id) {
+  return join(MANIFEST_DIR, `${id}.json`);
+}
+
+export function readManifest(id) {
+  return JSON.parse(readFileSync(manifestPath(id), "utf8"));
+}
+
+export function writeManifest(manifest) {
+  const p = manifestPath(manifest.id);
+  writeFileSync(p, JSON.stringify(manifest, null, 2) + "\n");
+  return p;
+}
+
+function cli(argv) {
+  const [cmd, ...rest] = argv;
+  switch (cmd) {
+    case "create": {
+      const [id, ...nameParts] = rest;
+      const m = newManifest({ id, name: nameParts.join(" ") });
+      const { valid, errors } = validate(m);
+      if (!valid) throw new Error("created manifest is invalid: " + errors.join("; "));
+      console.log(`created ${writeManifest(m)}`);
+      break;
+    }
+    case "merge": {
+      const [id, json] = rest;
+      writeManifest(merge(readManifest(id), JSON.parse(json)));
+      console.log(`merged into ${id}`);
+      break;
+    }
+    case "set-status": {
+      const [id, status] = rest;
+      writeManifest(setStatus(readManifest(id), status));
+      console.log(`${id} -> ${status}`);
+      break;
+    }
+    case "validate": {
+      const [id] = rest;
+      const { valid, errors } = validate(readManifest(id));
+      if (valid) {
+        console.log(`${id} OK`);
+      } else {
+        console.error(`${id} INVALID:\n${errors.join("\n")}`);
+        process.exit(1);
+      }
+      break;
+    }
+    default:
+      console.error("usage: node tools/manifest.mjs <create|merge|set-status|validate> ...");
+      process.exit(2);
+  }
+}
+
+if (fileURLToPath(import.meta.url) === process.argv[1]) {
+  cli(process.argv.slice(2));
 }
