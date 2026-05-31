@@ -1,0 +1,65 @@
+{
+  "id": "creature-0001",
+  "name": "Glade Spirit",
+  "created_at": "2026-05-31T21:59:34.615Z",
+  "updated_at": "2026-05-31T22:05:01.569Z",
+  "status": "validated",
+  "concept": {
+    "genre": "top-down creature forager",
+    "core_loop": "One-thumb: drag to glide a small forest-spirit around an autumn glade. Each second you choose a path — dart toward glowing seeds (score + a streak combo) or peel away from roaming thorn-sprite hazards that drift toward you. Collecting seeds without being hit builds a streak that boosts score; one hit ends the run (tap to restart). Difficulty ramps every ~12s: hazards spawn more often and drift faster, up to a cap. The live decision is risk/reward pathing — grab the seed tucked next to a hazard, or play safe.",
+    "mechanics": [
+      "drag-to-move (one thumb)",
+      "seed spawning + collection (score)",
+      "streak/combo reward beat (consecutive seeds without a hit -> score multiplier)",
+      "hazard spawning + homing-ish drift + collision",
+      "difficulty ramp (spawn rate + hazard speed tiers, capped)",
+      "game over on hazard contact + tap-to-restart"
+    ],
+    "art_direction": "Representational PAINTERLY/illustrated forest creatures — this is the M1.5 RASTER target (NOT geometric/SVG): a soft rounded forest-spirit, organic thorn-sprite hazards, glowing seed-motes, an autumn-forest backdrop. Builder placeholder (primitives, to be raster re-skinned later): warm autumn palette — amber/rust/gold creatures and bright gold seed-circles on a deep forest-green field; soft rounded blobs for the spirit and hazards (organic, not sharp/geometric); parallax bands of darker tree-silhouette shapes drifting behind for depth; feedback beats: gentle warm pulse + scale-pop on seed pickup, red flash + screen shake on a hit.",
+    "target_platforms": [
+      "android"
+    ],
+    "differentiation_notes": "Not a third runner and not the top-down shooter: a calm-but-tense forage with risk/reward pathing and no weapons. The real hook is being the set's first REPRESENTATIONAL/painterly title (M1.5 raster) — its creatures and foliage are exactly the art SVG does badly, so it is the right proof target for the raster method."
+  },
+  "build": {
+    "engine": "godot",
+    "engine_version": "4.6.3.stable",
+    "language": "gdscript",
+    "project_path": "games/creature-0001/",
+    "addons": [],
+    "export_presets": [
+      "android"
+    ]
+  },
+  "assets": [
+    {
+      "type": "sprite",
+      "name": "spirit",
+      "source": "placeholder",
+      "origin": "primitive"
+    },
+    {
+      "type": "sprite",
+      "name": "seed",
+      "source": "placeholder",
+      "origin": "primitive"
+    },
+    {
+      "type": "sprite",
+      "name": "hazard",
+      "source": "placeholder",
+      "origin": "primitive"
+    }
+  ],
+  "validation": {
+    "issues": [],
+    "opens_in_editor": true,
+    "runs": true,
+    "core_loop_functional": true
+  },
+  "_reserved": {
+    "compliance": null,
+    "store": null,
+    "maintenance": null
+  }
+}
