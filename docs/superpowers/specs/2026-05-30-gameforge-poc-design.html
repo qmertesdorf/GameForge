@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GameForge — POC Technical Design</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #171a21;
+    --panel-2: #1d2129;
+    --ink: #e7e9ee;
+    --muted: #9aa3b0;
+    --line: #2a2f3a;
+    --accent: #6ea8fe;
+    --accent-2: #7ee787;
+    --warn: #ffb454;
+    --code-bg: #11141a;
+    --pill: #232834;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.65 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 0 24px 120px; }
+
+  header.hero {
+    padding: 56px 24px 40px;
+    background: radial-gradient(1200px 400px at 20% -10%, rgba(110,168,254,.18), transparent 60%),
+                radial-gradient(900px 380px at 90% -20%, rgba(126,231,135,.12), transparent 55%);
+    border-bottom: 1px solid var(--line);
+  }
+  .hero-inner { max-width: 1100px; margin: 0 auto; padding: 0 0; }
+  .eyebrow { letter-spacing: .14em; text-transform: uppercase; font-size: 12px; color: var(--accent); font-weight: 700; }
+  h1.title { font-size: 44px; line-height: 1.1; margin: 10px 0 8px; font-weight: 800; }
+  .subtitle { color: var(--muted); font-size: 18px; margin: 0 0 22px; }
+  .meta-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap: 12px; margin-top: 18px; }
+  .meta-card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+  .meta-card .k { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+  .meta-card .v { font-size: 15px; font-weight: 600; margin-top: 3px; }
+  .status-pill { display:inline-block; background: rgba(126,231,135,.14); color: var(--accent-2); border:1px solid rgba(126,231,135,.3); padding: 3px 10px; border-radius: 999px; font-size: 13px; font-weight:600; }
+
+  /* layout with sticky TOC */
+  .layout { display: grid; grid-template-columns: 240px 1fr; gap: 40px; margin-top: 40px; align-items: start; }
+  nav.toc { position: sticky; top: 24px; font-size: 14px; border: 1px solid var(--line); background: var(--panel); border-radius: 12px; padding: 16px; }
+  nav.toc h4 { margin: 0 0 10px; font-size: 12px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
+  nav.toc a { display: block; color: var(--muted); text-decoration: none; padding: 5px 8px; border-radius: 7px; }
+  nav.toc a:hover { color: var(--ink); background: var(--panel-2); }
+
+  section { scroll-margin-top: 20px; margin-bottom: 14px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 24px 26px; margin-bottom: 22px; }
+  h2 { font-size: 24px; margin: 4px 0 14px; display: flex; align-items: baseline; gap: 12px; }
+  h2 .num { color: var(--accent); font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  h3 { font-size: 18px; margin: 22px 0 8px; }
+  p { margin: 10px 0; }
+  .muted { color: var(--muted); }
+  strong { color: #fff; }
+
+  blockquote {
+    margin: 16px 0; padding: 12px 18px; border-left: 3px solid var(--accent);
+    background: var(--panel-2); border-radius: 0 10px 10px 0; color: #d4dae6; font-style: italic;
+  }
+  .callout {
+    border: 1px solid var(--line); border-left: 4px solid var(--warn);
+    background: rgba(255,180,84,.06); border-radius: 0 10px 10px 0; padding: 14px 18px; margin: 16px 0;
+  }
+  .callout.good { border-left-color: var(--accent-2); background: rgba(126,231,135,.06); }
+  .callout.info { border-left-color: var(--accent); background: rgba(110,168,254,.06); }
+  .callout .lead { font-weight: 700; }
+
+  ul, ol { margin: 10px 0; padding-left: 22px; }
+  li { margin: 6px 0; }
+
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14.5px; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; background: var(--panel-2); }
+  tr:last-child td { border-bottom: none; }
+  td code, p code, li code { background: var(--code-bg); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; font-size: 13px; color: #c8d3e6; }
+  code, pre { font-family: "JetBrains Mono", "SF Mono", Consolas, monospace; }
+  pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; overflow-x: auto; font-size: 13px; line-height: 1.55; color: #cdd6e4; }
+
+  .pipeline { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 14px 0; }
+  .stage { background: var(--pill); border: 1px solid var(--line); border-radius: 10px; padding: 8px 14px; font-weight: 600; }
+  .stage.dim { opacity: .5; }
+  .arrow { color: var(--accent); font-weight: 700; }
+
+  .milestone-row td:first-child { font-weight: 700; color: var(--accent); white-space: nowrap; }
+  .skilltag { font-family: "JetBrains Mono", monospace; background: rgba(110,168,254,.12); border:1px solid rgba(110,168,254,.3); color:#a9c7ff; padding:1px 7px; border-radius:6px; font-size:13px; }
+
+  footer { text-align: center; color: var(--muted); font-size: 13px; margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--line); }
+
+  @media (max-width: 820px) {
+    .layout { grid-template-columns: 1fr; }
+    nav.toc { position: static; }
+    h1.title { font-size: 32px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <div class="eyebrow">Technical Design Document</div>
+    <h1 class="title">GameForge</h1>
+    <p class="subtitle">An AI pipeline that turns a one-line prompt into a playable mobile game — built as Claude Agent Skills.</p>
+    <span class="status-pill">● Approved design v1.0 — POC scope</span>
+    <div class="meta-grid">
+      <div class="meta-card"><div class="k">Date</div><div class="v">2026-05-30</div></div>
+      <div class="meta-card"><div class="k">Engine</div><div class="v">Godot 4.x</div></div>
+      <div class="meta-card"><div class="k">Target</div><div class="v">Android-first</div></div>
+      <div class="meta-card"><div class="k">POC Skills</div><div class="v">concept · builder · validator</div></div>
+      <div class="meta-card"><div class="k">Deliverable</div><div class="v">Better skills, not games</div></div>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+<div class="layout">
+
+  <nav class="toc">
+    <h4>Contents</h4>
+    <a href="#s1">1 · What this is</a>
+    <a href="#s2">2 · Success criteria</a>
+    <a href="#s3">3 · Settled decisions</a>
+    <a href="#s4">4 · Architecture</a>
+    <a href="#s5">5 · The manifest</a>
+    <a href="#s6">6 · Skills in scope</a>
+    <a href="#s7">7 · Repo layout</a>
+    <a href="#s8">8 · POC workflow</a>
+    <a href="#s9">9 · Out of scope</a>
+    <a href="#s10">10 · Roadmap</a>
+    <a href="#s11">11 · Environment & VCS</a>
+    <a href="#s12">12 · First tasks</a>
+    <a href="#s13">13 · Risks</a>
+  </nav>
+
+  <main>
+
+    <section id="s1" class="card">
+      <h2><span class="num">01</span> What this is (and isn't)</h2>
+      <p>GameForge is an AI pipeline that turns a short prompt into a playable mobile game, built as a set of <strong>Agent Skills</strong> invoked by Claude. The long-term vision is many genuinely-different titles across genres, with skills for generation, compliance, submission, and continuous maintenance (see the <a href="#s10">§10 roadmap</a>).</p>
+      <p><strong>This POC is deliberately smaller.</strong> Its only job is to answer one question:</p>
+      <blockquote>Can a small set of skills reliably generate a game that compiles, runs, and is playable — across several different genres — with minimal hand-holding?</blockquote>
+      <p>Everything else (store submission, monetization, the sustain-phase skills, production/API billing) is <strong>out of scope for the POC</strong> and is captured as future milestones in §10 so it doesn't get built prematurely.</p>
+    </section>
+
+    <section id="s2" class="card">
+      <h2><span class="num">02</span> Success criteria</h2>
+      <p>The POC succeeds if, using interactive Claude Code on the owner's subscription:</p>
+      <ol>
+        <li>From a one-line prompt, the pipeline produces a working game project for <strong>at least 3 distinct genres</strong> (e.g. an endless runner, a match-3, a top-down shooter).</li>
+        <li>Each generated project <strong>opens and runs in the engine without manual code fixes</strong>.</li>
+        <li>Each game is <strong>playable</strong> — its core loop functions — for at least ~60 seconds.</li>
+        <li>A <strong>manifest</strong> (§5) is produced and correct for each title.</li>
+        <li>When generation fails, the failure is <strong>legible enough to attribute to a specific skill gap</strong>. "It just didn't work" is a POC failure; "the Builder skill doesn't scaffold input handling for touch" is a POC success.</li>
+      </ol>
+      <div class="callout good">
+        <span class="lead">The real point — criterion 5.</span> The POC is a test of <em>skill quality and the iteration loop</em>, not of throughput. The deliverable of the POC is <strong>better skills</strong>, not the games themselves.
+      </div>
+    </section>
+
+    <section id="s3" class="card">
+      <h2><span class="num">03</span> Settled decisions</h2>
+      <p>Confirmed during brainstorming and now locked.</p>
+      <table>
+        <thead><tr><th>Decision</th><th>Resolution</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Engine</strong></td><td>Godot 4.x <span class="muted">(confirmed)</span></td><td>Text-based <code>.tscn</code> scenes + GDScript are LLM- and diff-friendly; free, no per-seat licensing; exports to iOS + Android. Manifest, builder, and validator all assume Godot.</td></tr>
+          <tr><td><strong>Validation method</strong></td><td>Hybrid: CLI + human playtest, with a documented automation path</td><td>Programmatic CLI checks set <code>status = "validated"</code>; a human playtest advances it to <code>"playable"</code>. See §6 <code>validator</code> for the future full-automation design.</td></tr>
+          <tr><td><strong>Assets in POC</strong></td><td>Deferred (M1), but POC uses <em>deliberate</em> primitives</td><td>No image/audio generation in the POC. <code>builder</code> must produce intentional primitive/procedural visuals — coherent palette, clean shapes, simple effects — not broken-looking placeholders.</td></tr>
+          <tr><td><strong>Environment</strong></td><td>Godot is <strong>NOT yet installed</strong> — install is Step 0</td><td>Verified: no Godot on PATH, Program Files, Steam, scoop, or winget. The plan begins with install + verification before any scaffolding.</td></tr>
+        </tbody>
+      </table>
+      <p class="muted">Remaining defaults (unchanged): <strong>Android-first</strong> target · <strong>PC (Windows) primary</strong> dev machine · <strong>interactive Claude Code on Pro/Max</strong> billing · scaffold in the <strong>current directory</strong> (no nested <code>gameforge/</code> folder).</p>
+    </section>
+
+    <section id="s4" class="card">
+      <h2><span class="num">04</span> Architecture (POC scope)</h2>
+      <p>Three layers, kept distinct:</p>
+      <ul>
+        <li><strong>Skills</strong> — folders containing a <code>SKILL.md</code> (YAML frontmatter <code>name</code> + <code>description</code>, then markdown instructions). These hold the <em>procedure and judgment</em>. Claude loads a skill's body only when relevant (progressive disclosure).</li>
+        <li><strong>Agent runtime</strong> — interactive Claude Code in the terminal. The owner drives it; Claude invokes skills and writes files.</li>
+        <li><strong>Tools</strong> — for the POC, mostly the local filesystem and the Godot CLI. (Asset generation, store APIs, etc. become MCP tools in later milestones — not now.)</li>
+      </ul>
+      <div class="callout info">
+        <span class="lead">The manifest connects everything.</span> A per-title JSON file is the single source of truth. Every skill reads from and writes to it. This is the most important thing to get right, because it's what later milestones (maintenance especially) depend on.
+      </div>
+      <p><strong>POC skills:</strong> <span class="skilltag">concept</span> <span class="skilltag">builder</span> <span class="skilltag">validator</span><br>
+      <strong>Deferred (do not build yet):</strong> <span class="skilltag">asset</span> <span class="skilltag">compliance</span> <span class="skilltag">listing</span> <span class="skilltag">submission</span> <span class="skilltag">monitor</span> <span class="skilltag">updater</span> <span class="skilltag">troubleshooter</span> — each a future milestone (§10).</p>
+    </section>
+
+    <section id="s5" class="card">
+      <h2><span class="num">05</span> The manifest (the spine)</h2>
+      <p>One JSON file per title at <code>manifests/&lt;title-id&gt;.json</code>. POC fields below; reserved keys are included so the schema is extensible without restructuring later.</p>
+      <pre>{
+  "id": "runner-0001",
+  "name": "Neon Dash",
+  "created_at": "2026-05-30T12:00:00Z",
+  "updated_at": "2026-05-30T12:00:00Z",
+  "status": "playable",                // concept | generated | validated | playable | failed
+  "concept": {
+    "genre": "endless runner",
+    "core_loop": "tap to jump, avoid obstacles, score climbs with distance",
+    "mechanics": ["jump", "obstacle spawning", "score", "game over + restart"],
+    "art_direction": "neon vector, dark background",
+    "target_platforms": ["android"],
+    "differentiation_notes": "single-tap control; not a clone of a saturated title"
+  },
+  "build": {
+    "engine": "godot",
+    "engine_version": "4.x",
+    "language": "gdscript",
+    "project_path": "games/runner-0001/",
+    "addons": [],
+    "export_presets": ["android"]
+  },
+  "assets": [
+    { "type": "sprite", "name": "player", "source": "placeholder", "origin": "primitive" }
+  ],
+  "validation": {
+    "opens_in_editor": true,
+    "runs": true,
+    "core_loop_functional": true,
+    "issues": []
+  },
+
+  "_reserved": {
+    "compliance": null,
+    "store": null,
+    "maintenance": null
+  }
+}</pre>
+      <p><strong>Rules:</strong></p>
+      <ul>
+        <li>The <code>builder</code> skill <strong>must</strong> emit a complete <code>build</code> block — this is what a future maintenance skill needs to reason about the title.</li>
+        <li><code>status</code> is advanced by skills as the title moves through the loop.</li>
+        <li>Never delete <code>_reserved</code>; later milestones fill it in. Every <code>_reserved</code> key maps to a named milestone in §10.</li>
+      </ul>
+    </section>
+
+    <section id="s6" class="card">
+      <h2><span class="num">06</span> Skills in scope</h2>
+      <p>Each skill is <code>.claude/skills/&lt;name&gt;/SKILL.md</code> — YAML frontmatter (<code>name</code> + <code>description</code>) followed by markdown instructions Claude follows.</p>
+
+      <h3><span class="skilltag">concept</span></h3>
+      <ul>
+        <li><strong>Purpose:</strong> turn a one-line prompt into a structured, validated design spec.</li>
+        <li><strong>Inputs:</strong> prompt string; existing <code>manifests/</code> (to avoid near-duplicates).</li>
+        <li><strong>Outputs:</strong> populated <code>manifest.concept</code>; <code>status = "concept"</code>.</li>
+        <li><strong>Notes:</strong> includes a lightweight differentiation check. Populates <code>art_direction</code>, which <code>builder</code> uses to drive its primitive visual style.</li>
+      </ul>
+
+      <h3><span class="skilltag">builder</span></h3>
+      <ul>
+        <li><strong>Purpose:</strong> generate a runnable Godot project from <code>manifest.concept</code>.</li>
+        <li><strong>Inputs:</strong> <code>manifest.concept</code>.</li>
+        <li><strong>Outputs:</strong> a project under <code>games/&lt;id&gt;/</code>; populated <code>manifest.build</code>; <code>status = "generated"</code>.</li>
+        <li><strong>Notes:</strong> must open and run without manual fixes; keep the core loop minimal but functional; wire touch/tap input for Android.</li>
+      </ul>
+      <div class="callout">
+        <span class="lead">Deliberate primitives.</span> Use in-engine primitive/procedural art (shapes, palettes, simple particle effects) that looks <em>intentional</em> — a coherent color palette derived from <code>concept.art_direction</code>, clean shapes, basic visual feedback. No external generated art (that's M1). Record each as <code>assets[] { source: "placeholder", origin: "primitive" }</code>.
+      </div>
+
+      <h3><span class="skilltag">validator</span></h3>
+      <ul>
+        <li><strong>Purpose:</strong> confirm the generated game opens, runs, and has a working core loop.</li>
+        <li><strong>Inputs:</strong> <code>manifest.build</code>, the project on disk.</li>
+        <li><strong>Outputs:</strong> populated <code>manifest.validation</code>; advances <code>status</code> to <code>validated</code>/<code>playable</code>, or flips to <code>failed</code> with legible <code>issues</code>.</li>
+      </ul>
+      <p><strong>Validation method (hybrid):</strong></p>
+      <ol>
+        <li><strong>Programmatic (automated now):</strong> run Godot headless via the CLI — project imports, runs without script errors, scene tree loads. On success, set <code>status = "validated"</code> and fill the programmatically-checkable booleans (<code>opens_in_editor</code>, <code>runs</code>).</li>
+        <li><strong>Human playtest (manual now):</strong> the owner playtests in the editor to confirm the core loop works (tap → jump, score climbs, game-over/restart). On confirmation, set <code>core_loop_functional = true</code> and advance <code>status = "playable"</code>.</li>
+      </ol>
+      <div class="callout info">
+        <span class="lead">Future full automation (documented, not built in POC).</span> The <code>core_loop_functional</code> check is the manual step to automate later. Intended design: <code>builder</code> emits a headless <strong>self-test</strong> scene/script that simulates input over N frames and asserts observable state changes (score increments, player Y changes on jump, game-over fires on collision), runnable via the Godot CLI in CI. The <code>validator</code> skill must include an inline comment marking exactly where this self-test would plug in — so the automation is designed-for, not bolted-on.
+      </div>
+    </section>
+
+    <section id="s7" class="card">
+      <h2><span class="num">07</span> Repo layout</h2>
+      <pre>mobile-gen/                          # current working directory (repo root)
+├── docs/superpowers/specs/
+│   └── 2026-05-30-gameforge-poc-design.md   # this document
+├── .claude/
+│   └── skills/
+│       ├── concept/SKILL.md
+│       ├── builder/SKILL.md
+│       └── validator/SKILL.md
+├── manifests/
+│   └── &lt;title-id&gt;.json             # one per game (the spine)
+├── games/
+│   └── &lt;title-id&gt;/                 # generated Godot project
+├── tools/                          # placeholder/local helper scripts (MCP later)
+├── .gitignore                      # Godot 4 ignores (§11)
+└── README.md</pre>
+    </section>
+
+    <section id="s8" class="card">
+      <h2><span class="num">08</span> POC workflow (the loop)</h2>
+      <div class="pipeline">
+        <span class="stage">1 · Prompt</span><span class="arrow">→</span>
+        <span class="stage">2 · concept</span><span class="arrow">→</span>
+        <span class="stage">3 · builder</span><span class="arrow">→</span>
+        <span class="stage">4 · validator</span><span class="arrow">→</span>
+        <span class="stage">5 · playtest</span><span class="arrow">→</span>
+        <span class="stage">6 · edit SKILL.md</span><span class="arrow">↺</span>
+      </div>
+      <ol>
+        <li>Owner gives a one-line prompt in Claude Code.</li>
+        <li><code>concept</code> → writes <code>manifest.concept</code>.</li>
+        <li><code>builder</code> → generates <code>games/&lt;id&gt;/</code>, writes <code>manifest.build</code>.</li>
+        <li><code>validator</code> → runs programmatic checks, writes <code>manifest.validation</code>, sets <code>status = "validated"</code>.</li>
+        <li>Owner playtests in the Godot editor → confirms core loop → <code>status = "playable"</code>.</li>
+        <li>Where output is wrong, owner identifies the responsible skill and <strong>edits that <code>SKILL.md</code></strong>, then re-runs.</li>
+        <li>Repeat across ≥3 genres until the loop produces playable games reliably.</li>
+      </ol>
+      <p class="muted">The deliverable of the POC is <strong>better skills</strong>, not the games.</p>
+    </section>
+
+    <section id="s9" class="card">
+      <h2><span class="num">09</span> Out of scope for the POC</h2>
+      <p>Deferred — captured as milestones in §10, not to be built during the POC:</p>
+      <ul>
+        <li>Store submission, developer accounts, signing for distribution.</li>
+        <li>Monetization (ads / IAP), store listings, ASO.</li>
+        <li>Compliance, age ratings, privacy/data-safety automation.</li>
+        <li>The sustain-phase skills: <code>monitor</code>, <code>updater</code>, <code>troubleshooter</code>.</li>
+        <li>MCP tools for asset generation and store APIs.</li>
+        <li>Autonomous/scheduled operation and any API/production billing.</li>
+      </ul>
+      <p class="muted">These are real and planned — just not what the POC proves.</p>
+    </section>
+
+    <section id="s10" class="card">
+      <h2><span class="num">10</span> Roadmap — milestones beyond the POC</h2>
+      <p>All deferred skills are eventually in scope. Recorded here so the full arc stays legible and nothing is built prematurely. Each milestone is one skill (plus any MCP tool it needs) and fills a manifest piece currently a placeholder.</p>
+      <p class="muted">Lifecycle order: <strong>make it → make it real → make it legal → make it findable → ship it → keep it alive.</strong></p>
+      <table>
+        <thead><tr><th>Milestone</th><th>Skill</th><th>Adds</th><th>Manifest target</th></tr></thead>
+        <tbody>
+          <tr class="milestone-row"><td>M0 <span class="muted">(this spec)</span></td><td><code>concept · builder · validator</code></td><td>Generation reliability across ≥3 genres, primitive visuals</td><td><code>concept</code>, <code>build</code>, <code>validation</code></td></tr>
+          <tr class="milestone-row"><td>M1</td><td><code>asset</code></td><td>Real art/audio via an asset-gen MCP tool, replacing POC primitives</td><td><code>assets[]</code> (real sources)</td></tr>
+          <tr class="milestone-row"><td>M2</td><td><code>compliance</code></td><td>Age ratings, privacy/data-safety declarations, content-policy checks</td><td><code>_reserved.compliance</code></td></tr>
+          <tr class="milestone-row"><td>M3</td><td><code>listing</code></td><td>Store listing copy, screenshots, ASO metadata</td><td><code>_reserved.store.listing</code></td></tr>
+          <tr class="milestone-row"><td>M4</td><td><code>submission</code></td><td>Dev accounts, signing, build upload via store-API MCP tools — <strong>iOS/Mac leg activates here</strong></td><td><code>_reserved.store.submission</code></td></tr>
+          <tr class="milestone-row"><td>M5</td><td><code>monitor</code></td><td>Post-launch metrics / crash / review monitoring</td><td><code>_reserved.maintenance</code> (begins)</td></tr>
+          <tr class="milestone-row"><td>M6</td><td><code>updater</code></td><td>Generate and ship updates driven by monitor signals</td><td><code>_reserved.maintenance</code></td></tr>
+          <tr class="milestone-row"><td>M7</td><td><code>troubleshooter</code></td><td>Diagnose and fix live issues — crashes, broken builds, policy strikes</td><td><code>_reserved.maintenance</code></td></tr>
+        </tbody>
+      </table>
+      <p><strong>Dependencies:</strong></p>
+      <ul>
+        <li>M1–M4 are largely independent, but <code>submission</code> (M4) realistically wants <code>compliance</code> (M2) and <code>listing</code> (M3) done first.</li>
+        <li>M5–M7 (the "sustain phase") all depend on M4 — you cannot monitor or update a title that isn't live.</li>
+        <li><strong>Autonomous/scheduled operation and API/production billing</strong> arrive with the sustain phase (M5+), not as a milestone of their own. This is where the pipeline must run unattended, so it is also where billing shifts from interactive subscription to API.</li>
+      </ul>
+      <p class="muted">Each milestone gets its own spec → plan → implementation cycle.</p>
+    </section>
+
+    <section id="s11" class="card">
+      <h2><span class="num">11</span> Development environment &amp; version control</h2>
+      <p><strong>Machine roles</strong> — split cleanly across two machines:</p>
+      <table>
+        <thead><tr><th>Machine</th><th>Role</th></tr></thead>
+        <tbody>
+          <tr><td><strong>PC (Windows)</strong><br><span class="muted">primary</span></td><td>Skills, generation, the manifest, all code and asset work, plus Android export and playtesting. Because the POC is Android-first, the <strong>entire POC runs here with no Mac involvement.</strong></td></tr>
+          <tr><td><strong>Mac</strong><br><span class="muted">iOS publish leg only</span></td><td>Building, signing, and submitting an iOS app requires a Mac with Xcode. Handles export → Xcode → sign → upload to App Store Connect. Not needed until iOS is on the table (post-POC, M4).</td></tr>
+        </tbody>
+      </table>
+      <div class="callout">
+        <span class="lead">Version control is the transfer mechanism — git from day one.</span> Do not copy files between machines by hand. The whole repo is plain files, so it's git-native: develop and push on the PC; when it's time for iOS, pull the repo on the Mac and run the iOS export there.
+      </div>
+      <p><strong>Cross-machine consistency:</strong></p>
+      <ul>
+        <li>Pin the <strong>same Godot version</strong> on both machines; the manifest's <code>build.engine_version</code> is the source of truth.</li>
+        <li>Install the iOS <strong>export templates</strong> on the Mac.</li>
+        <li>The Apple toolchain lives on the Mac: Xcode, the $99/yr developer account (only at actual submission), signing certificates / provisioning profiles. Keep secrets (keystores, certs) <strong>out of git</strong>.</li>
+      </ul>
+      <p><strong>.gitignore (Godot 4):</strong></p>
+      <pre># Godot 4 editor cache / generated
+.godot/
+
+# Build outputs
+/builds/
+*.apk
+*.aab
+*.ipa
+
+# Secrets — never commit
+*.keystore
+*.p12
+*.mobileprovision
+
+# OS cruft
+.DS_Store
+Thumbs.db</pre>
+    </section>
+
+    <section id="s12" class="card">
+      <h2><span class="num">12</span> First implementation tasks <span class="muted" style="font-size:14px;">(Step 0 first)</span></h2>
+      <div class="callout">
+        <span class="lead">Step 0 — Install Godot 4.x.</span> Godot is currently not installed (verified during brainstorming). Install the Godot 4.x editor + <strong>Android export templates</strong>, put the binary on PATH so <code>godot --version</code> works, and verify a blank project runs <strong>headless from the CLI</strong>. Hard prerequisite — nothing else can be validated without it.
+      </div>
+      <ol>
+        <li><strong>Initialize a git repository</strong> and add the Godot <code>.gitignore</code> from §11. <span class="muted">(Done — commit <code>ee53910</code>.)</span></li>
+        <li>Scaffold the repo layout in §7 (in the current directory).</li>
+        <li>Draft <code>concept/SKILL.md</code>, <code>builder/SKILL.md</code>, and <code>validator/SKILL.md</code> per §6, plus the manifest writer per §5.</li>
+        <li>Generate the first test game (an endless runner) end-to-end.</li>
+        <li>Report where the loop broke, in terms of which skill needs improvement (criterion #5).</li>
+      </ol>
+    </section>
+
+    <section id="s13" class="card">
+      <h2><span class="num">13</span> Risks &amp; notes</h2>
+      <ul>
+        <li><strong>Primary risk — generation reliability.</strong> If <code>builder</code> only works with heavy hand-holding, that's the finding to surface early, not paper over.</li>
+        <li><strong>Rate limits.</strong> Full-game generation is token-heavy; iterating across several games may bump the interactive 5-hour/weekly caps (more so on Pro than Max). Pace runs; let windows reset.</li>
+        <li><strong>Stay on-subscription.</strong> If <code>ANTHROPIC_API_KEY</code> is set in the shell, Claude Code bills API rates instead of the plan — clear it for this phase.</li>
+        <li><strong>iOS.</strong> Requires a Mac + Xcode and is the one step that cannot run on the PC (M4). Only relevant once Android-side generation is solid.</li>
+      </ul>
+    </section>
+
+    <footer>
+      GameForge — POC Technical Design · v1.0 · 2026-05-30 · Generated from <code>2026-05-30-gameforge-poc-design.md</code>
+    </footer>
+
+  </main>
+</div>
+</div>
+</body>
+</html>
