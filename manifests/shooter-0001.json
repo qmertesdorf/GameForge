@@ -1,0 +1,87 @@
+{
+  "id": "shooter-0001",
+  "name": "Vector Storm",
+  "created_at": "2026-05-31T01:16:24.799Z",
+  "updated_at": "2026-05-31T01:21:26.302Z",
+  "status": "generated",
+  "concept": {
+    "genre": "top-down shooter",
+    "core_loop": "drag anywhere to steer your ship with a virtual joystick; it auto-fires at the nearest enemy; dodge and destroy waves of enemies closing in from the edges; score per kill; difficulty: enemies spawn faster and tougher each wave (~every 15s) up to a cap",
+    "mechanics": [
+      "virtual joystick: drag to move the ship (relative to drag origin)",
+      "auto-aim and auto-fire at the nearest enemy on a cooldown",
+      "bullets travel with a lifetime and despawn off-screen",
+      "enemy spawning from screen edges",
+      "enemies chase the player",
+      "bullet-enemy collision destroys the enemy",
+      "player-enemy collision costs a life and grants brief invulnerability",
+      "lives (start 3)",
+      "score per kill",
+      "no-hit streak multiplier (reward beat): consecutive kills without taking a hit raise a score multiplier",
+      "wave/difficulty ramp every ~15s up to a cap",
+      "game over when lives reach 0",
+      "tap to restart"
+    ],
+    "art_direction": "neon vector on near-black (#06080f); cyan triangular player ship with additive glow and a short thruster trail; enemies as magenta and red angular shapes (triangles/chevrons) with glow; yellow glowing capsule bullets with muzzle flash; each kill pops a particle burst + brief white flash; player hit triggers screen shake + red edge flash + ship blink during invuln; faint parallax starfield plus a subtle grid that scrolls opposite the ship motion so there is no dead space; HUD top: lives, score, wave, and streak multiplier that pulses as it climbs",
+    "target_platforms": [
+      "android"
+    ],
+    "differentiation_notes": "one-thumb control (drag-to-move + auto-fire) instead of fiddly twin-stick, with a no-hit streak multiplier that rewards aggressive dodging over turtling"
+  },
+  "build": {
+    "engine": "godot",
+    "engine_version": "4.6.3.stable",
+    "language": "gdscript",
+    "project_path": "games/shooter-0001/",
+    "addons": [],
+    "export_presets": [
+      "android"
+    ]
+  },
+  "assets": [
+    {
+      "type": "sprite",
+      "name": "ship",
+      "source": "primitive",
+      "origin": "draw_colored_polygon triangle + cyan glow halo + cockpit dot"
+    },
+    {
+      "type": "sprite",
+      "name": "enemy",
+      "source": "primitive",
+      "origin": "draw_colored_polygon 4-point angular star + magenta/red glow"
+    },
+    {
+      "type": "sprite",
+      "name": "bullet",
+      "source": "primitive",
+      "origin": "yellow draw_line capsule + draw_circle cap + glow"
+    },
+    {
+      "type": "particle",
+      "name": "burst",
+      "source": "primitive",
+      "origin": "draw_circle array {pos,vel,life,col,size} kill/hit bursts"
+    },
+    {
+      "type": "background",
+      "name": "starfield_grid",
+      "source": "primitive",
+      "origin": "parallax draw_circle stars + counter-scrolling draw_line grid on #06080f"
+    },
+    {
+      "type": "ui",
+      "name": "hud",
+      "source": "primitive",
+      "origin": "ThemeDB.fallback_font draw_string lives/score/wave/streak multiplier"
+    }
+  ],
+  "validation": {
+    "issues": []
+  },
+  "_reserved": {
+    "compliance": null,
+    "store": null,
+    "maintenance": null
+  }
+}
