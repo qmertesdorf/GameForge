@@ -16,15 +16,18 @@ This fills the `assets[]` portion of the manifest with real sources (the M1 targ
 
 **In:**
 - A new `asset` skill that runs as a **re-skin pass after `playable`**.
-- Claude-authored **SVG** art files, rasterized by Godot's native SVG importer.
+- A **coherent visual system** derived from `concept.art_direction` (see §5a) that governs every asset, so the game reads as one designed thing rather than a bag of individually-fine shapes — this *system* is the real deliverable, not the per-entity files.
+- Claude-authored **SVG** art files, rasterized by Godot's native SVG importer, all conforming to that system.
 - Rewiring a generated game's procedural `_draw()` primitives to display the SVGs via `Sprite2D`/`TextureRect`.
-- Manifest changes: a new `styled` status, an `asset_pass` block, and `origin: "svg"` asset entries.
+- Manifest changes: a new `styled` status, an `asset_pass` block (carrying the visual system), and `origin: "svg"` asset entries.
 - Re-validation through the **existing** `validator` (no new validator skill).
 - One end-to-end proof on a real `playable` title + a run report.
 
 **Out (YAGNI / deferred):**
 - **Raster / PNG art and local Stable Diffusion → M1.5.** Research on the local SD stack (ComfyUI + GGUF + LayerDiffuse on the RTX 3070; sd.cpp fallback) is complete and saved; M1.5 bundles it with the local **audio** model as one "local generative models" cycle.
 - **Audio (SFX/music) → M1.5.**
+- **App icon, adaptive icon, and store imagery → M3 (listing).** The `asset` skill *will* be the natural place to author the launcher icon (SVG → all density buckets), but that is a store-listing concern; M1 stays focused on in-game art. Noted here so M3 picks it up deliberately.
+- **Representational / character / illustrated art → M1.5 (raster).** See §3a — the SVG aesthetic boundary.
 - Re-skinning of **effects** — glow halos, particles, screen-shake, squash/stretch stay as code (they are motion, not art).
 - No new MCP tool — SVG is authored inline as text, exactly as `builder` authors GDScript.
 - No changes to `concept` or `builder` — `asset` consumes `concept.art_direction` as-is.
@@ -37,6 +40,14 @@ Claude cannot emit PNG pixels on-subscription, but it **can** author SVG as text
 - **Genuinely "real art sources"** — gradients, paths, filters/glow far exceed in-engine primitives, satisfying the M1 `assets[]` target.
 
 Local SD was researched first (the choice drives the whole plan). It is feasible on the owner's RTX 3070 8GB but heavy for an M1 re-skin: multi-GB weights, a hard ComfyUI/Python dependency, **non-bit-exact** GPU output (conflicts with a regenerable git-tracked pipeline), and **transparency limited to SDXL/SD1.5** (LayerDiffuse doesn't cover FLUX/SD3.5). It belongs in M1.5 alongside the audio model, not here. (See the saved research note for the full verified findings.)
+
+### 3a. The SVG aesthetic boundary (honest scope)
+
+SVG is the *right, production-grade* choice for the art this pipeline currently produces — abstract, geometric, neon/flat, hyper-casual, and all UI. Resolution independence is in fact an app-store **strength**: one vector covers every Android density bucket (mdpi→xxxhdpi) and any screen, with no per-density export.
+
+SVG is the *wrong* tool for **representational, character, illustrated, or textured** art (a painted hero, a photoreal background). Hand-authoring those as vector yields weak results. That class of art is an **M1.5 (raster / local-SD)** concern. M1 does not attempt it.
+
+This boundary is not a limitation to apologize for — it is a deliberate division of labor: **M1 = vector (geometric/UI), M1.5 = raster (representational)**, each matched to the generation method that does it well. The `asset` skill should state, in its `asset_pass.notes`, when a concept's `art_direction` leans representational enough that M1.5 would serve it better — so the choice is legible rather than silently producing mediocre vector art.
 
 ## 4. Placement in the pipeline
 
@@ -57,11 +68,26 @@ Four pieces, each with one responsibility:
 | Texture-swap convention (in the game) | The documented pattern by which each SVG replaces its primitive: a `Sprite2D` (world) / `TextureRect` (HUD) loads the texture; the corresponding `_draw()` primitive is removed/guarded; transforms, movement, collision, logic are untouched. |
 | Manifest tool (`tools/manifest.mjs` + `schema/manifest.schema.json`) | The only code with logic, so it gets TDD: add `styled` status + transition, the `asset_pass` block, and `origin:"svg"` asset entries. |
 
+### 5a. The visual system is the deliverable (not the individual SVGs)
+
+A real game-asset creator does not produce a pile of independently-acceptable shapes — it produces a **coherent visual system** and then applies it everywhere, so the game reads as *one designed thing*. This is the art analog of the M0 hybrid finding ("two systems that coexist instead of fuse," run-004): individually-fine assets that don't share a language look like a collage, not a game.
+
+So the `asset` skill's **first** step is to derive an explicit, written **visual system** from `concept.art_direction`, before authoring any file:
+
+- **Palette** — a fixed 3–5 colour set (with named roles: primary, accent, danger, background, etc.).
+- **Line/stroke** — one stroke weight and join/cap style used throughout.
+- **Form language** — corner radius, geometric vs. organic, level of detail.
+- **Shading model** — flat / single-direction gradient / glow — pick one and apply it to every asset.
+- **Scale & padding rules** — how each SVG maps to its primitive footprint, and consistent internal padding so assets sit together.
+
+Every SVG must conform to that system. The system itself is recorded in `asset_pass.visual_system` (see §8) so it is reviewable, reusable, and the thing a run report critiques when the result looks incoherent. **"Each SVG is fine but they don't cohere" is the primary failure this section exists to prevent — and, when it happens, it is attributable to the visual system, not the individual files.**
+
 ## 6. Data flow
 
 ```
 playable manifest ─► asset reads concept.art_direction
-                  ─► authors games/<id>/art/{player,obstacle,...}.svg
+                  ─► derives a coherent VISUAL SYSTEM (palette/stroke/form/shading) ── §5a
+                  ─► authors games/<id>/art/{player,obstacle,...}.svg, all conforming to it
                   ─► headless --import so Godot generates .svg.import + textures
                   ─► rewires Main.gd / Main.tscn: primitive _draw() → Sprite2D/TextureRect(texture)
                   ─► merge assets[] (origin:"svg") + asset_pass block
@@ -102,10 +128,16 @@ concept → generated → validated → playable → styled
 ```json
 "asset_pass": {
   "method": "svg",
+  "visual_system": {
+    "palette": ["#0a0a14", "#00e5ff", "#ff3df0", "#ffe24a"],
+    "stroke": "2px round, additive glow",
+    "form": "sharp-cornered geometric, low detail",
+    "shading": "flat fill + outer glow halo"
+  },
   "reskinned": ["player", "obstacle", "pickup"],
   "left_primitive": ["background", "glow", "particles"],
   "art_path": "games/<id>/art/",
-  "notes": "background kept as procedural parallax; SVGs scaled to primitive footprints"
+  "notes": "background kept as procedural parallax; SVGs scaled to primitive footprints; art_direction is geometric, well within SVG scope (not representational)"
 }
 ```
 
@@ -142,6 +174,6 @@ Same shape as every M0 run: prove end-to-end on a real title. Run `asset` on an 
 
 1. `asset` skill exists and runs the full re-skin on a `playable` title without manual code fixes.
 2. The re-skinned game imports + runs headless clean and (if applicable) `selftest.gd` still passes.
-3. Owner A/B playtest confirms the SVG version looks more designed than the primitive original and plays identically.
+3. Owner A/B playtest confirms the SVG version looks more designed than the primitive original, **reads as one coherent visual system** (not a set of mismatched shapes), and plays identically.
 4. The manifest correctly reaches `status:"styled"` with a populated `asset_pass` block and `origin:"svg"` entries; `validate` OK at every transition.
 5. Any shortfall is legible and attributable to specific `asset` skill prose (the POC value).
