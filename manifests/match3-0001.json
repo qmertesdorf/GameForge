@@ -1,0 +1,104 @@
+{
+  "id": "match3-0001",
+  "name": "Prism Cascade",
+  "created_at": "2026-05-31T00:55:09.244Z",
+  "updated_at": "2026-05-31T01:00:32.064Z",
+  "status": "generated",
+  "concept": {
+    "genre": "match-3",
+    "core_loop": "drag to swap two adjacent gems to line up 3+ of a color; matches clear, the board cascades down and refills, and chained clears build a combo multiplier; race a timer bar that drains continuously and tops up on every match; difficulty: the drain rate steps up every ~20s so survival demands bigger combos over time",
+    "mechanics": [
+      "gem grid (6 wide x 8 tall)",
+      "drag or swipe to swap two adjacent gems",
+      "reject swaps that make no match (swap back)",
+      "match-3+ detection across rows and columns",
+      "clear matched gems",
+      "gravity: gems fall to fill gaps, new gems spawn at top",
+      "cascade chains (auto-resolve new matches after a fall)",
+      "cascade combo multiplier (reward beat)",
+      "score",
+      "timer bar that drains over time and refills a bit per match",
+      "game over when the timer empties",
+      "tap to restart"
+    ],
+    "art_direction": "flat jewel palette on deep indigo (#141026); 5 colorblind-distinct gems each a different rounded shape (circle, square, diamond, triangle, hexagon) in cyan/magenta/lime/amber/violet; soft glow halo behind each gem; the selected gem pulses; matched gems pop with a scale-up + particle burst + brief white flash; combo counter pulses and a screen-edge flash fires on a 4+ chain; subtle vertical gradient background with slow-drifting bokeh dots so there is no dead space; readable score top-left and a timer bar across the top",
+    "target_platforms": [
+      "android"
+    ],
+    "differentiation_notes": "timer top-up tension (continuous drain you replenish by matching) plus cascade combo multipliers that reward chaining, instead of the usual static move-limited match-3"
+  },
+  "build": {
+    "engine": "godot",
+    "engine_version": "4.6.3.stable",
+    "language": "gdscript",
+    "project_path": "games/match3-0001/",
+    "addons": [],
+    "export_presets": [
+      "android"
+    ]
+  },
+  "assets": [
+    {
+      "type": "gem",
+      "name": "cyan_circle",
+      "source": "draw_circle primitive",
+      "origin": "generated"
+    },
+    {
+      "type": "gem",
+      "name": "magenta_square",
+      "source": "draw_rect primitive",
+      "origin": "generated"
+    },
+    {
+      "type": "gem",
+      "name": "lime_diamond",
+      "source": "draw_colored_polygon primitive",
+      "origin": "generated"
+    },
+    {
+      "type": "gem",
+      "name": "amber_triangle",
+      "source": "draw_colored_polygon primitive",
+      "origin": "generated"
+    },
+    {
+      "type": "gem",
+      "name": "violet_hexagon",
+      "source": "draw_colored_polygon primitive",
+      "origin": "generated"
+    },
+    {
+      "type": "board",
+      "name": "grid_panel",
+      "source": "draw_rect primitives",
+      "origin": "generated"
+    },
+    {
+      "type": "background",
+      "name": "indigo_gradient_bokeh",
+      "source": "draw_rect gradient + draw_circle bokeh",
+      "origin": "generated"
+    },
+    {
+      "type": "hud",
+      "name": "timer_bar_score_combo",
+      "source": "draw_rect + ThemeDB fallback_font",
+      "origin": "generated"
+    },
+    {
+      "type": "fx",
+      "name": "particle_burst",
+      "source": "pooled draw_circle particles",
+      "origin": "generated"
+    }
+  ],
+  "validation": {
+    "issues": []
+  },
+  "_reserved": {
+    "compliance": null,
+    "store": null,
+    "maintenance": null
+  }
+}
