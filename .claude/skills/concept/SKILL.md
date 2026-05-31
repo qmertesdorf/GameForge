@@ -20,9 +20,9 @@ Turn a one-line prompt into a structured, differentiated design concept and reco
 
 2. **Derive the concept.** From the prompt, decide:
    - `genre` — short noun phrase (e.g. "endless runner", "match-3", "top-down shooter").
-   - `core_loop` — one sentence describing the second-to-second loop (e.g. "tap to jump, avoid obstacles, score climbs with distance").
-   - `mechanics` — a short list of the concrete mechanics the builder must implement (e.g. ["jump", "obstacle spawning", "score", "game over + restart"]). Keep it minimal but complete — every item here is something `builder` must wire up.
-   - `art_direction` — a coherent primitive-art direction: a named palette + shape language (e.g. "neon vector on near-black; bright cyan/magenta shapes, thin glow"). `builder` derives its colors and shapes from this string, so be specific.
+   - `core_loop` — one or two sentences describing the second-to-second loop AND its **difficulty curve** (e.g. "tap to jump, avoid obstacles, score climbs with distance; starts gentle and ramps speed every ~10s up to a cap"). Naming the curve gives `builder` something to tune toward.
+   - `mechanics` — a short list of the concrete mechanics the builder must implement (e.g. ["jump", "obstacle spawning", "score", "game over + restart"]). Keep it minimal but complete — every item here is something `builder` must wire up. Include **at least one progression or reward beat** beyond bare survival (e.g. milestone pickups, a combo/streak, or speed tiers that change the visuals) so the loop has somewhere to go.
+   - `art_direction` — a coherent primitive-art direction that `builder` can *execute*, not just a palette. Specify: a named palette + shape language, a **background treatment** (so there's no dead space — e.g. parallax lines/stars/gradient), and at least one **motion/feedback beat** (e.g. "screen flash + shake on death, score pulses on milestone"). Example: "neon vector on near-black; bright cyan/magenta shapes with additive glow; faint parallax grid scrolling behind; white flash + shake on crash." Be specific — vague art direction is the top cause of bland output.
    - `target_platforms` — `["android"]` for the POC.
    - `differentiation_notes` — one line on how this avoids being a clone of a saturated title.
 
