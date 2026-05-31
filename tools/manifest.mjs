@@ -43,3 +43,28 @@ export function newManifest({ id, name } = {}, now = new Date().toISOString()) {
     _reserved: { compliance: null, store: null, maintenance: null }
   };
 }
+
+export const STATUSES = ["concept", "generated", "validated", "playable", "failed"];
+
+// Legal forward transitions. Any non-terminal status may also go to "failed".
+const TRANSITIONS = {
+  concept: ["generated", "failed"],
+  generated: ["validated", "failed"],
+  validated: ["playable", "failed"],
+  playable: [],
+  failed: []
+};
+
+export function setStatus(manifest, status, now = new Date().toISOString()) {
+  if (!STATUSES.includes(status)) {
+    throw new Error(`unknown status: ${status}`);
+  }
+  if (status === manifest.status) {
+    return { ...manifest, updated_at: now };
+  }
+  const allowed = TRANSITIONS[manifest.status] ?? [];
+  if (!allowed.includes(status)) {
+    throw new Error(`illegal transition: ${manifest.status} -> ${status}`);
+  }
+  return { ...manifest, status, updated_at: now };
+}

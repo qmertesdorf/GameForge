@@ -1,5 +1,5 @@
 import { test, expect, describe } from "vitest";
-import { validate, newManifest } from "./manifest.mjs";
+import { validate, newManifest, setStatus, STATUSES } from "./manifest.mjs";
 
 // A hand-built, fully-valid manifest used as the baseline across tests.
 function validManifest() {
@@ -66,5 +66,41 @@ describe("newManifest", () => {
   test("throws when id or name is missing", () => {
     expect(() => newManifest({ id: "x" })).toThrow();
     expect(() => newManifest({ name: "y" })).toThrow();
+  });
+});
+
+describe("setStatus", () => {
+  const base = () => newManifest({ id: "a", name: "A" }, "2026-05-30T12:00:00Z");
+
+  test("exposes the five POC statuses", () => {
+    expect(STATUSES).toEqual(["concept", "generated", "validated", "playable", "failed"]);
+  });
+
+  test("advances along the legal path and stamps updated_at", () => {
+    const m = setStatus(base(), "generated", "2026-05-30T13:00:00Z");
+    expect(m.status).toBe("generated");
+    expect(m.updated_at).toBe("2026-05-30T13:00:00Z");
+    expect(m.created_at).toBe("2026-05-30T12:00:00Z"); // unchanged
+  });
+
+  test("allows any non-terminal status to fail", () => {
+    expect(setStatus(base(), "failed").status).toBe("failed");
+  });
+
+  test("rejects skipping a step", () => {
+    expect(() => setStatus(base(), "playable")).toThrow(/concept -> playable/);
+  });
+
+  test("rejects an unknown status", () => {
+    expect(() => setStatus(base(), "shipped")).toThrow(/unknown status/);
+  });
+
+  test("rejects leaving a terminal status", () => {
+    const failed = setStatus(base(), "failed");
+    expect(() => setStatus(failed, "generated")).toThrow();
+  });
+
+  test("treats re-setting the same status as a no-op", () => {
+    expect(setStatus(base(), "concept").status).toBe("concept");
   });
 });
