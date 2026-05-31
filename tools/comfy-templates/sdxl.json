@@ -1,0 +1,41 @@
+{
+  "ckpt": {
+    "class_type": "CheckpointLoaderSimple",
+    "inputs": { "ckpt_name": "%checkpoint%" }
+  },
+  "pos": {
+    "class_type": "CLIPTextEncode",
+    "inputs": { "text": "%prompt%", "clip": ["ckpt", 1] }
+  },
+  "neg": {
+    "class_type": "CLIPTextEncode",
+    "inputs": { "text": "%negative%", "clip": ["ckpt", 1] }
+  },
+  "latent": {
+    "class_type": "EmptyLatentImage",
+    "inputs": { "width": "%width%", "height": "%height%", "batch_size": 1 }
+  },
+  "ksampler": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": ["ckpt", 0],
+      "seed": "%seed%",
+      "steps": "%steps%",
+      "cfg": "%cfg%",
+      "sampler_name": "%sampler%",
+      "scheduler": "normal",
+      "positive": ["pos", 0],
+      "negative": ["neg", 0],
+      "latent_image": ["latent", 0],
+      "denoise": 1.0
+    }
+  },
+  "vaedecode": {
+    "class_type": "VAEDecode",
+    "inputs": { "samples": ["ksampler", 0], "vae": ["ckpt", 2] }
+  },
+  "save": {
+    "class_type": "SaveImage",
+    "inputs": { "images": ["vaedecode", 0], "filename_prefix": "gameforge" }
+  }
+}

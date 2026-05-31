@@ -66,9 +66,15 @@ export async function check({ fetch = globalThis.fetch, host = COMFY_HOST } = {}
   }
 }
 
+// Select the workflow template. layerdiffuse picks the RGBA graph; a recipe
+// that also names a `lora` picks the LoRA-aware variant (which carries a
+// LoraLoader + %lora% token) so per-game style profiles can swap a LoRA.
 function templateName(recipe) {
-  return recipe.layerdiffuse ? "sdxl-layerdiffuse" : "sdxl";
+  if (!recipe.layerdiffuse) return "sdxl";
+  return recipe.lora ? "sdxl-layerdiffuse-lora" : "sdxl-layerdiffuse";
 }
+
+export { templateName };
 
 // Pull the first output image descriptor out of a /history entry.
 function firstImage(historyEntry) {

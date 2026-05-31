@@ -216,3 +216,17 @@ describe("gen", () => {
     });
   });
 });
+
+import { templateName } from "./comfy.mjs";
+
+describe("templateName", () => {
+  test("non-layerdiffuse recipe → sdxl", () => {
+    expect(templateName({ layerdiffuse: false })).toBe("sdxl");
+  });
+  test("layerdiffuse without lora → sdxl-layerdiffuse", () => {
+    expect(templateName({ layerdiffuse: true })).toBe("sdxl-layerdiffuse");
+  });
+  test("layerdiffuse with lora → sdxl-layerdiffuse-lora", () => {
+    expect(templateName({ layerdiffuse: true, lora: "pixel-art-xl.safetensors" })).toBe("sdxl-layerdiffuse-lora");
+  });
+});

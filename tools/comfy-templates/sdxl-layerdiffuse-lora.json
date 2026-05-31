@@ -1,0 +1,53 @@
+{
+  "ckpt": {
+    "class_type": "CheckpointLoaderSimple",
+    "inputs": { "ckpt_name": "%checkpoint%" }
+  },
+  "lora": {
+    "class_type": "LoraLoader",
+    "inputs": { "model": ["ckpt", 0], "clip": ["ckpt", 1], "lora_name": "%lora%", "strength_model": 1.0, "strength_clip": 1.0 }
+  },
+  "ld_apply": {
+    "class_type": "LayeredDiffusionApply",
+    "inputs": { "model": ["lora", 0], "config": "SDXL, Conv Injection", "weight": 1.0 }
+  },
+  "pos": {
+    "class_type": "CLIPTextEncode",
+    "inputs": { "text": "%prompt%", "clip": ["lora", 1] }
+  },
+  "neg": {
+    "class_type": "CLIPTextEncode",
+    "inputs": { "text": "%negative%", "clip": ["lora", 1] }
+  },
+  "latent": {
+    "class_type": "EmptyLatentImage",
+    "inputs": { "width": "%width%", "height": "%height%", "batch_size": 1 }
+  },
+  "ksampler": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": ["ld_apply", 0],
+      "seed": "%seed%",
+      "steps": "%steps%",
+      "cfg": "%cfg%",
+      "sampler_name": "%sampler%",
+      "scheduler": "normal",
+      "positive": ["pos", 0],
+      "negative": ["neg", 0],
+      "latent_image": ["latent", 0],
+      "denoise": 1.0
+    }
+  },
+  "vaedecode": {
+    "class_type": "VAEDecode",
+    "inputs": { "samples": ["ksampler", 0], "vae": ["ckpt", 2] }
+  },
+  "ld_decode": {
+    "class_type": "LayeredDiffusionDecodeRGBA",
+    "inputs": { "samples": ["ksampler", 0], "images": ["vaedecode", 0], "sd_version": "SDXL", "sub_batch_size": 16 }
+  },
+  "save": {
+    "class_type": "SaveImage",
+    "inputs": { "images": ["ld_decode", 0], "filename_prefix": "gameforge" }
+  }
+}

@@ -27,6 +27,17 @@ node tools/manifest.mjs set-status <id> <status>  # concept→generated→valida
 node tools/manifest.mjs validate <id>             # schema-check; exit 1 if invalid
 ```
 
+## Raster asset tool (M1.5)
+
+`tools/comfy.mjs` turns a recipe into a committed RGBA PNG via a **local ComfyUI** server (assumed installed and running by the owner, like the Godot binary — not managed here). Default host `http://127.0.0.1:8188`, override with `COMFY_HOST`.
+
+```
+node tools/comfy.mjs --check                          # ping ComfyUI; report reachable + checkpoints
+node tools/comfy.mjs gen <id> <asset-name> '<recipe>' # generate games/<id>/art/<name>.png
+```
+
+Stack: ComfyUI + an SDXL checkpoint (fp16, smart-offload on 8GB) + the **ComfyUI-layerdiffuse** node (RGBA at generation time). Workflow-JSON templates with `%placeholder%` tokens live in `tools/comfy-templates/`. The `asset` skill's `raster` method owns the art judgment; this tool owns the deterministic HTTP plumbing (unit-tested with the network mocked — no GPU in CI).
+
 ## Tests
 
 `npm test`
