@@ -106,6 +106,8 @@ node tools/comfy.mjs --check
 ```
 Expected: `comfy OK at http://127.0.0.1:8188 — N checkpoint(s): ...`. If it prints `UNREACHABLE`, **stop** and ask the owner to start ComfyUI (or `! <launch command>`). A failure here is *infra*, attributable to the stack, not to your art judgment — never work around it by faking a PNG.
 
+**Stack-version sensitivity (hard-won — see `docs/superpowers/m1.5-feasibility-notes.md`).** ComfyUI-layerdiffuse is **version-fragile**: on a bleeding-edge ComfyUI it (a) silently drops its model patch (`patch type not recognized` in the server log → output is haze) and (b) errors on the final alpha-join. The feasibility gate pinned **ComfyUI to a node-compatible release** + a small local node patch to get clean transparency. If sprites come back as haze or with a desaturated/gray interior (correct alpha but flat color), that is a **stack-version** issue, not your recipe — check the server log for patch warnings and confirm the pin/patch from the feasibility notes are in place before touching the recipe.
+
 ### Step 0 (raster) — visual system first, with style as a first-class choice
 Do the normal Step 0 (palette, form, shading, scale). For raster, additionally:
 
@@ -123,6 +125,7 @@ Justify "this `art_direction` → this profile" exactly as you justify the SVG v
 ### Per-entity flow
 For each entity you decide to make raster:
 1. **Recipe** — compose the JSON recipe: `prompt` = `scaffold + this actor's subject`; plus `negative`, `seed`, `sampler`, `steps`, `cfg`, `checkpoint`, optional `lora`, `layerdiffuse: true`, and `master_resolution` (see Resolution below). Keep `sampler`/`steps`/`cfg` identical across the game's sprites. A template that includes a `%lora%` node requires the recipe to set `lora`; for a profile with no LoRA, use a template that omits the `%lora%` token (an absent `lora` against a `%lora%` template fails loudly by design — that is attributable, not a bug).
+   - **Proven defaults (feasibility gate):** use an **SDXL finetune** as `checkpoint` (e.g. Juggernaut XL, DreamShaper XL) — **not base `sd_xl_base_1.0`**, which renders flat/washed-out through LayerDiffuse. `sampler: "euler"`, `cfg: 7–8`, `steps: 20–25`. The LayerDiffuse templates bake the FG-RGBA-canonical settings (`SDXL, Conv Injection` + scheduler `normal`) — those are the *working* settings; `Attention Injection`/`karras` produced mud in testing. `master_resolution`: 1024 for a hero/large actor, 512 for a minor prop (always downscale-from-master).
 2. **Generate** — `node tools/comfy.mjs gen <id> <name> '<recipe-json>'` → writes `games/<id>/art/<name>.png` (RGBA). On a graph/unreachable error it fails loudly — fix the *infra/recipe*, do not fake the file.
 3. **Import** — run the headless import pass so Godot makes the `.png.import` sidecar + cached texture **before** re-validation:
    ```
