@@ -1,0 +1,111 @@
+{
+  "id": "match3-survival-0001",
+  "name": "Aegis Grid",
+  "created_at": "2026-05-31T02:36:58.384Z",
+  "updated_at": "2026-05-31T02:53:09.281Z",
+  "status": "playable",
+  "concept": {
+    "genre": "match-3 survival defense (hybrid)",
+    "core_loop": "Drag to swap adjacent gems to line up 3+ of a color on a grid that fills the lower screen; above it an enemy line steadily advances in real time down a battlefield strip toward your wall. Matching ATTACK-color gems (red) fires at the enemy line, damaging it and pushing it back; matching SHIELD-color gems (blue) restores wall HP; chained combos charge a NOVA that clears the whole line when unleashed. Each second you decide whether to match for offense or defense as the line presses in. Loss condition: the enemy reaching and breaching the wall until wall HP hits 0. Score by survival time and enemies destroyed. Difficulty: the line advances faster and reinforcement rows arrive tougher every ~20s, up to a cap, so late game demands bigger combos and tighter offense/defense balance.",
+    "mechanics": [
+      "drag-to-swap match-3 on a 6-wide colored gem grid",
+      "match detection (3+ in a row/column) + gravity cascade + refill",
+      "real-time advancing enemy line with a distance-to-wall value and line HP",
+      "color-typed match effects: red/attack matches damage and push back the enemy line, blue/shield matches repair wall HP",
+      "wall HP as the loss condition (game over + restart on tap when wall HP hits 0)",
+      "combo/chain meter that charges a screen-clearing NOVA, fired automatically when full (reward/progression beat)",
+      "score from survival time + enemies destroyed; on-screen wall-HP and nova-charge readouts",
+      "difficulty ramp: enemy advance speed and reinforcement toughness step up every ~20s up to a cap"
+    ],
+    "art_direction": "Clean flat-neon on deep indigo (#0d0b1f). Gems are rounded-square primitives in five saturated hues with a soft additive glow and a small inner highlight so colors read instantly: red = attack, blue = shield, plus green, amber, violet as neutral fillers. The battlefield strip at the top sits on a darker band with a faint scrolling hex/grid pattern receding toward a horizon line for depth; the enemy line is a row of angular magenta chevrons that creep downward, and the wall is a thick cyan bar across the grid's top edge whose brightness and thickness track its HP. Feedback beats: matched gems pop with a scale-up + particle burst in their own hue; an attack match fires a quick bright tracer streak from the grid up to the enemy line with a hit-flash; a shield match sends a cyan pulse along the wall; the nova meter pulses a ring as it charges and detonates a full-width white sweep when fired; the whole screen flashes white and shakes when the wall is breached. A persistent HUD shows wall HP (top-left) and nova charge (top-right) in large high-contrast type.",
+    "target_platforms": [
+      "android"
+    ],
+    "differentiation_notes": "Not a pure match-3 racing an abstract timer (cf. our own Prism Cascade) and not a tower defense — the grid itself is both weapon and shield, and color-typed matches force a real-time offense-vs-defense decision against a visible advancing threat. The blend, not either genre alone, is the hook."
+  },
+  "build": {
+    "engine": "godot",
+    "engine_version": "4.6.3.stable",
+    "language": "gdscript",
+    "project_path": "games/match3-survival-0001/",
+    "addons": [],
+    "export_presets": [
+      "android"
+    ]
+  },
+  "assets": [
+    {
+      "type": "sprite",
+      "name": "gem_red_attack",
+      "source": "placeholder",
+      "origin": "primitive"
+    },
+    {
+      "type": "sprite",
+      "name": "gem_blue_shield",
+      "source": "placeholder",
+      "origin": "primitive"
+    },
+    {
+      "type": "sprite",
+      "name": "gem_filler_green",
+      "source": "placeholder",
+      "origin": "primitive"
+    },
+    {
+      "type": "sprite",
+      "name": "gem_filler_amber",
+      "source": "placeholder",
+      "origin": "primitive"
+    },
+    {
+      "type": "sprite",
+      "name": "gem_filler_violet",
+      "source": "placeholder",
+      "origin": "primitive"
+    },
+    {
+      "type": "sprite",
+      "name": "enemy_chevron",
+      "source": "placeholder",
+      "origin": "primitive"
+    },
+    {
+      "type": "sprite",
+      "name": "wall_bar",
+      "source": "placeholder",
+      "origin": "primitive"
+    },
+    {
+      "type": "sprite",
+      "name": "battlefield_grid",
+      "source": "placeholder",
+      "origin": "primitive"
+    },
+    {
+      "type": "sprite",
+      "name": "attack_tracer",
+      "source": "placeholder",
+      "origin": "primitive"
+    },
+    {
+      "type": "sprite",
+      "name": "nova_sweep",
+      "source": "placeholder",
+      "origin": "primitive"
+    }
+  ],
+  "validation": {
+    "issues": [
+      "blend cohesion weak: survival/defense layer reads as ambient rather than interlocked with the match-3 loop (owner playtest)"
+    ],
+    "opens_in_editor": true,
+    "runs": true,
+    "core_loop_functional": true
+  },
+  "_reserved": {
+    "compliance": null,
+    "store": null,
+    "maintenance": null
+  }
+}
