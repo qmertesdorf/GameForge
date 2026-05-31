@@ -82,6 +82,68 @@ describe("validate", () => {
     const m = validManifest(); // status: "playable", no asset_pass
     expect(validate(m)).toEqual({ valid: true, errors: [] });
   });
+
+  test("accepts a styled manifest carrying a raster asset_pass (style, prompt_scaffold, recipes)", () => {
+    const m = validManifest();
+    m.status = "styled";
+    m.assets = [{ type: "sprite", name: "hero", source: "art/hero.png", origin: "raster" }];
+    m.asset_pass = {
+      method: "raster",
+      visual_system: {
+        palette: ["#1a1226", "#e0b15a", "#6cc4d6", "#c8503a"],
+        form: "stout painted creatures, soft edges",
+        shading: "painterly, single warm key light",
+        scale: "512px masters downscaled to footprint",
+        prompt_scaffold: "painterly fantasy creature, soft brushwork, warm key light, plain background",
+        style: {
+          checkpoint: "dreamshaperXL.safetensors",
+          loras: ["painterly-creatures-v2.safetensors"],
+          style_prompt: "painterly, illustrated, soft brushwork"
+        }
+      },
+      reskinned: ["hero", "enemy"],
+      left_primitive: ["hpbar", "background"],
+      art_path: "games/creature-0001/art/",
+      notes: "art_direction is illustrated/representational — raster (M1.5) is the right method; hpbar left primitive (crisp vector is better for a UI bar)",
+      recipes: [
+        {
+          name: "hero",
+          checkpoint: "dreamshaperXL.safetensors",
+          prompt: "painterly fantasy creature, soft brushwork, warm key light, plain background, a small round forest spirit",
+          negative: "logo, watermark, text, trademarked character, celebrity, low quality",
+          seed: 123456,
+          sampler: "dpmpp_2m",
+          steps: 30,
+          cfg: 6.5,
+          master_resolution: 512,
+          layerdiffuse: true,
+          lora: "painterly-creatures-v2.safetensors",
+          import_settings: { mipmaps: true, filter: "linear", compression: "lossless" }
+        }
+      ]
+    };
+    expect(validate(m)).toEqual({ valid: true, errors: [] });
+  });
+
+  test("rejects an unknown key inside a recipe", () => {
+    const m = validManifest();
+    m.status = "styled";
+    m.asset_pass = {
+      method: "raster",
+      recipes: [{ name: "hero", bogus: true }]
+    };
+    expect(validate(m).valid).toBe(false);
+  });
+
+  test("rejects an unknown key inside visual_system.style", () => {
+    const m = validManifest();
+    m.status = "styled";
+    m.asset_pass = {
+      method: "raster",
+      visual_system: { style: { checkpoint: "x.safetensors", bogus: true } }
+    };
+    expect(validate(m).valid).toBe(false);
+  });
 });
 
 describe("newManifest", () => {
