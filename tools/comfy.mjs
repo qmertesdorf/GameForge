@@ -94,7 +94,8 @@ export async function gen(id, name, recipe, {
   templatesDir = TEMPLATES_DIR,
   gamesDir = GAMES_DIR,
   pollIntervalMs = 1000,
-  maxPolls = 600
+  maxPolls = 1800 // ~30 min ceiling: an 8GB card offloads SDXL+LayerDiffuse and a
+                  // 1024² master can take 8-12 min; 10 min was too tight. 16GB is far faster.
 } = {}) {
   const tplPath = join(templatesDir, `${templateName(recipe)}.json`);
   const template = JSON.parse(readFileSync(tplPath, "utf8"));
