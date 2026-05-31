@@ -49,11 +49,11 @@ Re-skinned: **player, obstacle, orb**. Left primitive (deliberately — motion/s
 
 1. ✅ `asset` ran the full re-skin with **no manual code fixes** — headless-clean on the first run.
 2. ✅ Re-skinned game imports + runs headless clean; `selftest.gd` N/A (trivial arcade loop).
-3. ⏳ **Owner A/B playtest pending** — the rendered before/after above strongly support "more designed + coheres + plays identically"; the human gate (validator Method 3) confirms *feel* before `styled` is stamped.
-4. ⏳ Manifest carries a populated `asset_pass` + `origin:"svg"` entries and is `validate`-OK; **status advances `validated → playable → styled` once the owner confirms** (criterion 3). `validated → styled` is intentionally illegal — `playable` is the required intermediate gate.
+3. ✅ **Owner A/B playtest confirmed** (2026-05-31) — owner verified the re-skin live in the Godot window: a visual improvement that reads as one coherent system and plays identically.
+4. ✅ Manifest carries a populated `asset_pass` + `origin:"svg"` entries, advanced `validated → playable → styled`, and is `validate`-OK at every transition. (`validated → styled` is intentionally illegal — `playable` is the required intermediate gate.)
 5. ✅ Every shortfall above is legible and attributed to specific `asset`/`validator` prose, with the exact edit it implies.
 
 ## Next
 
-- Owner does the ~60s A/B playtest. On confirmation: `node tools/manifest.mjs set-status runner-0002 playable` then `set-status runner-0002 styled`.
-- Apply findings #1–#3 to `.claude/skills/asset/SKILL.md` (finding #1 is the highest-value edit — it generalizes the swap to the builder's default architecture).
+- ✅ Owner A/B confirmed; `runner-0002` advanced to `styled`. **M1 proven end-to-end — all five §12 criteria met.**
+- Apply findings #1–#3 to `.claude/skills/asset/SKILL.md` (finding #1 is the highest-value edit — it generalizes the swap to the builder's default immediate-mode architecture).
