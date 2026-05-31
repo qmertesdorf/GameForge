@@ -58,6 +58,28 @@
         "issues": { "type": "array", "items": { "type": "string" } }
       }
     },
+    "asset_pass": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "method": { "type": "string" },
+        "visual_system": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "palette": { "type": "array", "items": { "type": "string" } },
+            "stroke": { "type": "string" },
+            "form": { "type": "string" },
+            "shading": { "type": "string" },
+            "scale": { "type": "string" }
+          }
+        },
+        "reskinned": { "type": "array", "items": { "type": "string" } },
+        "left_primitive": { "type": "array", "items": { "type": "string" } },
+        "art_path": { "type": "string" },
+        "notes": { "type": "string" }
+      }
+    },
     "_reserved": {
       "type": "object",
       "properties": {
