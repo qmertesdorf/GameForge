@@ -37,7 +37,7 @@ Before authoring **any** SVG, write the system down explicitly from `concept.art
 
 - **Palette** — a fixed 3–5 colour set with named roles (primary, accent, danger, background, …). Every fill/stroke comes from this set.
 - **Line/stroke** — one stroke weight and one join/cap style, used throughout.
-- **Form language** — corner radius, geometric vs. organic, level of detail. Pick one and hold it.
+- **Form language** — corner radius, geometric vs. organic, level of detail. Pick one and hold it. Then give **each** actor *one* signature silhouette detail (a directional notch on the player, an inner facet on a pickup) — staying within the form language. Without it the re-skin reads as "the same primitive, just rounder" and the upgrade is muted (run-007 finding #3): a re-skinned square that is still just a square is a weak A/B.
 - **Shading model** — flat / single-direction gradient / glow halo — pick **one** and apply it to every asset.
 - **Scale & padding** — how each SVG maps to its primitive's footprint, plus consistent internal padding so assets sit together (e.g. all art drawn into a square `viewBox` with the same % padding).
 
@@ -75,6 +75,14 @@ Commit the generated `*.svg.import` sidecars alongside the art (expected Godot o
 - Movement, collision, spawning, scoring — **unchanged**.
 
 **c) What stays primitive.** Effects (glow halos, particles, screen-shake, squash/stretch, flash) stay code — they are *motion/juice*, not art. Backgrounds may stay procedural (parallax grid/stars) **or** get a tiling SVG — your judgment from `art_direction`. **Record which entities you re-skinned vs. left primitive** so a partial re-skin is a legible choice, not a silent gap.
+
+**d) Re-skinning an immediate-mode `_draw()` game (the builder's DEFAULT — read this first).** The builder ships a *single* `Node2D` whose `Main.gd` draws every entity in one root `_draw()`, with **zero child nodes** and screen-shake applied via `draw_set_transform`. Two swap strategies, and the choice is itself a finding to record in `asset_pass.notes` (run-007 findings #1–#2):
+
+- **Lighter, preferred for immediate-mode games — `draw_texture*` in place.** Replace each actor's `draw_rect`/`draw_circle` with `draw_texture_rect()` / `draw_texture()` *inside the existing `_draw()`*, loading the SVG texture once in `_ready()`. This reuses the SVG art while preserving z-order, the shake transform, and squash/stretch **for free** — no node tree surgery. Reach for this first when the game is one `_draw()`.
+- **Retained `Sprite2D`/`TextureRect` nodes — for node-based scenes, or when you want per-actor nodes.** If you go this route on an immediate-mode game, expect three non-obvious steps the naive "just add a Sprite2D" misses:
+  1. A parent's own `_draw()` renders *below* its children. So keep the **background layer** in the root `_draw()`, but move anything that must sit **above** the actors (HUD, particles, crash-flash) into a **higher-`z_index` child node** that delegates back (e.g. an `Overlay` Node2D whose `_draw()` calls a `draw_overlay(self)` method on Main). Otherwise the HUD vanishes under the sprites.
+  2. **Hoist screen-shake into shared per-frame state** (compute the shake offset once in `_process`, store it, add it to every sprite's `position` *and* use it for the background `draw_set_transform`) so sprites and background shake together. A sprite's node transform does not inherit the `_draw()` transform.
+  3. **Pool one node per spawned actor** (grow an `Array` of `Sprite2D`, show/hide per live instance). For a tinted family (e.g. obstacles in two danger colours from one white SVG), set `modulate` per instance.
 
 **Failure attribution (the POC value):** a bad re-skin is always attributable — you authored a poor SVG, mis-positioned/mis-scaled a sprite, or failed to remove the underlying primitive. Each is a specific, fixable prose gap.
 
