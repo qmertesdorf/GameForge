@@ -46,5 +46,14 @@ The pipeline did not "break" — every stage succeeded. What broke is **output q
 - [ ] Re-run to validate the edits raise quality (optional re-gen of runner-0001, or fold into genre 2).
 - [ ] Repeat the loop for genres 2 and 3 (e.g. match-3, top-down shooter) to satisfy the ≥3-genre criterion; write `poc-run-002.md`, `poc-run-003.md`.
 
+## Iteration 2 — re-gen with upgraded skills (runner-0002, "Neon Dash II")
+Same prompt/genre, run through the **edited** `concept` + `builder` skills, built as `runner-0002` for a side-by-side A/B against the original.
+- Concept came back richer: explicit difficulty curve, an orb-combo reward beat, and executable art direction (parallax background, glow, juice beats).
+- Builder implemented, unprompted-by-hand, all the new required sections: screen shake + white flash on crash, squash/stretch, combo pulse + particle burst, coyote-time/input-buffer, parallax grid + drifting stars, glow halos, pulsing orbs, accent-hue speed tiers, and clearable-spacing math with a capped ramp.
+- Headless: clean (exit 0, no errors). Status: `validated` (`5997c7e`).
+- **Owner verdict:** "Definitely better… it feels like a game." Some small problems remain, but it reads as an intentional toy rather than a tech demo.
+
+**Conclusion:** the core POC mechanism is proven — *editing skill prose measurably raises output quality with the manifest as the spine.* The skills will need more iteration, but the next priority is a **larger genre sample** (runs 002+) before another skill-tuning pass.
+
 ## Meta-observation
 The POC's thesis holds: with the manifest as the spine, **quality is a function of skill prose**. "Terrible but playable" is the correct floor for skills that only demand "runs + functional." Each run report's job is to convert a felt quality gap into a specific, attributable `SKILL.md` edit — which is exactly what this run produced.
