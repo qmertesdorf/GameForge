@@ -27,3 +27,19 @@ export function validate(manifest) {
     errors: valid ? [] : v.errors.map((e) => `${e.instancePath || "/"} ${e.message}`)
   };
 }
+
+export function newManifest({ id, name } = {}, now = new Date().toISOString()) {
+  if (!id || !name) throw new Error("newManifest requires both id and name");
+  return {
+    id,
+    name,
+    created_at: now,
+    updated_at: now,
+    status: "concept",
+    concept: {},
+    build: {},
+    assets: [],
+    validation: { issues: [] },
+    _reserved: { compliance: null, store: null, maintenance: null }
+  };
+}

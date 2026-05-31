@@ -1,5 +1,5 @@
 import { test, expect, describe } from "vitest";
-import { validate } from "./manifest.mjs";
+import { validate, newManifest } from "./manifest.mjs";
 
 // A hand-built, fully-valid manifest used as the baseline across tests.
 function validManifest() {
@@ -48,5 +48,23 @@ describe("validate", () => {
     const m = validManifest();
     delete m._reserved;
     expect(validate(m).valid).toBe(false);
+  });
+});
+
+describe("newManifest", () => {
+  test("produces a schema-valid skeleton with status=concept", () => {
+    const m = newManifest({ id: "runner-0001", name: "Neon Dash" }, "2026-05-30T12:00:00Z");
+    expect(m.id).toBe("runner-0001");
+    expect(m.name).toBe("Neon Dash");
+    expect(m.status).toBe("concept");
+    expect(m.created_at).toBe("2026-05-30T12:00:00Z");
+    expect(m.updated_at).toBe("2026-05-30T12:00:00Z");
+    expect(m._reserved).toEqual({ compliance: null, store: null, maintenance: null });
+    expect(validate(m).valid).toBe(true);
+  });
+
+  test("throws when id or name is missing", () => {
+    expect(() => newManifest({ id: "x" })).toThrow();
+    expect(() => newManifest({ name: "y" })).toThrow();
   });
 });
