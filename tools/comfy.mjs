@@ -57,6 +57,7 @@ export async function check({ fetch = globalThis.fetch, host = COMFY_HOST } = {}
     const stats = await fetch(`${host}/system_stats`);
     if (!stats.ok) return { reachable: false, host, error: `system_stats HTTP ${stats.status}` };
     const info = await fetch(`${host}/object_info/CheckpointLoaderSimple`);
+    if (!info.ok) return { reachable: false, host, error: `object_info HTTP ${info.status}` };
     const body = await info.json();
     const checkpoints = body?.CheckpointLoaderSimple?.input?.required?.ckpt_name?.[0] ?? [];
     return { reachable: true, host, checkpoints };

@@ -122,7 +122,7 @@ Justify "this `art_direction` → this profile" exactly as you justify the SVG v
 
 ### Per-entity flow
 For each entity you decide to make raster:
-1. **Recipe** — compose the JSON recipe: `prompt` = `scaffold + this actor's subject`; plus `negative`, `seed`, `sampler`, `steps`, `cfg`, `checkpoint`, optional `lora`, `layerdiffuse: true`, and `master_resolution` (see Resolution below). Keep `sampler`/`steps`/`cfg` identical across the game's sprites.
+1. **Recipe** — compose the JSON recipe: `prompt` = `scaffold + this actor's subject`; plus `negative`, `seed`, `sampler`, `steps`, `cfg`, `checkpoint`, optional `lora`, `layerdiffuse: true`, and `master_resolution` (see Resolution below). Keep `sampler`/`steps`/`cfg` identical across the game's sprites. A template that includes a `%lora%` node requires the recipe to set `lora`; for a profile with no LoRA, use a template that omits the `%lora%` token (an absent `lora` against a `%lora%` template fails loudly by design — that is attributable, not a bug).
 2. **Generate** — `node tools/comfy.mjs gen <id> <name> '<recipe-json>'` → writes `games/<id>/art/<name>.png` (RGBA). On a graph/unreachable error it fails loudly — fix the *infra/recipe*, do not fake the file.
 3. **Import** — run the headless import pass so Godot makes the `.png.import` sidecar + cached texture **before** re-validation:
    ```

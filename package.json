@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "description": "GameForge POC — skills + manifest tooling that turn a prompt into a playable Godot game.",
+  "engines": { "node": ">=18" },
   "scripts": {
     "test": "vitest run"
   },

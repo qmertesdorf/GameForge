@@ -69,6 +69,12 @@ describe("injectRecipe", () => {
     delete r.prompt;
     expect(() => injectRecipe(fixtureTemplate(), r)).toThrow(/prompt/);
   });
+
+  test("throws when the template uses %lora% but the recipe omits lora (templates without a LoRA must omit the token)", () => {
+    const tpl = { "10": { class_type: "LoraLoader", inputs: { lora_name: "%lora%" } } };
+    const r = fullRecipe(); // has no `lora` key
+    expect(() => injectRecipe(tpl, r)).toThrow(/%lora%|lora/);
+  });
 });
 
 import { check, gen } from "./comfy.mjs";
