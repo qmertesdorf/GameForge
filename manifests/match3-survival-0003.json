@@ -1,0 +1,134 @@
+{
+  "id": "match3-survival-0003",
+  "name": "Aegis Grid III",
+  "created_at": "2026-05-31T03:26:08.471Z",
+  "updated_at": "2026-05-31T03:36:57.264Z",
+  "status": "playable",
+  "concept": {
+    "genre": "match-3 survival (fusion)",
+    "core_loop": "Swap adjacent gems on a 7-wide grid to make 3+ matches. The survival threat lives ON the board: blight seeds on the top row every ~3.5s and spreads to one neighbor each tick; a blighted gem can ONLY be cleared by including it in a match, so every single swap is at once a puzzle move (clear colors, build combos for score) AND a defense move (purge blight before it spreads). Each second the player decides WHICH match to make: chase a big same-color combo for points, or sacrifice the combo to purge an advancing blight cluster threatening a column. If blight reaches the bottom of any column it cracks that column's wall segment; lose all segments and it is game over. Tempo is deliberately reconciled — blight ticks at puzzle cadence (one spread per ~3.5s, not a separate real-time clock) so the two genres never feel like two clocks; difficulty ramps by shortening the tick toward a floor. A telegraphed 'surge' every ~20s (board-edge glow + countdown) spreads blight twice in one tick as a tension spike on top of the steady pressure.",
+    "mechanics": [
+      "7-wide gem grid, swap adjacent to match 3+",
+      "gravity + refill after clears",
+      "blight corruption: seeds on the top row on a timed tick and spreads to a neighbor each tick",
+      "fusion rule: a match that includes blighted cells purges them (one action serves both genres)",
+      "per-column wall segments at the grid bottom that crack when blight breaches that column",
+      "combo/streak scoring that rewards chained clears (reward beat + progression)",
+      "telegraphed surge every ~20s: double blight spread for one tick (forcing-function spike)",
+      "difficulty ramp: blight tick interval shortens over time toward a floor",
+      "game over when all wall segments crack, plus tap-to-restart"
+    ],
+    "art_direction": "Bioluminescent reef on deep navy. Rounded gem tiles in 5 saturated colors (coral, teal, amber, violet, lime), each with a soft additive halo drawn behind it. Blighted gems are desaturated charcoal with a pulsing magenta-rot rim and thin crackling tendrils (Line2D) reaching toward the neighbor they will infect next, so the threat is legible on the board. Background is a slow vertical gradient (navy to near-black) with faint drifting plankton dots on a parallax layer (no dead space). The wall is a glowing cyan bar across the grid bottom, segmented per column; a breach fractures that segment with jagged Line2D cracks plus a red full-screen flash and a short screen shake. Feedback beats: bright particle pop on every match; a white cleansing flash radiating from cells when blight is purged; the score readout scale-pulses on combos; the surge telegraph pulses the board edge amber with a shrinking countdown ring.",
+    "target_platforms": [
+      "android"
+    ],
+    "differentiation_notes": "The survival threat lives ON the match-3 board (blight spreads cell-to-cell and can only be removed by matching it), so every swap is simultaneously a puzzle move and a defense move — the two genres fuse into one decision instead of a defense minigame running beside the grid (the run-004/005 coexistence failure). The hook is the constant triage tension between scoring combos and purging spreading corruption on the same tiles. Caveat: orthogonal puzzle + real-time is an intrinsically hard pairing; this concept maximizes fusability by making the threat a board state rather than an off-board entity."
+  },
+  "build": {
+    "engine": "godot",
+    "engine_version": "4.6.3.stable",
+    "language": "gdscript",
+    "project_path": "games/match3-survival-0003/",
+    "addons": [],
+    "export_presets": [
+      "android"
+    ]
+  },
+  "assets": [
+    {
+      "type": "sprite",
+      "name": "gem_coral",
+      "source": "placeholder",
+      "origin": "primitive"
+    },
+    {
+      "type": "sprite",
+      "name": "gem_teal",
+      "source": "placeholder",
+      "origin": "primitive"
+    },
+    {
+      "type": "sprite",
+      "name": "gem_amber",
+      "source": "placeholder",
+      "origin": "primitive"
+    },
+    {
+      "type": "sprite",
+      "name": "gem_violet",
+      "source": "placeholder",
+      "origin": "primitive"
+    },
+    {
+      "type": "sprite",
+      "name": "gem_lime",
+      "source": "placeholder",
+      "origin": "primitive"
+    },
+    {
+      "type": "sprite",
+      "name": "blighted_gem",
+      "source": "placeholder",
+      "origin": "primitive"
+    },
+    {
+      "type": "sprite",
+      "name": "blight_tendril",
+      "source": "placeholder",
+      "origin": "primitive"
+    },
+    {
+      "type": "sprite",
+      "name": "wall_segment",
+      "source": "placeholder",
+      "origin": "primitive"
+    },
+    {
+      "type": "sprite",
+      "name": "background_reef_gradient",
+      "source": "placeholder",
+      "origin": "primitive"
+    },
+    {
+      "type": "sprite",
+      "name": "plankton_parallax",
+      "source": "placeholder",
+      "origin": "primitive"
+    },
+    {
+      "type": "effect",
+      "name": "match_burst",
+      "source": "placeholder",
+      "origin": "primitive"
+    },
+    {
+      "type": "effect",
+      "name": "cleanse_flash",
+      "source": "placeholder",
+      "origin": "primitive"
+    },
+    {
+      "type": "effect",
+      "name": "surge_edge_glow",
+      "source": "placeholder",
+      "origin": "primitive"
+    },
+    {
+      "type": "effect",
+      "name": "breach_crack_flash",
+      "source": "placeholder",
+      "origin": "primitive"
+    }
+  ],
+  "validation": {
+    "issues": [],
+    "opens_in_editor": true,
+    "runs": true,
+    "core_loop_functional": true
+  },
+  "_reserved": {
+    "compliance": null,
+    "store": null,
+    "maintenance": null
+  }
+}
