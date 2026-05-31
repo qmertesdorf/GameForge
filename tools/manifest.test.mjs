@@ -49,6 +49,39 @@ describe("validate", () => {
     delete m._reserved;
     expect(validate(m).valid).toBe(false);
   });
+
+  test("accepts a styled manifest carrying asset_pass and origin:svg assets", () => {
+    const m = validManifest();
+    m.status = "styled";
+    m.assets = [{ type: "sprite", name: "player", source: "art/player.svg", origin: "svg" }];
+    m.asset_pass = {
+      method: "svg",
+      visual_system: {
+        palette: ["#0a0a14", "#00e5ff", "#ff3df0", "#ffe24a"],
+        stroke: "2px round, additive glow",
+        form: "sharp-cornered geometric, low detail",
+        shading: "flat fill + outer glow halo",
+        scale: "SVGs scaled to primitive footprints; 10% internal padding"
+      },
+      reskinned: ["player", "obstacle", "pickup"],
+      left_primitive: ["background", "glow", "particles"],
+      art_path: "games/runner-0002/art/",
+      notes: "background kept procedural; art_direction is geometric, well within SVG scope"
+    };
+    expect(validate(m)).toEqual({ valid: true, errors: [] });
+  });
+
+  test("rejects an unknown key inside asset_pass", () => {
+    const m = validManifest();
+    m.status = "styled";
+    m.asset_pass = { method: "svg", bogus: true };
+    expect(validate(m).valid).toBe(false);
+  });
+
+  test("still accepts an existing playable manifest with no asset_pass (no regression)", () => {
+    const m = validManifest(); // status: "playable", no asset_pass
+    expect(validate(m)).toEqual({ valid: true, errors: [] });
+  });
 });
 
 describe("newManifest", () => {
@@ -72,8 +105,8 @@ describe("newManifest", () => {
 describe("setStatus", () => {
   const base = () => newManifest({ id: "a", name: "A" }, "2026-05-30T12:00:00Z");
 
-  test("exposes the five POC statuses", () => {
-    expect(STATUSES).toEqual(["concept", "generated", "validated", "playable", "failed"]);
+  test("exposes the six statuses through styled", () => {
+    expect(STATUSES).toEqual(["concept", "generated", "validated", "playable", "styled", "failed"]);
   });
 
   test("advances along the legal path and stamps updated_at", () => {
@@ -102,6 +135,23 @@ describe("setStatus", () => {
 
   test("treats re-setting the same status as a no-op", () => {
     expect(setStatus(base(), "concept").status).toBe("concept");
+  });
+
+  test("advances playable -> styled", () => {
+    const playable = { ...base(), status: "playable" };
+    const styled = setStatus(playable, "styled", "2026-05-30T14:00:00Z");
+    expect(styled.status).toBe("styled");
+    expect(styled.updated_at).toBe("2026-05-30T14:00:00Z");
+  });
+
+  test("allows playable -> failed", () => {
+    const playable = { ...base(), status: "playable" };
+    expect(setStatus(playable, "failed").status).toBe("failed");
+  });
+
+  test("rejects leaving styled (terminal)", () => {
+    const styled = { ...base(), status: "styled" };
+    expect(() => setStatus(styled, "playable")).toThrow(/illegal transition/);
   });
 });
 

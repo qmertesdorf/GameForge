@@ -65,6 +65,21 @@ godot --headless --path games/<id>/ --script res://selftest.gd
 
 Method 1.5 above is the first half of this hook, now **live** for logic-heavy genres: `builder` emits `selftest.gd`, the validator runs it, and `SELFTEST OK` backs `core_loop_functional` with an assertion instead of a hope. What it does NOT yet do is **replace the human playtest** — the self-test proves the loop's *logic* is correct, but `playable` still requires a human to confirm it *feels* right (juice, fairness, that a blend actually coheres). The remaining future step is to grow `selftest.gd` coverage (and add feel heuristics) until `status` can reach `playable` in CI with no human in the loop. Until then: self-test gates `validated`, human gates `playable`.
 
+## Method 3 — Re-skin re-validation (`playable → styled`, after the `asset` skill)
+
+When `asset` has re-skinned a `playable` title, re-run the same gates on the rewired game and advance to the terminal `styled` status on success:
+
+1. **Headless import + run clean** — `godot --headless --path games/<id>/ --quit-after 120`, exit 0 with no `SCRIPT ERROR` / `ERROR:` / "Failed to load". Proves the SVGs import and the rewired scene runs.
+2. **`selftest.gd` still `SELFTEST OK`** (if the title has one) — proves the swap changed only visuals, not logic.
+3. **Human A/B playtest** — the owner confirms the SVG version (a) looks more designed than the primitive original, (b) **reads as one coherent visual system** rather than mismatched shapes, and (c) plays identically.
+
+On all three passing:
+```
+node tools/manifest.mjs set-status <id> styled
+node tools/manifest.mjs validate <id>
+```
+On failure, record the specific issue in `validation.issues`, attribute it to `asset` (e.g. "asset: left the primitive obstacle drawing under the sprite — double-draw", or "asset: SVGs individually fine but palette/stroke don't cohere — visual_system gap"), and do **not** advance to `styled`. The game stays `playable`; the fix is a specific `asset` SKILL.md edit.
+
 ## Notes
 - Some Godot CLI flags vary slightly by 4.x point release; if `--quit-after` is unavailable, fall back to `--headless --path games/<id>/ --quit` after confirming `--import` succeeds. Verify against the pinned version.
 - Legibility is the product. "It didn't work" is a POC failure; "builder doesn't scaffold touch input" is a POC success.
