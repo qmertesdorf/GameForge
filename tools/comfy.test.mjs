@@ -132,14 +132,14 @@ describe("gen", () => {
     master_resolution: 512, layerdiffuse: true
   });
 
-  function withDirs(run) {
+  async function withDirs(run) {
     const templatesDir = mkdtempSync(pjoin(tmpdir(), "cf-tpl-"));
     const gamesDir = mkdtempSync(pjoin(tmpdir(), "cf-games-"));
     writeFileSync(pjoin(templatesDir, "sdxl-layerdiffuse.json"), JSON.stringify({
       "6": { class_type: "CLIPTextEncode", inputs: { text: "%prompt%" } },
       "9": { class_type: "SaveImage", inputs: { images: ["8", 0] } }
     }));
-    try { return run({ templatesDir, gamesDir }); }
+    try { return await run({ templatesDir, gamesDir }); }
     finally { rmSync(templatesDir, { recursive: true, force: true }); rmSync(gamesDir, { recursive: true, force: true }); }
   }
 
@@ -193,6 +193,19 @@ describe("gen", () => {
       await expect(gen("creature-0001", "hero", recipe(),
         { fetch, host: "http://127.0.0.1:8188", templatesDir, gamesDir, pollIntervalMs: 0 }))
         .rejects.toThrow(/127\.0\.0\.1:8188|unreachable/);
+      expect(existsSync(pjoin(gamesDir, "creature-0001", "art", "hero.png"))).toBe(false);
+    });
+  });
+
+  test("throws and writes no file when /view download fails", async () => {
+    await withDirs(async ({ templatesDir, gamesDir }) => {
+      const fetch = mockFetch({
+        "POST /prompt": { body: { prompt_id: "abc" } },
+        "GET /history/abc": HISTORY_DONE,
+        "GET /view": { ok: false, status: 404 }
+      });
+      await expect(gen("creature-0001", "hero", recipe(), { fetch, templatesDir, gamesDir, pollIntervalMs: 0 }))
+        .rejects.toThrow(/view|404/);
       expect(existsSync(pjoin(gamesDir, "creature-0001", "art", "hero.png"))).toBe(false);
     });
   });

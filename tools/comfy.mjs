@@ -112,6 +112,9 @@ export async function gen(id, name, recipe, {
   let image = null;
   for (let i = 0; i < maxPolls; i++) {
     const hist = await fetch(`${host}/history/${prompt_id}`);
+    if (!hist.ok) {
+      throw new Error(`comfy: history poll failed for prompt ${prompt_id} at ${host} (HTTP ${hist.status})`);
+    }
     const body = await hist.json();
     const entry = body?.[prompt_id];
     if (entry) {
@@ -125,6 +128,9 @@ export async function gen(id, name, recipe, {
 
   const params = new URLSearchParams({ filename: image.filename, subfolder: image.subfolder ?? "", type: image.type ?? "output" });
   const view = await fetch(`${host}/view?${params}`);
+  if (!view.ok) {
+    throw new Error(`comfy: failed to download image from ${host}/view (HTTP ${view.status})`);
+  }
   const bytes = Buffer.from(await view.arrayBuffer());
 
   const artDir = join(gamesDir, id, "art");
