@@ -71,13 +71,52 @@
             "stroke": { "type": "string" },
             "form": { "type": "string" },
             "shading": { "type": "string" },
-            "scale": { "type": "string" }
+            "scale": { "type": "string" },
+            "prompt_scaffold": { "type": "string" },
+            "style": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "checkpoint": { "type": "string" },
+                "loras": { "type": "array", "items": { "type": "string" } },
+                "style_prompt": { "type": "string" }
+              }
+            }
           }
         },
         "reskinned": { "type": "array", "items": { "type": "string" } },
         "left_primitive": { "type": "array", "items": { "type": "string" } },
         "art_path": { "type": "string" },
-        "notes": { "type": "string" }
+        "notes": { "type": "string" },
+        "recipes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "name": { "type": "string" },
+              "checkpoint": { "type": "string" },
+              "prompt": { "type": "string" },
+              "negative": { "type": "string" },
+              "seed": { "type": "number" },
+              "sampler": { "type": "string" },
+              "steps": { "type": "number" },
+              "cfg": { "type": "number" },
+              "master_resolution": { "type": "number" },
+              "layerdiffuse": { "type": "boolean" },
+              "lora": { "type": "string" },
+              "import_settings": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "mipmaps": { "type": "boolean" },
+                  "filter": { "type": "string" },
+                  "compression": { "type": "string" }
+                }
+              }
+            }
+          }
+        }
       }
     },
     "_reserved": {
