@@ -8,10 +8,10 @@ const REQUIRED_SKILLS = ["concept", "builder", "validator"];
 
 // Minimal frontmatter parse: grab the first --- ... --- block and read name/description.
 function frontmatter(md) {
-  const m = md.match(/^---\n([\s\S]*?)\n---/);
+  const m = md.match(/^---\r?\n([\s\S]*?)\r?\n---/);
   if (!m) return null;
   const out = {};
-  for (const line of m[1].split("\n")) {
+  for (const line of m[1].split(/\r?\n/)) {
     const kv = line.match(/^(\w+):\s*(.*)$/);
     if (kv) out[kv[1]] = kv[2].trim();
   }
