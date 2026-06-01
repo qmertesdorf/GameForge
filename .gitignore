@@ -19,3 +19,6 @@ Thumbs.db
 # Node
 node_modules/
 .gstack/
+
+# Claude Code runtime artifacts
+.claude/scheduled_tasks.lock
