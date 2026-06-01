@@ -81,6 +81,37 @@ func _init() -> void:
 		failures.append("restart left game not alive")
 
 	# ----------------------------------------------------------
+	# Test 5: audio cues fire on collect / streak / game-over (M1.6 audio_pass)
+	# ----------------------------------------------------------
+	game._setup_audio()
+	# Players exist as named AudioStreamPlayer nodes in the scene
+	for node_name in ["SfxCollect", "SfxStreak", "SfxGameover", "MusicAmbient"]:
+		var n: Node = game.get_node_or_null(node_name)
+		if n == null or not (n is AudioStreamPlayer):
+			failures.append("missing AudioStreamPlayer node: " + node_name)
+	game._start_game()
+	var collect_before: int = int(game.audio_play_counts.get("collect", 0))
+	# Collect enough seeds to also bump the multiplier (streak cue)
+	for i in range(game.STREAK_FOR_MULT + 1):
+		game.seed_positions.append(game.spirit_pos)
+		game.seed_phases.append(0.0)
+		game._check_collisions()
+	if int(game.audio_play_counts.get("collect", 0)) <= collect_before:
+		failures.append("collect sfx not triggered on seed collection")
+	if int(game.audio_play_counts.get("streak", 0)) <= 0:
+		failures.append("streak sfx not triggered on multiplier bump")
+	# Game over → gameover cue
+	game._start_game()
+	game.seed_positions.clear()
+	game.seed_phases.clear()
+	game.hazards.clear()
+	game.hazards.append({ "pos": game.spirit_pos, "vel": Vector2.ZERO, "drift_angle": 0.0, "wobble": 0.0 })
+	var go_before: int = int(game.audio_play_counts.get("gameover", 0))
+	game._check_collisions()
+	if int(game.audio_play_counts.get("gameover", 0)) <= go_before:
+		failures.append("gameover sfx not triggered on hazard hit")
+
+	# ----------------------------------------------------------
 	# Report
 	# ----------------------------------------------------------
 	if failures.size() == 0:

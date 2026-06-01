@@ -2,7 +2,7 @@
   "id": "crosser-0001",
   "name": "Pixel Hop",
   "created_at": "2026-05-31T22:39:59.474Z",
-  "updated_at": "2026-05-31T22:44:53.772Z",
+  "updated_at": "2026-06-01T03:23:14.566Z",
   "status": "validated",
   "concept": {
     "genre": "lane-crossing hopper",
@@ -57,5 +57,138 @@
     "compliance": null,
     "store": null,
     "maintenance": null
+  },
+  "audio_pass": {
+    "method": "audio",
+    "audio_system": {
+      "model": "stable-audio-open-1.0",
+      "mood_prompt": "upbeat retro 8-bit chiptune, hard-edged arcade",
+      "style_descriptors": [
+        "chiptune",
+        "8-bit",
+        "square-wave",
+        "energetic"
+      ]
+    },
+    "recipes": [
+      {
+        "name": "hop",
+        "kind": "sfx",
+        "prompt": "8-bit chiptune blip, short square wave hop, retro arcade jump sound",
+        "negative": "music, melody, loop, voice, speech, ambient, reverb",
+        "seed": 51,
+        "duration_s": 1,
+        "sampler": "dpmpp_3m_sde_gpu",
+        "steps": 8,
+        "cfg": 5,
+        "format": "wav",
+        "loop": false,
+        "import_settings": {
+          "loop": false,
+          "loop_offset": 0
+        }
+      },
+      {
+        "name": "cross",
+        "kind": "sfx",
+        "prompt": "bright 8-bit coin pickup, short cheerful chiptune chime, retro arcade score blip",
+        "negative": "music, loop, voice, speech, ambient, reverb",
+        "seed": 52,
+        "duration_s": 1.2,
+        "sampler": "dpmpp_3m_sde_gpu",
+        "steps": 8,
+        "cfg": 5,
+        "format": "wav",
+        "loop": false,
+        "import_settings": {
+          "loop": false,
+          "loop_offset": 0
+        }
+      },
+      {
+        "name": "streak",
+        "kind": "sfx",
+        "prompt": "rising 8-bit arpeggio, quick chiptune power-up sparkle, retro square wave",
+        "negative": "voice, speech, ambient, harsh noise, loop",
+        "seed": 53,
+        "duration_s": 1.2,
+        "sampler": "dpmpp_3m_sde_gpu",
+        "steps": 8,
+        "cfg": 5,
+        "format": "wav",
+        "loop": false,
+        "import_settings": {
+          "loop": false,
+          "loop_offset": 0
+        }
+      },
+      {
+        "name": "gameover",
+        "kind": "sfx",
+        "prompt": "8-bit chiptune fail jingle, short descending retro game over melody, square wave",
+        "negative": "voice, speech, ambient, loop",
+        "seed": 54,
+        "duration_s": 2,
+        "sampler": "dpmpp_3m_sde_gpu",
+        "steps": 8,
+        "cfg": 5,
+        "format": "wav",
+        "loop": false,
+        "import_settings": {
+          "loop": false,
+          "loop_offset": 0
+        }
+      },
+      {
+        "name": "bgm",
+        "kind": "music",
+        "prompt": "upbeat chiptune loop, retro 8-bit arcade background music, square wave melody with simple bassline, energetic driving",
+        "negative": "voice, speech, lyrics, vocals, ambient drone, orchestral",
+        "seed": 55,
+        "duration_s": 30,
+        "sampler": "dpmpp_3m_sde_gpu",
+        "steps": 50,
+        "cfg": 7,
+        "format": "wav",
+        "loop": true,
+        "import_settings": {
+          "loop": true,
+          "loop_offset": 0
+        }
+      }
+    ],
+    "events": [
+      {
+        "event": "hop",
+        "clip": "hop",
+        "node": "SfxHop",
+        "signal": "_hop"
+      },
+      {
+        "event": "cross",
+        "clip": "cross",
+        "node": "SfxCross",
+        "signal": "_on_crossing"
+      },
+      {
+        "event": "streak",
+        "clip": "streak",
+        "node": "SfxStreak",
+        "signal": "_on_crossing quick branch"
+      },
+      {
+        "event": "gameover",
+        "clip": "gameover",
+        "node": "SfxGameover",
+        "signal": "_game_over"
+      },
+      {
+        "event": "music",
+        "clip": "bgm",
+        "node": "MusicAmbient",
+        "signal": "_ready loops continuously"
+      }
+    ],
+    "notes": "Hard-edged chiptune identity (style B) — deliberate sonic contrast to creature-0001 warm acoustic. 4 SFX one-shots (hop/cross/streak/gameover) + looping chip bed, Stable Audio Open (WAV). Wired in code (_setup_audio); selftest Test 8 asserts all cues fire + nodes exist; headless run clean. STAGED pending owner gates: ~60s playtest (validated->playable) then audio A/B (->scored). IP-safe: no artist/track names; music negative excludes vocals."
   }
 }
