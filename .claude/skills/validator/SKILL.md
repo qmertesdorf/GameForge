@@ -72,6 +72,7 @@ When `asset` has re-skinned a `playable` title — via the **`svg`** *or* the **
 1. **Headless import + run clean** — `godot --headless --path games/<id>/ --quit-after 120`, exit 0 with no `SCRIPT ERROR` / `ERROR:` / "Failed to load". Proves the textures (`.svg` or `.png`) imported and the rewired scene runs. (Confirm the `asset` skill ran `--import` first, or `load("res://art/...")` returns null.)
 2. **`selftest.gd` still `SELFTEST OK`** (if the title has one) — proves the swap changed only visuals, not logic.
 3. **Human A/B playtest** — the owner confirms the re-skin (a) looks more designed than the primitive original, (b) **reads as one coherent visual system** rather than mismatched assets, and (c) plays identically.
+   - **Cross-modal cohesion (when ≥2 modalities are present — e.g. the title also carries an `audio_pass`, or at M2 a `store_pass`):** confirm the visuals, audio, and (at M2) the icon **read as one themed world** — the same premise/tone/setting from `concept.theme` — not three independent interpretations. On failure, attribute it to a **`concept.theme` gap** (the anchor was too vague to align the modalities) or to a **skill that ignored the theme** (e.g. "audio: chose a chiptune mood for a cozy-storybook theme — ignored `concept.theme.tone`") — a specific, fixable prose cause, exactly like the within-modality cohesion finding above.
 
 **Raster-only additional checks (when `asset_pass.method == "raster"`):**
 - **Mobile-density sanity** — each `recipes[].master_resolution` is a high-res power-of-two master (downscaled to footprint, never upscaled) and each `import_settings` enables mipmaps. A sprite that is blurry/aliased at the footprint, or generated below its on-screen size, is an `asset` finding (wrong master/import), not a validator pass.
@@ -93,6 +94,7 @@ When a game carries an `audio_pass`, confirm the audio is real and wired:
 3. **SFX fire on events.** Via `selftest.gd`, drive each mapped `signal`/event and assert the corresponding `AudioStreamPlayer.play()` was invoked (e.g. spy by checking `playing` or a wired counter). Logic-gate parity with Method 1.5.
 4. **Mobile sanity.** File sizes are reasonable for mobile (SFX ≪ 1 MB; music a few MB OGG), formats are `wav`/`ogg`, sample rate ≤ 48 kHz.
 5. **IP-safety.** Confirm no recipe prompt names an artist or copyrighted track; music negative prompt excludes vocals unless intended.
+6. **Cross-modal cohesion (when the title also has an `asset_pass`).** Confirm the audio and the visuals **read as one themed world** — the same premise/tone/setting from `concept.theme`. A cozy-storybook look with an aggressive arcade soundtrack is a failure: attribute it to a `concept.theme` gap or to the `audio`/`asset` skill that ignored the theme, and record it. (Cohesion is a human judgment call, like every aesthetic gate — not automatable.)
 
 Record results in `manifest.validation.issues` as needed. Audio validation does not block the visual pass and vice-versa.
 
