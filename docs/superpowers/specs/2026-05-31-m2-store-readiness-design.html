@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GameForge — M2 Store-Readiness (Foundation) Design</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #171a21;
+    --panel-2: #1d2129;
+    --ink: #e7e9ee;
+    --muted: #9aa3b0;
+    --line: #2a2f3a;
+    --accent: #6ea8fe;
+    --accent-2: #7ee787;
+    --warn: #ffb454;
+    --code-bg: #11141a;
+    --pill: #232834;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.65 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 0 24px 120px; }
+
+  header.hero {
+    padding: 56px 24px 40px;
+    background: radial-gradient(1200px 400px at 20% -10%, rgba(110,168,254,.18), transparent 60%),
+                radial-gradient(900px 380px at 90% -20%, rgba(126,231,135,.12), transparent 55%);
+    border-bottom: 1px solid var(--line);
+  }
+  .hero-inner { max-width: 1100px; margin: 0 auto; padding: 0 0; }
+  .eyebrow { letter-spacing: .14em; text-transform: uppercase; font-size: 12px; color: var(--accent); font-weight: 700; }
+  h1.title { font-size: 44px; line-height: 1.1; margin: 10px 0 8px; font-weight: 800; }
+  .subtitle { color: var(--muted); font-size: 18px; margin: 0 0 22px; }
+  .meta-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap: 12px; margin-top: 18px; }
+  .meta-card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+  .meta-card .k { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+  .meta-card .v { font-size: 15px; font-weight: 600; margin-top: 3px; }
+  .status-pill { display:inline-block; background: rgba(126,231,135,.14); color: var(--accent-2); border:1px solid rgba(126,231,135,.3); padding: 3px 10px; border-radius: 999px; font-size: 13px; font-weight:600; }
+
+  .layout { display: grid; grid-template-columns: 240px 1fr; gap: 40px; margin-top: 40px; align-items: start; }
+  nav.toc { position: sticky; top: 24px; font-size: 14px; border: 1px solid var(--line); background: var(--panel); border-radius: 12px; padding: 16px; }
+  nav.toc h4 { margin: 0 0 10px; font-size: 12px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
+  nav.toc a { display: block; color: var(--muted); text-decoration: none; padding: 5px 8px; border-radius: 7px; }
+  nav.toc a:hover { color: var(--ink); background: var(--panel-2); }
+
+  section { scroll-margin-top: 20px; margin-bottom: 14px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 24px 26px; margin-bottom: 22px; }
+  h2 { font-size: 24px; margin: 4px 0 14px; display: flex; align-items: baseline; gap: 12px; }
+  h2 .num { color: var(--accent); font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  h3 { font-size: 18px; margin: 22px 0 8px; }
+  p { margin: 10px 0; }
+  .muted { color: var(--muted); }
+  strong { color: #fff; }
+
+  blockquote {
+    margin: 16px 0; padding: 12px 18px; border-left: 3px solid var(--accent);
+    background: var(--panel-2); border-radius: 0 10px 10px 0; color: #d4dae6; font-style: italic;
+  }
+  .callout {
+    border: 1px solid var(--line); border-left: 4px solid var(--warn);
+    background: rgba(255,180,84,.06); border-radius: 0 10px 10px 0; padding: 14px 18px; margin: 16px 0;
+  }
+  .callout.good { border-left-color: var(--accent-2); background: rgba(126,231,135,.06); }
+  .callout.info { border-left-color: var(--accent); background: rgba(110,168,254,.06); }
+  .callout .lead { font-weight: 700; }
+
+  ul, ol { margin: 10px 0; padding-left: 22px; }
+  li { margin: 6px 0; }
+
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14.5px; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; background: var(--panel-2); }
+  tr:last-child td { border-bottom: none; }
+  td code, p code, li code { background: var(--code-bg); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; font-size: 13px; color: #c8d3e6; }
+  code, pre { font-family: "JetBrains Mono", "SF Mono", Consolas, monospace; }
+  pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; overflow-x: auto; font-size: 13px; line-height: 1.55; color: #cdd6e4; }
+
+  .pipeline { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 14px 0; }
+  .stage { background: var(--pill); border: 1px solid var(--line); border-radius: 10px; padding: 8px 14px; font-weight: 600; }
+  .stage.dim { opacity: .5; }
+  .stage.now { border-color: rgba(126,231,135,.5); color: var(--accent-2); }
+  .stage.gate { border-color: rgba(255,180,84,.5); color: var(--warn); }
+  .arrow { color: var(--accent); font-weight: 700; }
+
+  .skilltag { font-family: "JetBrains Mono", monospace; background: rgba(110,168,254,.12); border:1px solid rgba(110,168,254,.3); color:#a9c7ff; padding:1px 7px; border-radius:6px; font-size:13px; }
+  .tag-now { display:inline-block; background: rgba(126,231,135,.14); color: var(--accent-2); border:1px solid rgba(126,231,135,.3); padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight:600; }
+  .tag-gate { display:inline-block; background: rgba(255,180,84,.12); color: var(--warn); border:1px solid rgba(255,180,84,.3); padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight:600; }
+
+  footer { text-align: center; color: var(--muted); font-size: 13px; margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--line); }
+
+  @media (max-width: 820px) {
+    .layout { grid-template-columns: 1fr; }
+    nav.toc { position: static; }
+    h1.title { font-size: 32px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <div class="eyebrow">Technical Design Document · Milestone M2</div>
+    <h1 class="title">M2 — Store-Readiness <span class="muted" style="font-weight:500;">(Foundation)</span></h1>
+    <p class="subtitle">Turn a folder of mobile-grade assets into the inputs a shippable Android build needs — built as the same tested-seam + skill pattern as every prior milestone.</p>
+    <span class="status-pill">● Design approved — spec under review</span>
+    <div class="meta-grid">
+      <div class="meta-card"><div class="k">Date</div><div class="v">2026-05-31</div></div>
+      <div class="meta-card"><div class="k">Engine</div><div class="v">Godot 4.6.3</div></div>
+      <div class="meta-card"><div class="k">Target</div><div class="v">Android-first</div></div>
+      <div class="meta-card"><div class="k">New skills</div><div class="v">packager · validator (Method 4)</div></div>
+      <div class="meta-card"><div class="k">Builds on</div><div class="v">POC · M1 · M1.5 · M1.6</div></div>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+<div class="layout">
+
+  <nav class="toc">
+    <h4>Contents</h4>
+    <a href="#s1">1 · Goal</a>
+    <a href="#s2">2 · Pipeline placement</a>
+    <a href="#s3">3 · The tested seam</a>
+    <a href="#s4">4 · Schema changes</a>
+    <a href="#s5">5 · The <code>packager</code> skill</a>
+    <a href="#s6">6 · Validator gate (M4)</a>
+    <a href="#s7">7 · Determinism &amp; git</a>
+    <a href="#s8">8 · Feasibility gate</a>
+    <a href="#s9">9 · Proof run</a>
+    <a href="#s10">10 · Testing</a>
+    <a href="#s11">11 · Scope</a>
+    <a href="#s12">12 · Roadmap fit</a>
+  </nav>
+
+  <main>
+
+  <p class="muted" style="margin-top:0;">Builds on the GameForge POC + M1 (SVG re-skin), M1.5 (raster), M1.6 (audio). This is the <strong>foundation</strong> slice of M2 as named in the M1.5 roadmap (§12): <em>"app icon (+ all required sizes), splash, store screenshots, texture atlasing, APK size budget, Godot Android export presets — the title-level packaging that turns a folder of mobile-grade assets into a shippable build."</em></p>
+
+  <section id="s1"><div class="card">
+    <h2><span class="num">1</span> Goal</h2>
+    <p>Turn a folder of mobile-grade assets into the <strong>inputs a shippable Android build needs</strong>, with the same legible-attribution discipline as every prior milestone: a re-runnable tool + skill that derives the packaging set from the manifest, records it, and is gated by checks that attribute any failure to specific prose.</p>
+    <p><span class="tag-now">IN SCOPE — foundation</span> &nbsp;every item CI-testable or headlessly verifiable <strong>without the Android SDK</strong>:</p>
+    <ul>
+      <li><strong>App icons</strong> — all Android launcher densities (mdpi 48 → xxxhdpi 192), the 512² Google Play hi-res icon, and adaptive-icon layers (foreground/background at 432²).</li>
+      <li><strong>Boot splash</strong> — Godot <code>boot_splash</code> config + asset.</li>
+      <li><strong>Store screenshots</strong> — gameplay frames captured at Play Store dimensions, reusing the <code>SceneTree</code> screenshot harness (the real Vulkan renderer; <code>--headless</code>'s dummy renderer cannot capture pixels).</li>
+      <li><strong>Texture atlas</strong> — pack a game's sprite PNGs into one atlas with a coordinate map.</li>
+      <li><strong>Asset size budget</strong> — sum the shippable asset bytes, compare to a per-title budget, report a per-file breakdown and pass/fail.</li>
+      <li><strong>Android export preset</strong> — generate a valid <code>export_presets.cfg</code> for the game.</li>
+    </ul>
+    <p><span class="tag-gate">DEFERRED — named gates</span> &nbsp;not built or run this cycle:</p>
+    <div class="callout">
+      <p class="lead">The actual APK build → Android-toolchain feasibility gate (§8)</p>
+      <p style="margin-bottom:0;"><code>godot --headless --export-debug</code> needs the Android SDK + JDK, which are not configured here (<code>ANDROID_HOME</code>/<code>ANDROID_SDK_ROOT</code> are empty). This is the exact pattern of the ComfyUI gate (M1.5) and the Stable-Audio gate (M1.6) — an external toolchain stood up separately, then a one-shot pass/fail.</p>
+    </div>
+    <div class="callout">
+      <p class="lead">Icon / splash aesthetic A/B &amp; real store submission → owner-gated</p>
+      <p style="margin-bottom:0;">Account, signing keys, listing copy, legal, and "does the icon look good" — like every art/audio A/B before it.</p>
+    </div>
+  </div></section>
+
+  <section id="s2"><div class="card">
+    <h2><span class="num">2</span> Pipeline placement</h2>
+    <p>Packaging is a title-level bolt-on <strong>after</strong> a game has its art and audio identity (<code>styled</code> and/or <code>scored</code>):</p>
+    <div class="pipeline">
+      <span class="stage dim">asset</span><span class="arrow">→</span>
+      <span class="stage dim">[styled]</span><span class="arrow">→</span>
+      <span class="stage dim">audio</span><span class="arrow">→</span>
+      <span class="stage dim">[scored]</span><span class="arrow">→</span>
+      <span class="stage now">packager</span><span class="arrow">→</span>
+      <span class="stage now">validator (gate)</span><span class="arrow">→</span>
+      <span class="stage now">[packaged]</span><span class="arrow">→</span>
+      <span class="stage gate">APK gate</span><span class="arrow">→</span>
+      <span class="stage gate">submission (owner)</span>
+    </div>
+    <p><code>packaged</code> is a new <strong>terminal</strong> status, reached only after <strong>both</strong> polish passes are complete: the visual pass (<code>asset_pass</code>, owner A/B → <code>styled</code>) <strong>and</strong> the audio pass (<code>audio_pass</code>, owner A/B → <code>scored</code>). A primitive-art or silent game is not store-ready, so both identities are mandatory.</p>
+    <div class="callout info"><p style="margin:0;">Because <code>status</code> is a single string that holds only one of <code>styled</code>/<code>scored</code> at a time, the gate keys off the <strong>presence of both <code>asset_pass</code> and <code>audio_pass</code> blocks</strong> — the source of truth the asset/audio skills already designate (<em>"the pass block, not the status string"</em>) — not the lossy status value. Audio is <em>orthogonal</em> (the audio skill lets a merely-<code>playable</code> game advance to <code>scored</code>), so reaching <code>scored</code> alone does <strong>not</strong> imply the visual pass happened — the gate checks for both blocks, each A/B-confirmed, explicitly.</p></div>
+    <p>The canonical path is <code>playable → styled → scored → packaged</code>. For the foundation proof the tooling still runs against the current substrate regardless of status; the <strong>end-to-end</strong> <code>… → packaged</code> proof is gated on both owner A/Bs + the APK gate (§8, §9).</p>
+  </div></section>
+
+  <section id="s3"><div class="card">
+    <h2><span class="num">3</span> Architecture — the tested seam <span class="muted" style="font-size:14px;font-weight:500;">(matches <code>comfy.mjs</code>)</span></h2>
+    <p>The whole codebase pairs a <strong>pure, CI-tested JS seam</strong> with an <strong>external engine/server that does the heavy lifting</strong> (e.g. <code>comfy.mjs</code> tests recipe→workflow injection with the network mocked; ComfyUI does the actual generation). M2 follows it:</p>
+    <h3><span class="skilltag">tools/package.mjs</span> — pure, deterministic, vitest-tested (no GPU/SDK/engine)</h3>
+    <table>
+      <thead><tr><th>Function</th><th>Returns</th></tr></thead>
+      <tbody>
+        <tr><td><code>iconSizeTable()</code></td><td>the canonical list of required icon outputs <code>{ name, px, kind }</code> (launcher densities, Play 512, adaptive 432 fg/bg).</td></tr>
+        <tr><td><code>sizeBudget(files, budgetBytes)</code></td><td><code>{ total, perFile[], pass }</code> from a list of <code>{ path, bytes }</code>.</td></tr>
+        <tr><td><code>exportPresetCfg(opts)</code></td><td>a valid Android <code>export_presets.cfg</code> string from <code>{ name, package, icon paths, … }</code>.</td></tr>
+        <tr><td><code>atlasLayout(rects)</code></td><td>bin-packing of <code>{ name, w, h }</code> into <code>{ sheet:{w,h}, placements[] }</code> (shelf/MaxRects — deterministic, no pixels).</td></tr>
+      </tbody>
+    </table>
+    <p>A CLI mirroring <code>comfy.mjs</code>: <code>node tools/package.mjs --check &lt;id&gt;</code> and subcommands that orchestrate the Godot-side pixel ops. <strong>Loud-failure contract:</strong> throws with context, writes no partial output on error.</p>
+    <h3>Godot-headless pixel scripts <span class="muted" style="font-size:14px;font-weight:500;">(engine already a dependency; no Android SDK)</span></h3>
+    <ul>
+      <li>resize a master PNG into each icon output (<code>Image.load</code> → <code>resize</code> → <code>save_png</code>),</li>
+      <li>render the atlas texture from <code>atlasLayout</code>'s placements,</li>
+      <li>capture screenshots at Play dimensions via the <code>SceneTree</code> harness.</li>
+    </ul>
+    <div class="callout info"><p style="margin:0;">Everything that <em>can</em> be unit-tested in CI (the tables, math, config generation, packing layout) stays pure and network-/GPU-free, exactly like <code>comfy.mjs</code>'s <code>injectRecipe</code>. Environment knobs mirror <code>comfy.mjs</code>: <code>GAMEFORGE_GAMES_DIR</code> (default <code>games/</code>), an optional <code>GAMEFORGE_SIZE_BUDGET</code> override; Godot located via the README-pinned binary.</p></div>
+  </div></section>
+
+  <section id="s4"><div class="card">
+    <h2><span class="num">4</span> Schema / manifest changes <span class="muted" style="font-size:14px;font-weight:500;">(additive, non-breaking)</span></h2>
+    <p>Promote the reserved <code>_reserved.store</code> slot into a first-class <strong><code>store_pass</code></strong> block, parallel to <code>asset_pass</code> / <code>audio_pass</code>:</p>
+    <pre>"store_pass": {
+  "icons": [ { "name": "ic_launcher_xxxhdpi", "px": 192, "kind": "launcher", "source": "store/icons/…png" }, … ],
+  "splash": { "source": "store/splash.png", "show_image": true },
+  "screenshots": [ { "name": "screen-1", "px": "1080x1920", "source": "store/screenshots/…png" }, … ],
+  "atlas": { "sheet": "store/atlas.png", "map": "store/atlas.json", "sprite_count": 4 },
+  "size_budget": { "total_bytes": 0, "budget_bytes": 0, "pass": true, "per_file": [ … ] },
+  "export_preset": { "path": "export_presets.cfg", "platform": "android", "package": "com.gameforge.&lt;id&gt;" },
+  "icon_master": "art/&lt;hero&gt;.png",
+  "notes": "…"
+}</pre>
+    <ul>
+      <li>Add <strong><code>"packaged"</code></strong> to the <code>status</code> enum: <code>["concept","generated","validated","playable","styled","scored","packaged","failed"]</code>.</li>
+      <li><code>_reserved.store</code> either becomes <code>store_pass</code> or is left reserved and <code>store_pass</code> added at top level — chosen at plan time to keep <code>tools/manifest.mjs</code> untouched (free-string/array-replace handling, like the M1.5 additions). No change to top-level <code>required</code>.</li>
+      <li>All additions are additive: existing manifests still validate.</li>
+    </ul>
+  </div></section>
+
+  <section id="s5"><div class="card">
+    <h2><span class="num">5</span> The <code>packager</code> skill <span class="muted" style="font-size:14px;font-weight:500;">(new)</span></h2>
+    <p>A new skill, branching on what the game has (like <code>asset</code> branches on <code>art_direction</code>):</p>
+    <ul>
+      <li><strong>Inputs:</strong> a manifest with <strong>both</strong> <code>asset_pass</code> and <code>audio_pass</code> recorded and A/B-confirmed (per §2 — visual <em>and</em> audio identities complete); the game on disk; the pinned Godot.</li>
+      <li><strong>Step 0 — derive the packaging set first</strong> (the real deliverable, mirroring asset/audio Step 0): pick the <strong>icon master</strong> (a styled hero/character sprite, or a deliberately-composed master), the splash, which gameplay moments make good screenshots, the atlas membership, and the size budget for this title — recorded verbatim in <code>store_pass</code> so it is reviewable.</li>
+      <li><strong>Flow:</strong> run <code>package.mjs</code> (size table, budget, preset, atlas layout) + the Godot pixel scripts (icon resize, atlas render, screenshot capture) → write outputs under <code>games/&lt;id&gt;/store/</code> → record <code>store_pass</code> → hand off to <code>validator</code>.</li>
+      <li><strong>Icon-master honesty:</strong> for the foundation proof the master is <em>derived</em> from an existing sprite; the <strong>final</strong> icon/splash art is an <strong>owner aesthetic A/B</strong>, recorded as deferred in <code>notes</code> (the inverse of the asset skill's "flag what SVG does badly").</li>
+      <li><strong>Do not</strong> set <code>packaged</code> itself; hand to <code>validator</code>.</li>
+    </ul>
+  </div></section>
+
+  <section id="s6"><div class="card">
+    <h2><span class="num">6</span> Validator extension — the packaging gate <span class="muted" style="font-size:14px;font-weight:500;">(Method 4)</span></h2>
+    <p>Generalize <code>validator</code> with a packaging method that asserts, <strong>headlessly and without the SDK</strong>:</p>
+    <ul>
+      <li><strong>both <code>asset_pass</code> and <code>audio_pass</code> are present and each was owner-A/B-confirmed</strong> — the §2 "both identities required" gate, checked via the pass blocks (the source of truth), <strong>not</strong> the lossy <code>status</code> string;</li>
+      <li>every entry in <code>iconSizeTable()</code> exists at its <strong>exact</strong> pixel dimensions,</li>
+      <li>the atlas image exists and its map covers every member sprite,</li>
+      <li><code>size_budget.pass</code> is true (total ≤ budget),</li>
+      <li><code>export_presets.cfg</code> exists and <strong>parses</strong> as a valid Godot preset,</li>
+      <li>the game still imports + runs headless clean (regression guard).</li>
+    </ul>
+    <p>On success advances the game → <strong><code>packaged</code></strong> (requires both pass blocks present + A/B-confirmed, per §2; the canonical incoming status is <code>scored</code>); on failure records legible <code>issues</code> (attributed to <code>packager</code> or <code>package.mjs</code>) and stops. The <strong>icon/splash aesthetic A/B</strong> and the <strong>real APK build</strong> are explicitly noted as the owner gate and the §8 feasibility gate — not asserted here.</p>
+  </div></section>
+
+  <section id="s7"><div class="card">
+    <h2><span class="num">7</span> Determinism &amp; git</h2>
+    <ul>
+      <li>Generated icons/atlas/screenshots are committed (canonical, like the raster PNGs); <code>*.png</code> is already <code>binary</code> in <code>.gitattributes</code>.</li>
+      <li><code>atlasLayout</code> and <code>iconSizeTable</code> are deterministic; <code>package.mjs</code> outputs are reproducible. Godot <code>Image.resize</code> is deterministic for a given master + interpolation mode (record the mode).</li>
+      <li><code>export_presets.cfg</code> is text and diffable.</li>
+    </ul>
+  </div></section>
+
+  <section id="s8"><div class="card">
+    <h2><span class="num">8</span> Feasibility gate <span class="muted" style="font-size:14px;font-weight:500;">(deferred — Android toolchain)</span></h2>
+    <p>Not run this cycle. When the owner stands up the toolchain: install the Android SDK + a compatible JDK, set <code>ANDROID_HOME</code>/<code>ANDROID_SDK_ROOT</code>, point Godot's editor settings at the SDK + the 4.6.3 export templates (already installed), then produce a debug APK:</p>
+    <pre>godot --headless --path games/&lt;id&gt;/ --export-debug "Android" build/&lt;id&gt;-debug.apk</pre>
+    <p>Pass/fail = a signed debug APK that installs and launches on a device/emulator. This is the exact shape of the M1.5 ComfyUI gate and the M1.6 Stable-Audio gate (<code>docs/superpowers/m1.5-feasibility-notes.md</code>): an external toolchain stood up once, a single decisive pass/fail, findings folded back into the skill/tool. Documented in a <code>docs/superpowers/m2-feasibility-notes.md</code> when run.</p>
+  </div></section>
+
+  <section id="s9"><div class="card">
+    <h2><span class="num">9</span> Proof run <span class="muted" style="font-size:14px;font-weight:500;">(deferred end-to-end; foundation lands now)</span></h2>
+    <p>The end-to-end packaging proof — a <strong><code>scored</code></strong> game taken to <strong><code>packaged</code></strong> with a real APK — needs (a) a scored game (owner-gated) and (b) the §8 toolchain gate. So the <em>proof</em> is a clean bolt-on later, written up as the next <code>poc-run-NNN.md</code> at that time.</p>
+    <div class="callout good"><p style="margin:0;"><strong>This cycle delivers the foundation</strong> so that proof is unblocked: <code>tools/package.mjs</code> + tests, the Godot pixel scripts, the <code>packager</code> skill, the <code>validator</code> packaging method, and the schema additions. The tooling is exercised against the current substrate (a <code>validated</code> proof game) to confirm it runs and the gate's CI-checkable assertions pass, without claiming a <code>packaged</code> status (illegal from <code>validated</code>).</p></div>
+  </div></section>
+
+  <section id="s10"><div class="card">
+    <h2><span class="num">10</span> Testing</h2>
+    <ul>
+      <li><strong><code>tools/package.mjs</code></strong> — vitest, pure (no GPU/SDK/engine): <code>iconSizeTable</code> completeness + exact px, <code>sizeBudget</code> math + pass/fail boundary, <code>exportPresetCfg</code> produces a parseable preset, <code>atlasLayout</code> packs without overlap and fits the sheet, error/loud-failure paths. Consistent with the all-JS, no-GPU-in-CI suite.</li>
+      <li><strong>Schema additions</strong> — covered by existing manifest-validation tests (new <code>store_pass</code> accepted; existing manifests still valid; <code>packaged</code> accepted).</li>
+      <li><strong>Pixel output</strong> (icon fidelity, atlas correctness on screen, screenshot framing) and the <strong>APK</strong> — gated by the §8 feasibility gate + owner aesthetic A/B; not automatable in CI.</li>
+    </ul>
+  </div></section>
+
+  <section id="s11"><div class="card">
+    <h2><span class="num">11</span> M2-foundation scope <span class="muted" style="font-size:14px;font-weight:500;">(what this cycle delivers)</span></h2>
+    <p><span class="tag-now">IN SCOPE</span></p>
+    <ul>
+      <li><code>tools/package.mjs</code> — the tested seam (icon table, size budget, export-preset generation, atlas layout) + CLI.</li>
+      <li>Godot-headless pixel scripts — icon resize, atlas render, screenshot capture (no SDK).</li>
+      <li>The <strong><code>packager</code></strong> skill + the <strong><code>validator</code></strong> packaging method (Method 4).</li>
+      <li>Additive schema (<code>store_pass</code>, <code>packaged</code> status); committed outputs under <code>games/&lt;id&gt;/store/</code>.</li>
+      <li>vitest coverage for <code>package.mjs</code>; manifest-validation coverage for the schema.</li>
+    </ul>
+    <p><span class="tag-gate">NOT THIS CYCLE</span> &nbsp;(tracked, not silent)</p>
+    <ul>
+      <li><strong>Actual APK build</strong> → §8 Android-toolchain feasibility gate (needs SDK+JDK).</li>
+      <li><strong>Icon/splash aesthetic A/B, store listing copy, signing keys, real submission</strong> → owner-gated.</li>
+      <li><strong>iOS / other platforms, Play Console automation, CI APK builds</strong> → out of scope; revisit only when Android end-to-end is proven.</li>
+    </ul>
+  </div></section>
+
+  <section id="s12"><div class="card">
+    <h2><span class="num">12</span> Roadmap fit</h2>
+    <p>M2 is the destination the M1.5 spec (§12) was paving toward; M1.5's per-asset density work is its down payment. This foundation slice makes the title-level packaging reachable and CI-verifiable without prematurely pulling in the Android toolchain, leaving two clean, well-named gates (the APK feasibility gate; the owner aesthetic A/B + submission) between here and a shipped build.</p>
+  </div></section>
+
+  <footer>GameForge · M2 Store-Readiness (Foundation) · design approved 2026-05-31 · spec under review</footer>
+
+  </main>
+</div>
+</div>
+</body>
+</html>

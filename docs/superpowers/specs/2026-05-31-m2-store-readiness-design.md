@@ -31,7 +31,9 @@ Packaging is a title-level bolt-on **after** a game has its art and audio identi
                                                                                        └→ (later) APK feasibility gate → store submission (owner)
 ```
 
-`packaged` is a new **terminal** status. A game need not be both `styled` and `scored` to be packaged (a game may take only one of the two passes), but it must be at least `playable`; the validator records which identity passes preceded packaging. For the foundation proof the tooling runs against the current substrate regardless of status — the **end-to-end** `scored → packaged` proof is itself gated on a scored game (owner) + the APK gate (§8, §9).
+`packaged` is a new **terminal** status, reached only after **both** polish passes are complete: the visual pass (`asset_pass`, owner A/B → `styled`) **and** the audio pass (`audio_pass`, owner A/B → `scored`). A primitive-art or silent game is not store-ready, so both identities are mandatory.
+
+Because `status` is a single string that holds only one of `styled`/`scored` at a time, the gate keys off the **presence of both `asset_pass` and `audio_pass` blocks** — the source of truth the asset/audio skills already designate (*"the pass block, not the status string"*) — not the lossy status value. Audio is *orthogonal* (the audio skill lets a merely-`playable` game advance to `scored`), so reaching `scored` alone does **not** imply the visual pass happened — the gate checks for both blocks, each A/B-confirmed, explicitly. The canonical path is `playable → styled → scored → packaged`. For the foundation proof the tooling still runs against the current substrate regardless of status; the **end-to-end** `… → packaged` proof is gated on both owner A/Bs + the APK gate (§8, §9).
 
 ## 3. Architecture — the tested seam (matches `comfy.mjs`)
 
@@ -78,7 +80,7 @@ Promote the reserved `_reserved.store` slot into a first-class **`store_pass`** 
 
 A new skill, branching on what the game has (like `asset` branches on `art_direction`):
 
-- **Inputs:** a manifest at `styled` and/or `scored` (at minimum `playable`); the game on disk; the pinned Godot.
+- **Inputs:** a manifest with **both** `asset_pass` and `audio_pass` recorded and A/B-confirmed (per §2 — visual *and* audio identities complete); the game on disk; the pinned Godot.
 - **Step 0 — derive the packaging set first** (the real deliverable, mirroring asset/audio Step 0): pick the **icon master** (a styled hero/character sprite, or a deliberately-composed master), the splash, which gameplay moments make good screenshots, the atlas membership, and the size budget for this title — recorded verbatim in `store_pass` so it is reviewable.
 - **Flow:** run `package.mjs` (size table, budget, preset, atlas layout) + the Godot pixel scripts (icon resize, atlas render, screenshot capture) → write outputs under `games/<id>/store/` → record `store_pass` → hand off to `validator`.
 - **Icon-master honesty:** for the foundation proof the master is *derived* from an existing sprite; the **final** icon/splash art is an **owner aesthetic A/B**, recorded as deferred in `notes` (the inverse of the asset skill's "flag what SVG does badly").
@@ -88,13 +90,14 @@ A new skill, branching on what the game has (like `asset` branches on `art_direc
 
 Generalize `validator` with a packaging method that asserts, **headlessly and without the SDK**:
 
+- **both `asset_pass` and `audio_pass` are present and each was owner-A/B-confirmed** — the §2 "both identities required" gate, checked via the pass blocks (the source of truth), **not** the lossy `status` string;
 - every entry in `iconSizeTable()` exists at its **exact** pixel dimensions,
 - the atlas image exists and its map covers every member sprite,
 - `size_budget.pass` is true (total ≤ budget),
 - `export_presets.cfg` exists and **parses** as a valid Godot preset,
 - the game still imports + runs headless clean (regression guard).
 
-On success advances the game (`playable`/`styled`/`scored`) → **`packaged`** (the prior identity passes are recorded, per §2); on failure records legible `issues` (attributed to `packager` or `package.mjs`) and stops. The **icon/splash aesthetic A/B** and the **real APK build** are explicitly noted as the owner gate and the §8 feasibility gate — not asserted here.
+On success advances the game → **`packaged`** (requires both pass blocks present + A/B-confirmed, per §2; the canonical incoming status is `scored`); on failure records legible `issues` (attributed to `packager` or `package.mjs`) and stops. The **icon/splash aesthetic A/B** and the **real APK build** are explicitly noted as the owner gate and the §8 feasibility gate — not asserted here.
 
 ## 7. Determinism & git
 
