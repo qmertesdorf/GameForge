@@ -135,6 +135,15 @@ var score_pop_timer: float = 0.0
 var _audio_players: Dictionary = {}      # event -> AudioStreamPlayer
 var audio_play_counts: Dictionary = {}   # event -> int, selftest hook
 
+# --- Raster art (M1.5 asset_pass) ---
+# Pixel-art RGBA sprites via ComfyUI + SDXL Juggernaut + pixel-art-xl LoRA + LayerDiffuse.
+# Masters downscaled to 128px on import; drawn small with NEAREST filter = crisp pixels.
+# Variable-width hazard bars are filled with N exact-fit demon units (no stretch).
+const HERO_DRAW: float = 64.0    # visual size; collision footprint stays HERO_SIZE
+const HAZ_UNIT: float  = 64.0    # target square size per tiled hazard-creature unit
+var tex_hero: Texture2D = null
+var tex_hazard: Texture2D = null
+
 # ============================================================
 # Init
 # ============================================================
@@ -143,6 +152,10 @@ func _ready() -> void:
 	var vp: Vector2 = get_viewport_rect().size
 	screen_w = vp.x
 	screen_h = vp.y
+	# NEAREST filtering keeps the downscaled pixel-art sprites crisp (no blur).
+	texture_filter = TEXTURE_FILTER_NEAREST
+	tex_hero = load("res://art/hero.png")
+	tex_hazard = load("res://art/hazard.png")
 	_setup_audio()
 	_start_game()
 
@@ -555,12 +568,11 @@ func _draw_lanes() -> void:
 
 
 func _draw_hazards_layer() -> void:
-	# Draw each lane's hazards as chunky retro rect "carts/creatures"
+	# Draw each lane's hazards as packs of tiled pixel-demon sprites.
 	for i in range(lanes.size()):
 		# lane index i → lane_row i+1
 		var lane_row: int = i + 1
 		var lane_y: float = FIELD_TOP + float(TOTAL_LANES - 1 - lane_row) * LANE_H
-		var hazard_y: float = lane_y + (LANE_H - HAZARD_H) * 0.5
 
 		var lane: Dictionary = lanes[i]
 		var hazards: Array   = lane["hazards"]
@@ -578,55 +590,34 @@ func _draw_hazards_layer() -> void:
 					continue
 				if draw_x > FIELD_LEFT + field_w + CELL:
 					continue
-				# Main hazard body (big pixel block)
-				var hrect: Rect2 = Rect2(draw_x, hazard_y, hw, HAZARD_H)
-				draw_rect(hrect, COL_HAZARD)
-				# Dark stripe detail (top 1/4)
-				var top_h: float = HAZARD_H * 0.25
-				draw_rect(Rect2(draw_x, hazard_y, hw, top_h), COL_HAZARD_DARK)
-				# "Wheel" dots on larger hazards
-				if hw >= CELL * 1.2:
-					var dot_r: float = 7.0
-					var dot_y: float = hazard_y + HAZARD_H * 0.78
-					draw_circle(Vector2(draw_x + CELL * 0.25, dot_y), dot_r, Color(0.1, 0.1, 0.1))
-					draw_circle(Vector2(draw_x + hw - CELL * 0.25, dot_y), dot_r, Color(0.1, 0.1, 0.1))
-					# Wheel highlight
-					draw_circle(Vector2(draw_x + CELL * 0.25 - 2.0, dot_y - 2.0), dot_r * 0.45, Color(0.5, 0.5, 0.5))
-					draw_circle(Vector2(draw_x + hw - CELL * 0.25 - 2.0, dot_y - 2.0), dot_r * 0.45, Color(0.5, 0.5, 0.5))
+				if tex_hazard == null:
+					continue
+				# Fill the bar with N exact-fit pixel-demon units (a pack of
+				# creatures) so a variable bar width never stretches a sprite:
+				# visual width == collision width, square pixels preserved.
+				var unit_y: float = lane_y + (LANE_H - HAZ_UNIT) * 0.5
+				var n: int = int(round(hw / HAZ_UNIT))
+				if n < 1:
+					n = 1
+				var uw: float = hw / float(n)
+				for k in range(n):
+					draw_texture_rect(tex_hazard, Rect2(draw_x + float(k) * uw, unit_y, uw, HAZ_UNIT), false)
 
 
 func _draw_hero() -> void:
 	# Hero's screen position (snapped to cell grid — discrete, no smooth easing)
-	var hero_x: float = FIELD_LEFT + float(hero_col) * CELL + (CELL - HERO_SIZE) * 0.5
-	# Lane 0 = bottom; lane TOTAL_LANES-1 = top
-	var hero_y: float = FIELD_TOP + float(TOTAL_LANES - 1 - hero_lane) * LANE_H + (LANE_H - HERO_SIZE) * 0.5
+	# Cell center (discrete grid — no smooth easing).
+	var cx: float = FIELD_LEFT + float(hero_col) * CELL + CELL * 0.5
+	var cy: float = FIELD_TOP + float(TOTAL_LANES - 1 - hero_lane) * LANE_H + LANE_H * 0.5
 
 	# Hop animation: small y offset pop (no smooth lerp — retro snap feel)
 	var pop_y: float = 0.0
 	if hop_anim > 0:
-		# Pop up by ~8px on the first frame, none after
 		pop_y = -8.0 * float(hop_anim) / float(HOP_ANIM_FRAMES) * float(hop_dir)
 
-	var draw_y: float = hero_y + pop_y
-
-	# Hero: chunky pixel square with accent
-	var hrect: Rect2 = Rect2(hero_x, draw_y, HERO_SIZE, HERO_SIZE)
-	draw_rect(hrect, COL_HERO)
-	# Dark stripe (pixel-art head band)
-	draw_rect(Rect2(hero_x, draw_y + HERO_SIZE * 0.12, HERO_SIZE, HERO_SIZE * 0.18), COL_HERO_DARK)
-	# Eye dots
-	var ey: float = draw_y + HERO_SIZE * 0.35
-	draw_circle(Vector2(hero_x + HERO_SIZE * 0.28, ey), 4.5, Color(0.05, 0.05, 0.12))
-	draw_circle(Vector2(hero_x + HERO_SIZE * 0.72, ey), 4.5, Color(0.05, 0.05, 0.12))
-	# Eye shine
-	draw_circle(Vector2(hero_x + HERO_SIZE * 0.28 + 1.5, ey - 1.5), 1.8, Color(1, 1, 1, 0.9))
-	draw_circle(Vector2(hero_x + HERO_SIZE * 0.72 + 1.5, ey - 1.5), 1.8, Color(1, 1, 1, 0.9))
-	# Feet (two small blocks at bottom)
-	var foot_w: float = HERO_SIZE * 0.28
-	var foot_h: float = HERO_SIZE * 0.18
-	var foot_y: float = draw_y + HERO_SIZE - foot_h
-	draw_rect(Rect2(hero_x + HERO_SIZE * 0.08, foot_y, foot_w, foot_h), COL_HERO_DARK)
-	draw_rect(Rect2(hero_x + HERO_SIZE - HERO_SIZE * 0.08 - foot_w, foot_y, foot_w, foot_h), COL_HERO_DARK)
+	# Pixel-art hero sprite, centered on its cell (visual ~64px; footprint = HERO_SIZE).
+	if tex_hero != null:
+		draw_texture_rect(tex_hero, Rect2(cx - HERO_DRAW * 0.5, cy - HERO_DRAW * 0.5 + pop_y, HERO_DRAW, HERO_DRAW), false)
 
 
 func _draw_hud() -> void:

@@ -124,6 +124,14 @@ var ground_dots: Array = []        # faint leaf/texture dots on ground layer
 var _audio_players: Dictionary = {}      # event -> AudioStreamPlayer
 var audio_play_counts: Dictionary = {}   # event -> int, selftest hook
 
+# --- Raster art (M1.5 asset_pass) ---
+# Painterly RGBA sprites generated via ComfyUI+SDXL(Juggernaut)+LayerDiffuse.
+# spirit + hazard are raster; seed stays a procedural glow-mote (mixed-method).
+const SPIRIT_DRAW: float = 110.0   # on-screen sprite size (px); footprint/hitbox = SPIRIT_RADIUS
+const HAZARD_DRAW: float = 92.0
+var tex_spirit: Texture2D = null
+var tex_hazard: Texture2D = null
+
 
 # ============================================================
 # Init
@@ -133,6 +141,10 @@ func _ready() -> void:
 	var vp: Vector2 = get_viewport_rect().size
 	screen_w = vp.x
 	screen_h = vp.y
+	# Linear filtering + mipmaps: 1024² masters shown at ~100px need clean minification.
+	texture_filter = TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	tex_spirit = load("res://art/spirit.png")
+	tex_hazard = load("res://art/hazard.png")
 	_setup_audio()
 	_build_background()
 	_start_game()
@@ -597,57 +609,25 @@ func _draw_seeds() -> void:
 func _draw_hazards() -> void:
 	for h in hazards:
 		var hpos: Vector2 = h.pos
-		var wobble: float = h.wobble
-		# Organic thorn blob: multiple offset circles to give lumpy silhouette
-		var r: float = HAZARD_RADIUS
-		# Glow halo
-		draw_circle(hpos, r * 1.85, Color(COL_HAZARD_GLOW.r, COL_HAZARD_GLOW.g, COL_HAZARD_GLOW.b, 0.20))
-		# Body: soft rounded blob via stacked circles
-		draw_circle(hpos, r, COL_HAZARD)
-		# Thorn spikes — 5 points radiating out
-		var thorn_col: Color = Color(COL_HAZARD.r * 0.8, COL_HAZARD.g * 0.8, COL_HAZARD.b * 0.8)
-		for k in range(5):
-			var ang: float = wobble + float(k) * (TAU / 5.0)
-			var tip: Vector2 = hpos + Vector2(cos(ang), sin(ang)) * (r * 1.55)
-			var base_l: Vector2 = hpos + Vector2(cos(ang + 0.28), sin(ang + 0.28)) * (r * 0.72)
-			var base_r: Vector2 = hpos + Vector2(cos(ang - 0.28), sin(ang - 0.28)) * (r * 0.72)
-			var pts: PackedVector2Array = PackedVector2Array([tip, base_l, base_r])
-			draw_colored_polygon(pts, thorn_col)
-		# Eye glint
-		draw_circle(hpos + Vector2(r * 0.28, -r * 0.22), r * 0.18, Color(1.0, 0.7, 0.7, 0.85))
+		# (No procedural halo: the dark thorn-sprite reads on its own; a small
+		# primitive halo behind the larger sprite read as an odd disc.)
+		# Painterly RGBA thorn-sprite, scaled to footprint, centered on hazard pos.
+		if tex_hazard != null:
+			draw_texture_rect(tex_hazard, Rect2(hpos - Vector2(HAZARD_DRAW, HAZARD_DRAW) * 0.5, Vector2(HAZARD_DRAW, HAZARD_DRAW)), false)
 
 
 func _draw_spirit() -> void:
 	var sq: float = spirit_squash   # y scale for squash/stretch
 	var sx: float = 1.0 / max(sq, 0.6)  # compensate x so area stays ~constant
-	# Glow halo
+	# Glow halo (juice — stays procedural)
 	var halo_r: float = SPIRIT_RADIUS * 1.8
 	draw_circle(spirit_pos, halo_r, Color(COL_SPIRIT_GLOW.r, COL_SPIRIT_GLOW.g, COL_SPIRIT_GLOW.b, 0.22))
-	# Body: soft blob via scaled polygon
-	var pts: PackedVector2Array = PackedVector2Array()
-	var segs: int = 12
-	for i in range(segs):
-		var ang: float = float(i) * TAU / float(segs)
-		var rx: float = SPIRIT_RADIUS * sx
-		var ry: float = SPIRIT_RADIUS * sq
-		pts.append(spirit_pos + Vector2(cos(ang) * rx, sin(ang) * ry))
-	draw_colored_polygon(pts, COL_SPIRIT)
-	# Inner lighter highlight
-	var h_pts: PackedVector2Array = PackedVector2Array()
-	for i in range(segs):
-		var ang: float = float(i) * TAU / float(segs)
-		var rx: float = SPIRIT_RADIUS * sx * 0.52
-		var ry: float = SPIRIT_RADIUS * sq * 0.52
-		h_pts.append(spirit_pos + Vector2(cos(ang) * rx + SPIRIT_RADIUS * sx * 0.12, sin(ang) * ry - SPIRIT_RADIUS * sq * 0.14))
-	draw_colored_polygon(h_pts, Color(1.0, 0.90, 0.60, 0.65))
-	# Eyes: two small circles
-	var eye_off_x: float = SPIRIT_RADIUS * sx * 0.32
-	var eye_off_y: float = -SPIRIT_RADIUS * sq * 0.18
-	draw_circle(spirit_pos + Vector2(-eye_off_x, eye_off_y), 4.5, Color(0.22, 0.12, 0.05))
-	draw_circle(spirit_pos + Vector2(eye_off_x, eye_off_y), 4.5, Color(0.22, 0.12, 0.05))
-	# Eye shine
-	draw_circle(spirit_pos + Vector2(-eye_off_x + 1.5, eye_off_y - 1.5), 1.8, Color(1, 1, 1, 0.9))
-	draw_circle(spirit_pos + Vector2(eye_off_x + 1.5, eye_off_y - 1.5), 1.8, Color(1, 1, 1, 0.9))
+	# Painterly RGBA sprite, scaled to footprint, squash/stretch preserved.
+	# (eyes/highlight are baked into the art now — primitive body removed.)
+	if tex_spirit != null:
+		var w: float = SPIRIT_DRAW * sx
+		var h: float = SPIRIT_DRAW * sq
+		draw_texture_rect(tex_spirit, Rect2(spirit_pos - Vector2(w, h) * 0.5, Vector2(w, h)), false)
 
 
 func _draw_particles() -> void:

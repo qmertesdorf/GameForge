@@ -37,14 +37,14 @@
     {
       "type": "sprite",
       "name": "hero",
-      "source": "placeholder",
-      "origin": "primitive"
+      "source": "art/hero.png",
+      "origin": "raster"
     },
     {
       "type": "sprite",
       "name": "hazard",
-      "source": "placeholder",
-      "origin": "primitive"
+      "source": "art/hazard.png",
+      "origin": "raster"
     }
   ],
   "validation": {
@@ -57,6 +57,78 @@
     "compliance": null,
     "store": null,
     "maintenance": null
+  },
+  "asset_pass": {
+    "method": "raster",
+    "visual_system": {
+      "palette": [
+        "#0F0F1A near-black border (bg)",
+        "#2EA02E / #7D4F26 / #404048 NES grass/dirt/road lane bands",
+        "#19CCD9 cyan hero",
+        "#E63A33 red hazard demon (danger)",
+        "#F2D90F goal-row yellow"
+      ],
+      "form": "hard-edged blocky pixel-art sprites; chunky upright cyan robot hero vs. red horned demon hazard — deliberate hard silhouette + complementary cyan/red color contrast so threat reads instantly",
+      "shading": "flat limited-palette pixel shading, crisp hard pixel edges (no gradients/antialias); procedural flat lane bands + faint pixel grid behind",
+      "scale": "1024 square masters downscaled to 128px on import (process/size_limit=128), drawn small with NEAREST filter (no mipmaps) = crisp pixels; hero ~64px centered on its cell; each variable-width hazard bar is filled with N=round(w/64) exact-fit demon units so visual width == collision width and no sprite is ever stretched",
+      "prompt_scaffold": "pixel art sprite, pixelated, 8-bit retro video game character, crisp hard-edged chunky pixels, limited bright retro NES palette, clean single centered subject, full body, flat colors, clean transparent background, ",
+      "style": {
+        "checkpoint": "juggernautXL_v9.safetensors",
+        "loras": [
+          "pixel-art-xl.safetensors"
+        ],
+        "style_prompt": "pixel art sprite, pixelated, 8-bit retro video game character, crisp hard-edged chunky pixels, limited bright retro NES palette"
+      }
+    },
+    "reskinned": [
+      "hero",
+      "hazard"
+    ],
+    "left_primitive": [
+      "background",
+      "lanes",
+      "goal_row"
+    ],
+    "art_path": "games/crosser-0001/art/",
+    "notes": "Style B (hard-edged pixel-art retro) raster re-skin via ComfyUI + SDXL Juggernaut v9 + pixel-art-xl LoRA + LayerDiffuse (RGBA). Deliberate maximal contrast to creature-0001's soft painterly woodland = the 'one system, two visibly distinct identities' milestone evidence. hero + hazard both raster, drawn via draw_texture_rect in the existing immediate-mode _draw() (z-order/shake/hop-pop preserved). KEY TECHNIQUE — variable-width hazard: the game scrolls hazard bars of continuous width (CELL..CELL*3); a fixed-aspect sprite would stretch and break the pixel grid, so each bar is filled with N=round(w/HAZ_UNIT) exact-fit demon units (uw=w/N) — a 'pack of monsters' that keeps square pixels and makes visual width == collision width. PIXEL CRISPNESS: 1024 masters are downscaled to 128px on import (size_limit) then drawn at 64px (clean ÷2) with TEXTURE_FILTER_NEAREST + mipmaps off. Lanes/goal/HUD/pixel-grid stay procedural (flat retro bands — correct for the aesthetic, recorded as left_primitive). Both sprites accepted on pass 1 (the LoRA nailed the look). Folded creature-0001 findings: constrained single-centered-subject prompts + anti-smooth negatives; mixed-method awareness (here both actors suit raster, the flat lanes suit primitive). Visual-verified via SceneTree screenshot harness (real Vulkan renderer, RTX 5080). Selftest still SELFTEST OK; headless run clean; logic untouched. STATUS HELD AT validated (validated->styled illegal): awaits owner ~60s playtest -> playable, then human A/B + IP-safety -> styled. IP-safety: generic descriptors only, no franchise/character/studio names; every recipe negative excludes logo/watermark/text/trademarked-character/brand/celebrity.",
+    "recipes": [
+      {
+        "name": "hero",
+        "checkpoint": "juggernautXL_v9.safetensors",
+        "lora": "pixel-art-xl.safetensors",
+        "prompt": "pixel art sprite, pixelated, 8-bit retro video game character, crisp hard-edged chunky pixels, limited bright retro NES palette, clean single centered subject, full body, flat colors, clean transparent background, a cute chunky cyan robot creature hero, bright cyan and teal body, big friendly square eyes, blocky pixel character, brave",
+        "negative": "logo, watermark, text, signature, frame, border, grid, trademarked character, brand, celebrity, multiple characters, smooth, blurry, antialiased, soft, painterly, gradient, realistic, photo, 3d render, low quality, deformed",
+        "seed": 401,
+        "sampler": "euler",
+        "steps": 24,
+        "cfg": 7.5,
+        "master_resolution": 1024,
+        "layerdiffuse": true,
+        "import_settings": {
+          "mipmaps": false,
+          "filter": "nearest",
+          "compression": "lossless"
+        }
+      },
+      {
+        "name": "hazard",
+        "checkpoint": "juggernautXL_v9.safetensors",
+        "lora": "pixel-art-xl.safetensors",
+        "prompt": "pixel art sprite, pixelated, 8-bit retro video game character, crisp hard-edged chunky pixels, limited bright retro NES palette, clean single centered subject, full body, flat colors, clean transparent background, a menacing angry red pixel monster creature, blocky red and dark-red hazard beast, spiky hard-edged, evil glowing eyes, dangerous",
+        "negative": "logo, watermark, text, signature, frame, border, grid, trademarked character, brand, celebrity, multiple characters, smooth, blurry, antialiased, soft, painterly, gradient, realistic, photo, 3d render, low quality, deformed",
+        "seed": 402,
+        "sampler": "euler",
+        "steps": 24,
+        "cfg": 7.5,
+        "master_resolution": 1024,
+        "layerdiffuse": true,
+        "import_settings": {
+          "mipmaps": false,
+          "filter": "nearest",
+          "compression": "lossless"
+        }
+      }
+    ]
   },
   "audio_pass": {
     "method": "audio",

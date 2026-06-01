@@ -35,8 +35,8 @@
     {
       "type": "sprite",
       "name": "spirit",
-      "source": "placeholder",
-      "origin": "primitive"
+      "source": "art/spirit.png",
+      "origin": "raster"
     },
     {
       "type": "sprite",
@@ -47,8 +47,8 @@
     {
       "type": "sprite",
       "name": "hazard",
-      "source": "placeholder",
-      "origin": "primitive"
+      "source": "art/hazard.png",
+      "origin": "raster"
     }
   ],
   "validation": {
@@ -61,6 +61,73 @@
     "compliance": null,
     "store": null,
     "maintenance": null
+  },
+  "asset_pass": {
+    "method": "raster",
+    "visual_system": {
+      "palette": [
+        "#0E2E10 deep forest-green field (bg)",
+        "#F2B34D warm amber spirit",
+        "#FFE026 bright gold seed-mote",
+        "#9E3B2E rust thorn (accent/danger)",
+        "#2A2A1E charcoal hazard body"
+      ],
+      "form": "soft rounded painterly storybook creatures; deliberate silhouette contrast between the smooth round amber hero and the spiky bristled dark hazard so threat reads at a glance",
+      "shading": "painterly soft-brushwork with soft diffuse magical lighting on the creatures; flat dark procedural field + parallax tree silhouettes behind",
+      "scale": "1024 square masters for spirit + hazard, downscaled at runtime to ~110px / ~92px footprints; mipmaps on, LINEAR_WITH_MIPMAPS filtering, lossless compression (2 sprites)",
+      "prompt_scaffold": "painterly storybook illustration, soft hand-painted brushwork, cozy childrens book art, warm autumn woodland palette of amber rust and gold, soft diffuse magical lighting, single centered subject, full body, clean transparent background, high detail, ",
+      "style": {
+        "checkpoint": "juggernautXL_v9.safetensors",
+        "loras": [],
+        "style_prompt": "painterly storybook illustration, soft hand-painted brushwork, cozy childrens book art"
+      }
+    },
+    "reskinned": [
+      "spirit",
+      "hazard"
+    ],
+    "left_primitive": [
+      "seed",
+      "background"
+    ],
+    "art_path": "games/creature-0001/art/",
+    "notes": "Style A (painterly/warm-woodland) raster re-skin via ComfyUI + SDXL Juggernaut v9 + LayerDiffuse (RGBA). spirit + hazard are raster sprites drawn via draw_texture_rect in the existing immediate-mode _draw() (z-order, screen-shake, squash/stretch preserved for free; glow halos kept as procedural juice except the hazard halo, removed because a small primitive halo behind the larger sprite read as an odd disc). MIXED-METHOD by deliberate choice: the seed stays a primitive glow-mote — across 4 attempts SDXL over-elaborated a 14px pulsing dot (autumn-leaf scene -> wreath -> hanging ornament -> row of blobs); a procedural glow halo + bright core + white sparkle + pulse is the higher-quality pickup and is what immediate-mode does best. The parallax tree background also stays procedural (depth/motion, not a hero asset). Iteration: spirit accepted on pass 1; hazard took 3 passes (cute-fox-with-ground-shadow -> hollow thorn-wreath -> solid spiky thorn-critter). Visual-verified by composing a play frame with a SceneTree screenshot harness (real Vulkan renderer on the RTX 5080). Selftest still SELFTEST OK; headless run clean; logic untouched. STATUS HELD AT validated (validated->styled is illegal): awaits owner ~60s playtest -> playable, then human A/B + IP-safety -> styled. IP-safety: generic descriptors only, no franchise/character/studio names; every recipe negative excludes logo/watermark/text/trademarked-character/brand/celebrity.",
+    "recipes": [
+      {
+        "name": "spirit",
+        "checkpoint": "juggernautXL_v9.safetensors",
+        "prompt": "painterly storybook illustration, soft hand-painted brushwork, cozy childrens book art, warm autumn woodland palette of amber rust and gold, soft diffuse magical lighting, single centered subject, full body, clean transparent background, high detail, a small round cute glowing forest spirit creature, fluffy amber body, big friendly eyes, gentle soft inner glow, adorable",
+        "negative": "logo, watermark, text, signature, frame, border, trademarked character, brand, celebrity likeness, multiple characters, photo, photograph, realistic, blurry, low quality, deformed, extra limbs, ugly, mutated",
+        "seed": 101,
+        "sampler": "euler",
+        "steps": 24,
+        "cfg": 7.5,
+        "master_resolution": 1024,
+        "layerdiffuse": true,
+        "import_settings": {
+          "mipmaps": true,
+          "filter": "linear",
+          "compression": "lossless"
+        }
+      },
+      {
+        "name": "hazard",
+        "checkpoint": "juggernautXL_v9.safetensors",
+        "prompt": "painterly storybook illustration, soft hand-painted brushwork, cozy childrens book art, warm autumn woodland palette of amber rust and gold, soft diffuse magical lighting, single centered subject, full body, clean transparent background, high detail, a small round menacing thorn monster, compact solid spiky ball-shaped creature densely covered in sharp rust-red and charcoal thorns, two glowing angry yellow eyes in the center, bristling spikes, dangerous bramble beast, floating isolated",
+        "negative": "logo, watermark, text, signature, frame, border, ring, wreath, circle, hollow, crown, donut, trademarked character, brand, fox, cute, fluffy, soft fur, ground, floor, shadow, autumn leaves, scene, photo, photograph, realistic, blurry, low quality, deformed",
+        "seed": 323,
+        "sampler": "euler",
+        "steps": 24,
+        "cfg": 7.5,
+        "master_resolution": 1024,
+        "layerdiffuse": true,
+        "import_settings": {
+          "mipmaps": true,
+          "filter": "linear",
+          "compression": "lossless"
+        }
+      }
+    ]
   },
   "audio_pass": {
     "method": "audio",
