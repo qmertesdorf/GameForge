@@ -202,6 +202,31 @@ describe("validate", () => {
     expect(validate(validManifest()).valid).toBe(true);
   });
 
+  test("accepts an audio_pass whose audio_system carries sonic_character", () => {
+    const m = validManifest();
+    m.status = "scored";
+    m.audio_pass = {
+      method: "audio",
+      audio_system: {
+        model: "stable-audio-open-1.0",
+        mood_prompt: "warm gentle woodland atmosphere",
+        style_descriptors: ["ambient", "soft"],
+        sonic_character: "soft organic wooden/leaf/cloth taps, gentle, no electronic transients"
+      }
+    };
+    expect(validate(m)).toEqual({ valid: true, errors: [] });
+  });
+
+  test("rejects an unknown key inside audio_system", () => {
+    const m = validManifest();
+    m.status = "scored";
+    m.audio_pass = {
+      method: "audio",
+      audio_system: { sonic_character: "x", bogus: true }
+    };
+    expect(validate(m).valid).toBe(false);
+  });
+
   test("accepts a concept carrying a full theme object", () => {
     const m = validManifest();
     m.concept.theme = {

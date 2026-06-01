@@ -156,7 +156,8 @@
           "properties": {
             "model": { "type": "string" },
             "mood_prompt": { "type": "string" },
-            "style_descriptors": { "type": "array", "items": { "type": "string" } }
+            "style_descriptors": { "type": "array", "items": { "type": "string" } },
+            "sonic_character": { "type": "string" }
           }
         },
         "recipes": {
