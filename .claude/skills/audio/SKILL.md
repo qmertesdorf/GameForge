@@ -29,6 +29,8 @@ One recipe per SFX + one music recipe. Each prompt = `mood_prompt` + the clip-sp
 ## 4. Generate each clip
 `node tools/comfy.mjs gen-audio <id> <clip-name> '<recipe-json>'` → writes `games/<id>/audio/<name>.<format>`. The file is canonical and committed; the recipe is provenance, not bit-exact (GPU/seed nondeterminism).
 
+> **Provisional until the feasibility gate.** `tools/comfy-templates/stable-audio.json` is unverified — stock ComfyUI's `SaveAudio` node may emit a different container (e.g. FLAC) than the recipe's `format`, which would name the file `<name>.wav` while writing other bytes. The Task 6 gate reconciles the template's save node with `recipe.format` (switch the recipe `format`, add a format-specific SaveAudio variant, or add a post-encode step) and records the decision. Treat the extension as verified only after that gate.
+
 ## 5. Wire into the Godot scene
 - Add one `AudioStreamPlayer` per SFX (named per the `events[]` `node`) and one for music.
 - Set import flags: music stream `loop = true` (and `loop_offset` if needed); SFX one-shot.
