@@ -170,6 +170,9 @@ export async function genAudio(id, name, recipe, {
   pollIntervalMs = 1000,
   maxPolls = 600 // audio gen is far cheaper than a 1024² image master
 } = {}) {
+  if (!recipe.format) {
+    throw new Error(`comfy: genAudio recipe for '${name}' is missing required field 'format' (expected "wav" or "ogg")`);
+  }
   const tplPath = join(templatesDir, `${templateName(recipe)}.json`);
   const template = JSON.parse(readFileSync(tplPath, "utf8"));
   const workflow = injectRecipe(template, recipe);

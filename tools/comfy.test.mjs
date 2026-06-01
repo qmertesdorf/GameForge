@@ -310,6 +310,40 @@ describe("genAudio", () => {
       expect(existsSync(pjoin(gamesDir, "creature-0001", "audio", "collect.wav"))).toBe(false);
     });
   });
+
+  test("polls /history until the result appears", async () => {
+    await withDirs(async ({ templatesDir, gamesDir }) => {
+      const fetch = mockFetch({
+        "POST /prompt": { body: { prompt_id: "abc" } },
+        "GET /history/abc": (n) => (n < 3 ? { body: {} } : HISTORY_DONE),
+        "GET /view": { bytes: new TextEncoder().encode("WAVDATA").buffer }
+      });
+      await genAudio("creature-0001", "collect", recipe(), { fetch, templatesDir, gamesDir, pollIntervalMs: 0 });
+      const historyCalls = fetch.calls.filter((c) => c.key === "GET /history/abc").length;
+      expect(historyCalls).toBe(3);
+    });
+  });
+
+  test("throws with the host when ComfyUI is unreachable", async () => {
+    await withDirs(async ({ templatesDir, gamesDir }) => {
+      const fetch = mockFetch({ "POST /prompt": new Error("ECONNREFUSED") });
+      await expect(genAudio("creature-0001", "collect", recipe(),
+        { fetch, host: "http://127.0.0.1:8188", templatesDir, gamesDir, pollIntervalMs: 0 }))
+        .rejects.toThrow(/127\.0\.0\.1:8188|unreachable/);
+      expect(existsSync(pjoin(gamesDir, "creature-0001", "audio", "collect.wav"))).toBe(false);
+    });
+  });
+
+  test("throws (writing no file) when the recipe omits format", async () => {
+    await withDirs(async ({ templatesDir, gamesDir }) => {
+      const fetch = mockFetch({});
+      const r = recipe();
+      delete r.format;
+      await expect(genAudio("creature-0001", "collect", r, { fetch, templatesDir, gamesDir, pollIntervalMs: 0 }))
+        .rejects.toThrow(/format/);
+      expect(existsSync(pjoin(gamesDir, "creature-0001", "audio", "collect.undefined"))).toBe(false);
+    });
+  });
 });
 
 import { templateName } from "./comfy.mjs";
