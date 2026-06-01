@@ -2,7 +2,7 @@
   "id": "creature-0001",
   "name": "Glade Spirit",
   "created_at": "2026-05-31T21:59:34.615Z",
-  "updated_at": "2026-06-01T06:18:56.083Z",
+  "updated_at": "2026-06-01T20:54:01.337Z",
   "status": "validated",
   "concept": {
     "genre": "top-down creature forager",
@@ -249,5 +249,127 @@
       }
     ],
     "notes": "Warm woodland audio identity (style A). 3 SFX one-shots + 1 looping ambient bed, generated via Stable Audio Open (WAV, soundfile patch). Wired in code (_setup_audio); selftest Test 5 asserts collect/streak/gameover cues fire + nodes exist; headless run clean. STAGED pending owner gates: ~60s playtest (validated->playable) then audio A/B (->scored). No artist/track names used; music negative excludes vocals (IP-safe)."
+  },
+  "store_pass": {
+    "icon_master": "art/spirit.png",
+    "icons": [
+      {
+        "name": "ic_launcher_mdpi",
+        "px": 48,
+        "kind": "launcher",
+        "source": "store/icons/ic_launcher_mdpi.png"
+      },
+      {
+        "name": "ic_launcher_hdpi",
+        "px": 72,
+        "kind": "launcher",
+        "source": "store/icons/ic_launcher_hdpi.png"
+      },
+      {
+        "name": "ic_launcher_xhdpi",
+        "px": 96,
+        "kind": "launcher",
+        "source": "store/icons/ic_launcher_xhdpi.png"
+      },
+      {
+        "name": "ic_launcher_xxhdpi",
+        "px": 144,
+        "kind": "launcher",
+        "source": "store/icons/ic_launcher_xxhdpi.png"
+      },
+      {
+        "name": "ic_launcher_xxxhdpi",
+        "px": 192,
+        "kind": "launcher",
+        "source": "store/icons/ic_launcher_xxxhdpi.png"
+      },
+      {
+        "name": "ic_play_store",
+        "px": 512,
+        "kind": "play",
+        "source": "store/icons/ic_play_store.png"
+      },
+      {
+        "name": "ic_adaptive_foreground",
+        "px": 432,
+        "kind": "adaptive_fg",
+        "source": "store/icons/ic_adaptive_foreground.png"
+      },
+      {
+        "name": "ic_adaptive_background",
+        "px": 432,
+        "kind": "adaptive_bg",
+        "source": "store/icons/ic_adaptive_background.png"
+      }
+    ],
+    "atlas": {
+      "sheet": "store/atlas.png",
+      "map": "store/atlas.json",
+      "sprite_count": 2
+    },
+    "screenshots": [
+      {
+        "name": "screen-1",
+        "px": "720x1280",
+        "source": "store/screenshots/screen-1.png"
+      }
+    ],
+    "export_preset": {
+      "path": "export_presets.cfg",
+      "platform": "android",
+      "package": "com.gameforge.creature-0001"
+    },
+    "notes": "M2 foundation PROOF EXERCISE — tooling run against the validated substrate to confirm the seam executes + CI-checkable gate assertions pass. NOT packaged: creature-0001 is validated; both asset_pass + audio_pass are present but their owner A/B confirmations (and the cross-modal cohesion A/B) are still pending, and validated->packaged is illegal. icon_master derived from the styled spirit sprite; final icon/splash art is the deferred owner aesthetic A/B. APK build = the deferred Android-toolchain feasibility gate (ANDROID_HOME unset).",
+    "size_budget": {
+      "total_bytes": 2978878,
+      "budget_bytes": 52428800,
+      "pass": true,
+      "per_file": [
+        {
+          "path": "store/atlas.json",
+          "bytes": 271
+        },
+        {
+          "path": "store/atlas.png",
+          "bytes": 2149901
+        },
+        {
+          "path": "store/icons/ic_adaptive_background.png",
+          "bytes": 204682
+        },
+        {
+          "path": "store/icons/ic_adaptive_foreground.png",
+          "bytes": 204682
+        },
+        {
+          "path": "store/icons/ic_launcher_hdpi.png",
+          "bytes": 9591
+        },
+        {
+          "path": "store/icons/ic_launcher_mdpi.png",
+          "bytes": 4856
+        },
+        {
+          "path": "store/icons/ic_launcher_xhdpi.png",
+          "bytes": 15644
+        },
+        {
+          "path": "store/icons/ic_launcher_xxhdpi.png",
+          "bytes": 31143
+        },
+        {
+          "path": "store/icons/ic_launcher_xxxhdpi.png",
+          "bytes": 50834
+        },
+        {
+          "path": "store/icons/ic_play_store.png",
+          "bytes": 278346
+        },
+        {
+          "path": "store/screenshots/screen-1.png",
+          "bytes": 28928
+        }
+      ]
+    }
   }
 }
