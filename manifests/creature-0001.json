@@ -2,7 +2,7 @@
   "id": "creature-0001",
   "name": "Glade Spirit",
   "created_at": "2026-05-31T21:59:34.615Z",
-  "updated_at": "2026-06-01T03:21:03.207Z",
+  "updated_at": "2026-06-01T06:18:56.083Z",
   "status": "validated",
   "concept": {
     "genre": "top-down creature forager",
@@ -19,7 +19,18 @@
     "target_platforms": [
       "android"
     ],
-    "differentiation_notes": "Not a third runner and not the top-down shooter: a calm-but-tense forage with risk/reward pathing and no weapons. The real hook is being the set's first REPRESENTATIONAL/painterly title (M1.5 raster) — its creatures and foliage are exactly the art SVG does badly, so it is the right proof target for the raster method."
+    "differentiation_notes": "Not a third runner and not the top-down shooter: a calm-but-tense forage with risk/reward pathing and no weapons. The real hook is being the set's first REPRESENTATIONAL/painterly title (M1.5 raster) — its creatures and foliage are exactly the art SVG does badly, so it is the right proof target for the raster method.",
+    "theme": {
+      "premise": "a cozy autumn-woodland folktale of a small forest spirit foraging glowing seeds",
+      "tone": "warm, gentle, a touch melancholy",
+      "mood_keywords": [
+        "cozy",
+        "organic",
+        "storybook",
+        "calm"
+      ],
+      "setting": "dappled autumn forest at golden hour"
+    }
   },
   "build": {
     "engine": "godot",
