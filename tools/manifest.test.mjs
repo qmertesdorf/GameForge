@@ -161,13 +161,15 @@ describe("validate", () => {
     };
     expect(validate(m)).toEqual({ valid: true, errors: [] });
   });
+
   test("rejects an unknown key inside audio_pass", () => {
     const m = validManifest();
     m.status = "scored";
     m.audio_pass = { method: "audio", bogus: true };
     expect(validate(m).valid).toBe(false);
   });
-  test("still accepts a playable manifest with no audio_pass (no regression)", () => {
+
+  test("audio_pass is optional (no regression for pre-audio manifests)", () => {
     expect(validate(validManifest()).valid).toBe(true);
   });
 });
@@ -237,7 +239,7 @@ describe("setStatus", () => {
     expect(setStatus(playable, "failed").status).toBe("failed");
   });
 
-  test("rejects leaving styled (terminal)", () => {
+  test("rejects back-transition from styled to playable", () => {
     const styled = { ...base(), status: "styled" };
     expect(() => setStatus(styled, "playable")).toThrow(/illegal transition/);
   });
