@@ -12,10 +12,10 @@ Give a `playable`-or-better game an audio identity. Audio is orthogonal to the v
 - ComfyUI is reachable with Stable Audio Open installed: `node tools/comfy.mjs --check`.
 
 ## 1. Derive the audio system (do this first, once)
-Read `concept.art_direction`, `concept.genre`, and theme. Author a shared `audio_system`:
+Read **`concept.theme`** — the title's modality-neutral world (premise/tone/mood_keywords/setting) — as the primary anchor, with `concept.genre` for form. The audio identity expresses the *same theme* the visuals do, sonically. Author a shared `audio_system`:
 - `model`: `"stable-audio-open-1.0"`.
-- `mood_prompt`: one shared mood sentence threaded into every clip prompt for coherence (the audio analog of the visual prompt scaffold) — e.g. "warm, organic, gentle woodland atmosphere".
-- `style_descriptors`: 2–4 tags (e.g. `["ambient", "soft", "acoustic"]` or `["chiptune", "8-bit", "upbeat"]`).
+- `mood_prompt`: one shared mood sentence threaded into every clip prompt for coherence (the audio analog of the visual prompt scaffold), derived from `concept.theme`'s `tone` + `mood_keywords` — e.g. for a "cozy autumn-woodland" theme, "warm, organic, gentle woodland atmosphere".
+- `style_descriptors`: 2–4 tags drawn from / consistent with `concept.theme.mood_keywords` (e.g. a "cozy/organic/storybook" theme → `["ambient", "soft", "acoustic"]`; a "retro/hard-edged/arcade" theme → `["chiptune", "8-bit", "upbeat"]`).
 
 ## 2. Map core-loop events to SFX
 From `concept.core_loop` + the entity/signal set, list the discrete events that deserve a one-shot: typically a positive beat (collect/score), a negative beat (hurt/hit), a loss beat (game over), and the primary action (jump/hop/shoot). For each, record an `events[]` entry: `{ event, clip, node, signal }` where `node` is the `AudioStreamPlayer` you will add and `signal` is the Godot signal (or call site) that triggers it. Be honest: if an event has no SFX, leave it out and note it.

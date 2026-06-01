@@ -13,6 +13,8 @@ concept → builder → validator → [playable] → asset → validator(re-run)
 
 ## Choosing the method (branch on `concept.art_direction`)
 
+`art_direction` is the **visual expression of `concept.theme`** (the title's modality-neutral world). The visual system you derive below must read as *that theme's world* — the same premise/tone/setting the audio and (at M2) the icon also express — not a free-standing aesthetic. Honor the theme; do not reinterpret it.
+
 This skill has **two methods**, picked from `art_direction`. Both share *all* the rewiring craft below (texture-on-disk → `Sprite2D`/`TextureRect`/`draw_texture*`, footprint placement, primitive removal, the run-007 immediate-mode lessons) — only how the texture is *produced* differs.
 
 - **geometric / neon / flat / hyper-casual / UI** → **`svg`** method (authored inline as text; the rest of this skill below). Resolution-independent, covers every density bucket from one file.
