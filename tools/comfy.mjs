@@ -100,7 +100,9 @@ function firstAudio(historyEntry) {
 
 // Shared ComfyUI flow: submit a workflow graph, poll for completion, download
 // the output bytes. Returns { bytes, prompt_id } on success; throws loudly on
-// every failure so callers get full host/graph context.
+// every failure so callers get full host/graph context. All options are
+// required by design — the public gen()/genAudio() callers own the defaults
+// (host, polling, maxPolls) and supply pick/label; this private helper has none.
 async function runGraph(workflow, { fetch, host, pollIntervalMs, maxPolls, pick, label }) {
   let submit;
   try {
