@@ -77,12 +77,19 @@ describe("injectRecipe", () => {
   });
 
   test("fills %duration% from duration_s for audio recipes", () => {
-    const tpl = { "1": { class_type: "EmptyLatentAudio", inputs: { seconds: "%duration%" } },
-                  "2": { class_type: "CLIPTextEncode", inputs: { text: "%prompt%" } } };
+    const tpl = {
+      "1": { class_type: "EmptyLatentAudio", inputs: { seconds: "%duration%" } },
+      "2": { class_type: "CLIPTextEncode", inputs: { text: "%prompt%" } }
+    };
     const recipe = { kind: "music", prompt: "calm ambient pad", duration_s: 30 };
     const out = injectRecipe(tpl, recipe);
     expect(out["1"].inputs.seconds).toBe(30);
     expect(out["2"].inputs.text).toBe("calm ambient pad");
+  });
+
+  test("throws when the template uses %duration% but the recipe omits duration_s", () => {
+    const tpl = { "1": { class_type: "EmptyLatentAudio", inputs: { seconds: "%duration%" } } };
+    expect(() => injectRecipe(tpl, { kind: "music", prompt: "x" })).toThrow(/%duration%|duration/);
   });
 });
 
