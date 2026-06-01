@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync, mkdirSync, statSync, existsSync, readdirSy
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, join, basename } from "node:path";
+import { readManifest } from "./manifest.mjs"; // single manifest-dir resolver (honors GAMEFORGE_MANIFEST_DIR)
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, "..");
@@ -60,13 +61,26 @@ export function pngSize(buf) {
   return { w: buf.readUInt32BE(16), h: buf.readUInt32BE(20) };
 }
 
+// Godot .cfg values are double-quoted, and parsePresetCfg strips quotes without
+// unescaping — so an embedded quote/backslash/newline in an interpolated value
+// would emit a line that Godot's own parser mis-reads or that fails to round-trip.
+// Inputs here are short Claude-authored titles, so reject loudly (the honest guard)
+// rather than silently corrupt the preset. Pure.
+function assertCfgSafe(value, field) {
+  if (typeof value === "string" && /["\\\r\n]/.test(value)) {
+    throw new Error(`package: ${field} contains a character unsafe for a Godot .cfg value (double-quote, backslash, or newline): ${JSON.stringify(value)}`);
+  }
+  return value;
+}
+
 // Generate a minimal-but-valid Godot Android export_presets.cfg string. Pure.
 export function exportPresetCfg({ id, name, packageName, exportPath } = {}) {
   if (!id || !name) {
     throw new Error("package: exportPresetCfg requires both { id, name }");
   }
-  const unique = packageName || `com.gameforge.${id}`;
-  const out = exportPath || `build/${id}-debug.apk`;
+  assertCfgSafe(name, "exportPresetCfg name");
+  const unique = assertCfgSafe(packageName || `com.gameforge.${id}`, "exportPresetCfg packageName");
+  const out = assertCfgSafe(exportPath || `build/${id}-debug.apk`, "exportPresetCfg exportPath");
   return [
     "[preset.0]",
     "",
@@ -162,6 +176,7 @@ export function splashSize() {
 // discipline as exportPresetCfg (the real boot-splash wiring rides project.godot).
 export function bootSplashCfg({ image, showImage = true } = {}) {
   if (!image) throw new Error("package: bootSplashCfg requires an image path");
+  assertCfgSafe(image, "bootSplashCfg image");
   return [
     "[application]",
     "",
@@ -190,7 +205,7 @@ function runGodot(args, label) {
 
 // Resize the icon master into every iconSizeTable() entry under games/<id>/store/icons/.
 export function generateIcons(id, { gamesDir = GAMES_DIR } = {}) {
-  const m = JSON.parse(readFileSync(join(REPO_ROOT, "manifests", `${id}.json`), "utf8"));
+  const m = readManifest(id);
   const master = m?.store_pass?.icon_master;
   if (!master) throw new Error(`package: generateIcons needs store_pass.icon_master in manifests/${id}.json`);
   const masterAbs = join(gamesDir, id, master);
@@ -243,7 +258,7 @@ export function captureScreenshot(id, name, { gamesDir = GAMES_DIR, frames = 220
 // Render the boot splash from the icon master onto a solid background under games/<id>/store/.
 // bg is "#RRGGBBAA" (the packager skill picks it from concept.theme); defaults to opaque black.
 export function generateSplash(id, { gamesDir = GAMES_DIR, bg = "#000000ff", showImage = true } = {}) {
-  const m = JSON.parse(readFileSync(join(REPO_ROOT, "manifests", `${id}.json`), "utf8"));
+  const m = readManifest(id);
   const master = m?.store_pass?.icon_master;
   if (!master) throw new Error(`package: generateSplash needs store_pass.icon_master in manifests/${id}.json`);
   const masterAbs = join(gamesDir, id, master);
@@ -275,8 +290,8 @@ export function budgetReport(id, { gamesDir = GAMES_DIR, budgetBytes = DEFAULT_S
 }
 
 // Validator Method 5's headless, no-SDK assertions. Throws on the first hard failure.
-export function verify(id, { gamesDir = GAMES_DIR } = {}) {
-  const m = JSON.parse(readFileSync(join(REPO_ROOT, "manifests", `${id}.json`), "utf8"));
+export function verify(id, { gamesDir = GAMES_DIR, manifest } = {}) {
+  const m = manifest || readManifest(id);
   const sp = m.store_pass;
   if (!sp) throw new Error(`package: verify: manifests/${id}.json has no store_pass`);
   const issues = [];
@@ -334,6 +349,8 @@ export function verify(id, { gamesDir = GAMES_DIR } = {}) {
   return { id, issues, file_checks_pass: issues.length === 0, both_passes_present: bothPasses, status: m.status };
 }
 
+const USAGE = "usage: node tools/package.mjs <icons|atlas|screenshot|splash|budget|preset|verify|--check> <id> ...";
+
 async function cli(argv) {
   const [cmd, ...rest] = argv;
   if (cmd === "--check") {
@@ -345,7 +362,7 @@ async function cli(argv) {
     return;
   }
   const id = rest[0];
-  if (!id) { console.error("usage: node tools/package.mjs <icons|atlas|screenshot|splash|budget|preset|verify|--check> <id> ..."); process.exit(2); }
+  if (!id) { console.error(USAGE); process.exit(2); }
   switch (cmd) {
     case "icons": console.log(JSON.stringify(generateIcons(id), null, 2)); return;
     case "atlas": console.log(JSON.stringify(generateAtlas(id), null, 2)); return;
@@ -353,13 +370,13 @@ async function cli(argv) {
     case "splash": console.log(JSON.stringify(generateSplash(id, { bg: rest[1] || "#000000ff" }), null, 2)); return;
     case "budget": console.log(JSON.stringify(budgetReport(id), null, 2)); return;
     case "preset": {
-      const m = JSON.parse(readFileSync(join(REPO_ROOT, "manifests", `${id}.json`), "utf8"));
+      const m = readManifest(id);
       console.log(exportPresetCfg({ id, name: m.name }));
       return;
     }
     case "verify": { const r = verify(id); console.log(JSON.stringify(r, null, 2)); if (r.issues.length) process.exit(1); return; }
     default:
-      console.error("usage: node tools/package.mjs <icons|atlas|screenshot|splash|budget|preset|verify|--check> <id> ...");
+      console.error(USAGE);
       process.exit(2);
   }
 }

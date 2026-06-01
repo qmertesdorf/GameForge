@@ -1,5 +1,8 @@
 import { test, expect, describe } from "vitest";
-import { iconSizeTable, sizeBudget, pngSize, exportPresetCfg, parsePresetCfg, atlasLayout, splashSize, bootSplashCfg } from "./package.mjs";
+import { iconSizeTable, sizeBudget, pngSize, exportPresetCfg, parsePresetCfg, atlasLayout, splashSize, bootSplashCfg, verify, budgetReport } from "./package.mjs";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 describe("iconSizeTable", () => {
   test("returns all 8 required Android icon outputs", () => {
@@ -120,6 +123,15 @@ describe("exportPresetCfg + parsePresetCfg", () => {
     expect(() => exportPresetCfg({ name: "X" })).toThrow(/id|name/);
   });
 
+  test("exportPresetCfg rejects a name with a .cfg-unsafe character", () => {
+    expect(() => exportPresetCfg({ id: "x", name: 'My "Cool" Game' })).toThrow(/unsafe|quote/);
+    expect(() => exportPresetCfg({ id: "x", name: "Two\nLines" })).toThrow(/unsafe|newline/);
+  });
+
+  test("bootSplashCfg rejects an image path with a .cfg-unsafe character", () => {
+    expect(() => bootSplashCfg({ image: 'res://"x".png' })).toThrow(/unsafe|quote/);
+  });
+
   test("parsePresetCfg strips quotes, coerces booleans and ints", () => {
     const parsed = parsePresetCfg('[preset.0]\n\nname="Hi"\nrunnable=true\nfoo=false\nn=42\n');
     expect(parsed["preset.0"]).toEqual({ name: "Hi", runnable: true, foo: false, n: 42 });
@@ -218,5 +230,160 @@ describe("atlasLayout", () => {
 
   test("throws on a malformed rect", () => {
     expect(() => atlasLayout([{ name: "a", w: 10 }])).toThrow(/w.*h|h/);
+  });
+});
+
+// verify() is Method 5's packaging gate; budgetReport() sums the store dir.
+// Both run WITHOUT Godot (they read committed PNGs/JSON via pngSize/readFileSync),
+// so every branch is reachable headlessly with a tmp fixture — exercised here.
+describe("verify (packaging gate)", () => {
+  // pngSize reads only the first 24 bytes, so a 24-byte IHDR header is a valid fixture.
+  function writePng(path, w, h) {
+    const buf = Buffer.alloc(24);
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]).copy(buf, 0);
+    buf.writeUInt32BE(13, 8);
+    buf.write("IHDR", 12, "latin1");
+    buf.writeUInt32BE(w, 16);
+    buf.writeUInt32BE(h, 20);
+    writeFileSync(path, buf);
+  }
+
+  // Lay down a complete, passing store fixture under <gamesDir>/<id>/; return the store_pass.
+  function buildFixture(gamesDir, id) {
+    const game = join(gamesDir, id);
+    const iconsDir = join(game, "store", "icons");
+    mkdirSync(iconsDir, { recursive: true });
+    const icons = iconSizeTable().map((e) => {
+      writePng(join(iconsDir, `${e.name}.png`), e.px, e.px);
+      return { name: e.name, px: e.px, kind: e.kind, source: `store/icons/${e.name}.png` };
+    });
+    writePng(join(game, "store", "atlas.png"), 256, 256);
+    writeFileSync(join(game, "store", "atlas.json"), JSON.stringify({ placements: [{ name: "a" }, { name: "b" }] }));
+    const { w, h } = splashSize();
+    writePng(join(game, "store", "splash.png"), w, h);
+    writeFileSync(join(game, "export_presets.cfg"), exportPresetCfg({ id, name: "Fixture" }));
+    return {
+      icons,
+      atlas: { sheet: "store/atlas.png", map: "store/atlas.json", sprite_count: 2 },
+      splash: { source: "store/splash.png", show_image: true },
+      size_budget: { total_bytes: 100, budget_bytes: 1000, pass: true, per_file: [] },
+      export_preset: { path: "export_presets.cfg", platform: "android", package: `com.gameforge.${id}` },
+      icon_master: "art/hero.png"
+    };
+  }
+
+  function manifestFor(store_pass, { withPasses = true } = {}) {
+    const m = { id: "fix-0001", status: "scored", store_pass };
+    if (withPasses) { m.asset_pass = { method: "raster" }; m.audio_pass = { method: "audio" }; }
+    return m;
+  }
+
+  function withFixture(fn) {
+    const dir = mkdtempSync(join(tmpdir(), "gf-pkg-"));
+    try { fn(dir, buildFixture(dir, "fix-0001")); }
+    finally { rmSync(dir, { recursive: true, force: true }); }
+  }
+
+  test("a complete, correctly-sized store passes with no issues and both passes present", () => {
+    withFixture((dir, sp) => {
+      const r = verify("fix-0001", { gamesDir: dir, manifest: manifestFor(sp) });
+      expect(r.issues).toEqual([]);
+      expect(r.file_checks_pass).toBe(true);
+      expect(r.both_passes_present).toBe(true);
+    });
+  });
+
+  test("a wrong-sized icon is flagged", () => {
+    withFixture((dir, sp) => {
+      writePng(join(dir, "fix-0001", "store", "icons", "ic_launcher_xxxhdpi.png"), 10, 10); // should be 192
+      const r = verify("fix-0001", { gamesDir: dir, manifest: manifestFor(sp) });
+      expect(r.file_checks_pass).toBe(false);
+      expect(r.issues.join(" ")).toMatch(/ic_launcher_xxxhdpi is 10x10, expected 192/);
+    });
+  });
+
+  test("a missing icon is flagged", () => {
+    withFixture((dir, sp) => {
+      rmSync(join(dir, "fix-0001", "store", "icons", "ic_play_store.png"));
+      const r = verify("fix-0001", { gamesDir: dir, manifest: manifestFor(sp) });
+      expect(r.issues.join(" ")).toMatch(/ic_play_store/);
+    });
+  });
+
+  test("an atlas sprite_count mismatch is flagged", () => {
+    withFixture((dir, sp) => {
+      sp.atlas.sprite_count = 5; // fixture map has 2 placements
+      const r = verify("fix-0001", { gamesDir: dir, manifest: manifestFor(sp) });
+      expect(r.issues.join(" ")).toMatch(/atlas map covers 2 sprites, store_pass says 5/);
+    });
+  });
+
+  test("a wrong-sized splash is flagged", () => {
+    withFixture((dir, sp) => {
+      writePng(join(dir, "fix-0001", "store", "splash.png"), 100, 100);
+      const r = verify("fix-0001", { gamesDir: dir, manifest: manifestFor(sp) });
+      expect(r.issues.join(" ")).toMatch(/splash is 100x100/);
+    });
+  });
+
+  test("a failing size budget is flagged", () => {
+    withFixture((dir, sp) => {
+      sp.size_budget = { total_bytes: 2000, budget_bytes: 1000, pass: false, per_file: [] };
+      const r = verify("fix-0001", { gamesDir: dir, manifest: manifestFor(sp) });
+      expect(r.issues.join(" ")).toMatch(/size budget fails/);
+    });
+  });
+
+  test("a non-Android export preset is flagged", () => {
+    withFixture((dir, sp) => {
+      writeFileSync(join(dir, "fix-0001", "export_presets.cfg"), '[preset.0]\n\nplatform="iOS"\n');
+      const r = verify("fix-0001", { gamesDir: dir, manifest: manifestFor(sp) });
+      expect(r.issues.join(" ")).toMatch(/platform is not Android/);
+    });
+  });
+
+  test("both_passes_present is false when a pass block is absent", () => {
+    withFixture((dir, sp) => {
+      const r = verify("fix-0001", { gamesDir: dir, manifest: manifestFor(sp, { withPasses: false }) });
+      expect(r.both_passes_present).toBe(false);
+      expect(r.file_checks_pass).toBe(true); // files are fine; only the passes are missing
+    });
+  });
+
+  test("throws when the manifest has no store_pass", () => {
+    withFixture((dir) => {
+      expect(() => verify("fix-0001", { gamesDir: dir, manifest: { id: "fix-0001", status: "scored" } }))
+        .toThrow(/no store_pass/);
+    });
+  });
+});
+
+describe("budgetReport", () => {
+  test("sums committed store bytes against the budget", () => {
+    const dir = mkdtempSync(join(tmpdir(), "gf-bud-"));
+    try {
+      const storeDir = join(dir, "g-0001", "store");
+      mkdirSync(storeDir, { recursive: true });
+      writeFileSync(join(storeDir, "a.png"), Buffer.alloc(300));
+      writeFileSync(join(storeDir, "b.png"), Buffer.alloc(700));
+      const r = budgetReport("g-0001", { gamesDir: dir, budgetBytes: 1000 });
+      expect(r.total_bytes).toBe(1000);
+      expect(r.pass).toBe(true);
+      expect(r.per_file.map((f) => f.path).sort()).toEqual(["store/a.png", "store/b.png"]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("fails when the store exceeds the budget", () => {
+    const dir = mkdtempSync(join(tmpdir(), "gf-bud-"));
+    try {
+      const storeDir = join(dir, "g-0001", "store");
+      mkdirSync(storeDir, { recursive: true });
+      writeFileSync(join(storeDir, "big.png"), Buffer.alloc(2000));
+      expect(budgetReport("g-0001", { gamesDir: dir, budgetBytes: 1000 }).pass).toBe(false);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
