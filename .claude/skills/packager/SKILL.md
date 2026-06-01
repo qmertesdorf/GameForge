@@ -46,7 +46,8 @@ Run the tool (it pairs the pure JS seam with the Godot pixel scripts, exactly li
 node tools/package.mjs icons <id>        # resize the icon master into every density (headless Image)
 node tools/package.mjs atlas <id>        # pack art/*.png → store/atlas.png + atlas.json (headless Image)
 node tools/package.mjs screenshot <id> <name> [frames]   # capture a play frame on the REAL renderer (not headless)
-node tools/package.mjs budget <id>       # sum store assets vs the budget
+node tools/package.mjs splash <id> [#RRGGBBAA]   # composite the icon master onto a themed bg → store/splash.png (headless Image); pick the bg from concept.theme
+node tools/package.mjs budget <id>       # sum store assets vs the budget (run AFTER icons/atlas/screenshot/splash so it includes them)
 node tools/package.mjs preset <id>       # print the Android export_presets.cfg (redirect into games/<id>/export_presets.cfg)
 ```
 
@@ -61,6 +62,7 @@ node tools/manifest.mjs validate <id>
 
 - **Headless vs real renderer.** Icon resize + atlas composite use Godot's `Image` API and run **headless**. Screenshots **must not** be headless — the dummy renderer captures no pixels; `package.mjs` runs the harness on the real Vulkan renderer (see the `asset` raster note + `godot-binary-path`).
 - **Mobile density.** Every launcher density comes from **downscaling** the high-res master, never upscaling — that is the app-store readiness the raster masters were sized for.
+- **Boot splash.** `splash` composites the icon master (~60%, centered) onto a themed solid background at the canonical portrait size (`splashSize()` → 1080×1920) and returns the `boot_splash_cfg` block for `project.godot`'s `[application]` section. `store_pass.splash` records only `{source, show_image}`; splicing `boot_splash_cfg` into the game's `project.godot` is applied at **real-package time** alongside the export preset (the foundation commits the asset + record, not the runtime project change). A splash composited from a master with an opaque background will show that background — for the final art, prefer a transparent-bg master or a deliberately-composed splash (the deferred owner aesthetic A/B).
 - **IP safety.** The icon/splash/screenshots inherit the art's IP posture; do not introduce franchise/character/studio likenesses. The owner aesthetic A/B is the final IP review (same as `asset`).
 - **Do not** edit `concept`, `builder`, `asset`, or `audio`. Consume `concept.theme` + the two pass blocks as-is.
 - **Do not** set `packaged` — hand to `validator`.

@@ -151,6 +151,27 @@ export function atlasLayout(rects, { maxWidth = 1024, padding = 0 } = {}) {
   return { sheet: { w: pow2(usedW), h: pow2(totalH) }, placements };
 }
 
+// Canonical portrait boot-splash dimensions. Fresh object each call (no shared
+// mutable singleton), matching iconSizeTable()'s contract. Pure.
+export function splashSize() {
+  return { w: 1080, h: 1920 };
+}
+
+// Generate the Godot project.godot [application] boot_splash block. Text, pure,
+// and round-trips through parsePresetCfg — same "reviewable + diffable + parses"
+// discipline as exportPresetCfg (the real boot-splash wiring rides project.godot).
+export function bootSplashCfg({ image, showImage = true } = {}) {
+  if (!image) throw new Error("package: bootSplashCfg requires an image path");
+  return [
+    "[application]",
+    "",
+    `application/boot_splash/show_image=${showImage ? "true" : "false"}`,
+    `application/boot_splash/image="${image}"`,
+    "application/boot_splash/fullsize=true",
+    ""
+  ].join("\n");
+}
+
 // Resolve the pinned Godot binary. PowerShell carries a `godot` shim; fall back
 // to the winget install path the README/memory pin (godot-binary-path).
 function godotBin() {
@@ -219,6 +240,24 @@ export function captureScreenshot(id, name, { gamesDir = GAMES_DIR, frames = 220
   return { name, source: `store/screenshots/${name}.png`, path: outPath };
 }
 
+// Render the boot splash from the icon master onto a solid background under games/<id>/store/.
+// bg is "#RRGGBBAA" (the packager skill picks it from concept.theme); defaults to opaque black.
+export function generateSplash(id, { gamesDir = GAMES_DIR, bg = "#000000ff", showImage = true } = {}) {
+  const m = JSON.parse(readFileSync(join(REPO_ROOT, "manifests", `${id}.json`), "utf8"));
+  const master = m?.store_pass?.icon_master;
+  if (!master) throw new Error(`package: generateSplash needs store_pass.icon_master in manifests/${id}.json`);
+  const masterAbs = join(gamesDir, id, master);
+  if (!existsSync(masterAbs)) throw new Error(`package: icon master not found at ${masterAbs}`);
+  const { w, h } = splashSize();
+  const storeDir = join(gamesDir, id, "store");
+  mkdirSync(storeDir, { recursive: true });
+  const outPath = join(storeDir, "splash.png");
+  const out = runGodot(["--headless", "--path", GODOT_DIR, "--script", "res://splash_render.gd", "--", masterAbs, outPath, `${w}x${h}`, bg], "splash_render");
+  if (!out.includes("SPLASH_RENDER OK")) throw new Error(`package: splash_render did not report OK:\n${out}`);
+  // store_pass.splash carries only {source, show_image}; boot_splash_cfg is for the skill to apply to project.godot.
+  return { source: "store/splash.png", show_image: showImage, boot_splash_cfg: bootSplashCfg({ image: "res://store/splash.png", showImage }) };
+}
+
 // Sum the committed store assets and compare to the budget. File-based; pure math via sizeBudget.
 export function budgetReport(id, { gamesDir = GAMES_DIR, budgetBytes = DEFAULT_SIZE_BUDGET } = {}) {
   const storeDir = join(gamesDir, id, "store");
@@ -266,6 +305,17 @@ export function verify(id, { gamesDir = GAMES_DIR } = {}) {
     }
   }
 
+  // 2b. splash, if recorded, exists at the canonical boot-splash dimensions
+  if (sp.splash) {
+    const splashAbs = join(gamesDir, id, sp.splash.source);
+    if (!existsSync(splashAbs)) issues.push(`splash absent: ${sp.splash.source}`);
+    else {
+      const { w, h } = pngSize(readFileSync(splashAbs));
+      const want = splashSize();
+      if (w !== want.w || h !== want.h) issues.push(`splash is ${w}x${h}, expected ${want.w}x${want.h}`);
+    }
+  }
+
   // 3. size budget passes
   if (sp.size_budget && sp.size_budget.pass !== true) issues.push(`size budget fails: ${sp.size_budget.total_bytes} > ${sp.size_budget.budget_bytes}`);
 
@@ -295,11 +345,12 @@ async function cli(argv) {
     return;
   }
   const id = rest[0];
-  if (!id) { console.error("usage: node tools/package.mjs <icons|atlas|screenshot|budget|preset|verify|--check> <id> ..."); process.exit(2); }
+  if (!id) { console.error("usage: node tools/package.mjs <icons|atlas|screenshot|splash|budget|preset|verify|--check> <id> ..."); process.exit(2); }
   switch (cmd) {
     case "icons": console.log(JSON.stringify(generateIcons(id), null, 2)); return;
     case "atlas": console.log(JSON.stringify(generateAtlas(id), null, 2)); return;
     case "screenshot": console.log(JSON.stringify(captureScreenshot(id, rest[1] || "screen-1", { frames: Number(rest[2] || 220) }), null, 2)); return;
+    case "splash": console.log(JSON.stringify(generateSplash(id, { bg: rest[1] || "#000000ff" }), null, 2)); return;
     case "budget": console.log(JSON.stringify(budgetReport(id), null, 2)); return;
     case "preset": {
       const m = JSON.parse(readFileSync(join(REPO_ROOT, "manifests", `${id}.json`), "utf8"));
@@ -308,7 +359,7 @@ async function cli(argv) {
     }
     case "verify": { const r = verify(id); console.log(JSON.stringify(r, null, 2)); if (r.issues.length) process.exit(1); return; }
     default:
-      console.error("usage: node tools/package.mjs <icons|atlas|screenshot|budget|preset|verify|--check> <id> ...");
+      console.error("usage: node tools/package.mjs <icons|atlas|screenshot|splash|budget|preset|verify|--check> <id> ...");
       process.exit(2);
   }
 }

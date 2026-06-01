@@ -1,5 +1,5 @@
 import { test, expect, describe } from "vitest";
-import { iconSizeTable, sizeBudget, pngSize, exportPresetCfg, parsePresetCfg, atlasLayout } from "./package.mjs";
+import { iconSizeTable, sizeBudget, pngSize, exportPresetCfg, parsePresetCfg, atlasLayout, splashSize, bootSplashCfg } from "./package.mjs";
 
 describe("iconSizeTable", () => {
   test("returns all 8 required Android icon outputs", () => {
@@ -136,6 +136,35 @@ describe("exportPresetCfg + parsePresetCfg", () => {
 
   test("parsePresetCfg throws on an unparseable line", () => {
     expect(() => parsePresetCfg("[preset.0]\nthis line has no equals\n")).toThrow(/unparseable/);
+  });
+});
+
+describe("splashSize", () => {
+  test("returns the canonical portrait boot-splash dimensions", () => {
+    expect(splashSize()).toEqual({ w: 1080, h: 1920 });
+  });
+
+  test("returns a fresh object each call (not a shared mutable singleton)", () => {
+    expect(splashSize()).not.toBe(splashSize());
+  });
+});
+
+describe("bootSplashCfg + parsePresetCfg", () => {
+  test("generates an [application] boot_splash block that round-trips through the parser", () => {
+    const cfg = bootSplashCfg({ image: "res://store/splash.png" });
+    const parsed = parsePresetCfg(cfg);
+    expect(parsed.application["application/boot_splash/image"]).toBe("res://store/splash.png");
+    expect(parsed.application["application/boot_splash/show_image"]).toBe(true);
+    expect(parsed.application["application/boot_splash/fullsize"]).toBe(true);
+  });
+
+  test("honors show_image=false", () => {
+    const parsed = parsePresetCfg(bootSplashCfg({ image: "res://store/splash.png", showImage: false }));
+    expect(parsed.application["application/boot_splash/show_image"]).toBe(false);
+  });
+
+  test("throws without an image path", () => {
+    expect(() => bootSplashCfg({})).toThrow(/image/);
   });
 });
 

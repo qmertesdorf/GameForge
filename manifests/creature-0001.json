@@ -314,14 +314,18 @@
         "source": "store/screenshots/screen-1.png"
       }
     ],
+    "splash": {
+      "source": "store/splash.png",
+      "show_image": true
+    },
     "export_preset": {
       "path": "export_presets.cfg",
       "platform": "android",
       "package": "com.gameforge.creature-0001"
     },
-    "notes": "M2 foundation PROOF EXERCISE — tooling run against the validated substrate to confirm the seam executes + CI-checkable gate assertions pass. NOT packaged: creature-0001 is validated; both asset_pass + audio_pass are present but their owner A/B confirmations (and the cross-modal cohesion A/B) are still pending, and validated->packaged is illegal. icon_master derived from the styled spirit sprite; final icon/splash art is the deferred owner aesthetic A/B. APK build = the deferred Android-toolchain feasibility gate (ANDROID_HOME unset).",
+    "notes": "M2 foundation PROOF EXERCISE — tooling run against the validated substrate to confirm the seam executes + CI-checkable gate assertions pass. NOT packaged: creature-0001 is validated; both asset_pass + audio_pass are present but their owner A/B confirmations (and the cross-modal cohesion A/B) are still pending, and validated->packaged is illegal. icon_master derived from the styled spirit sprite; boot splash composites that master (60%) centered on a deep-forest bg via splash_render.gd; final icon/splash art is the deferred owner aesthetic A/B. APK build = the deferred Android-toolchain feasibility gate (ANDROID_HOME unset).",
     "size_budget": {
-      "total_bytes": 2978878,
+      "total_bytes": 3427142,
       "budget_bytes": 52428800,
       "pass": true,
       "per_file": [
@@ -368,6 +372,10 @@
         {
           "path": "store/screenshots/screen-1.png",
           "bytes": 28928
+        },
+        {
+          "path": "store/splash.png",
+          "bytes": 448264
         }
       ]
     }
