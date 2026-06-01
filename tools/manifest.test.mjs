@@ -172,6 +172,28 @@ describe("validate", () => {
   test("audio_pass is optional (no regression for pre-audio manifests)", () => {
     expect(validate(validManifest()).valid).toBe(true);
   });
+
+  test("accepts a concept carrying a full theme object", () => {
+    const m = validManifest();
+    m.concept.theme = {
+      premise: "a cozy autumn-woodland folktale",
+      tone: "warm, gentle, a touch melancholy",
+      mood_keywords: ["cozy", "organic", "storybook", "calm"],
+      setting: "dappled autumn forest at golden hour"
+    };
+    expect(validate(m)).toEqual({ valid: true, errors: [] });
+  });
+
+  test("theme is optional (no regression for pre-theme manifests)", () => {
+    const m = validManifest(); // concept has no theme
+    expect(validate(m)).toEqual({ valid: true, errors: [] });
+  });
+
+  test("rejects an unknown key inside theme", () => {
+    const m = validManifest();
+    m.concept.theme = { premise: "x", bogus: true };
+    expect(validate(m).valid).toBe(false);
+  });
 });
 
 describe("newManifest", () => {

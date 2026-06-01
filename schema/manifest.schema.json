@@ -20,7 +20,17 @@
         "mechanics": { "type": "array", "items": { "type": "string" } },
         "art_direction": { "type": "string" },
         "target_platforms": { "type": "array", "items": { "type": "string" } },
-        "differentiation_notes": { "type": "string" }
+        "differentiation_notes": { "type": "string" },
+        "theme": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "premise": { "type": "string" },
+            "tone": { "type": "string" },
+            "mood_keywords": { "type": "array", "items": { "type": "string" } },
+            "setting": { "type": "string" }
+          }
+        }
       }
     },
     "build": {
