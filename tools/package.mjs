@@ -98,6 +98,7 @@ export function parsePresetCfg(text) {
   for (const raw of text.split(/\r?\n/)) {
     const line = raw.trim();
     if (!line) continue;
+    if (line.startsWith(";")) continue; // Godot .cfg comment lines
     const sec = line.match(/^\[(.+)\]$/);
     if (sec) { current = sec[1]; sections[current] = {}; continue; }
     const kv = line.match(/^([^=]+)=(.*)$/);
