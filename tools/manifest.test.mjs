@@ -194,6 +194,37 @@ describe("validate", () => {
     m.concept.theme = { premise: "x", bogus: true };
     expect(validate(m).valid).toBe(false);
   });
+
+  test("accepts a manifest carrying a full store_pass block", () => {
+    const m = validManifest();
+    m.store_pass = {
+      icons: [{ name: "ic_launcher_xxxhdpi", px: 192, kind: "launcher", source: "store/icons/ic_launcher_xxxhdpi.png" }],
+      splash: { source: "store/splash.png", show_image: true },
+      screenshots: [{ name: "screen-1", px: "1080x1920", source: "store/screenshots/screen-1.png" }],
+      atlas: { sheet: "store/atlas.png", map: "store/atlas.json", sprite_count: 2 },
+      size_budget: { total_bytes: 1024, budget_bytes: 52428800, pass: true, per_file: [{ path: "store/atlas.png", bytes: 1024 }] },
+      export_preset: { path: "export_presets.cfg", platform: "android", package: "com.gameforge.creature-0001" },
+      icon_master: "art/spirit.png",
+      notes: "foundation proof"
+    };
+    expect(validate(m)).toEqual({ valid: true, errors: [] });
+  });
+
+  test("accepts the packaged status value", () => {
+    const m = validManifest();
+    m.status = "packaged";
+    expect(validate(m).valid).toBe(true);
+  });
+
+  test("store_pass is optional (no regression for pre-M2 manifests)", () => {
+    expect(validate(validManifest()).valid).toBe(true);
+  });
+
+  test("rejects an unknown key inside store_pass", () => {
+    const m = validManifest();
+    m.store_pass = { icon_master: "art/x.png", bogus: true };
+    expect(validate(m).valid).toBe(false);
+  });
 });
 
 describe("newManifest", () => {
@@ -217,8 +248,8 @@ describe("newManifest", () => {
 describe("setStatus", () => {
   const base = () => newManifest({ id: "a", name: "A" }, "2026-05-30T12:00:00Z");
 
-  test("exposes the seven statuses through scored", () => {
-    expect(STATUSES).toEqual(["concept", "generated", "validated", "playable", "styled", "scored", "failed"]);
+  test("exposes the eight statuses through packaged", () => {
+    expect(STATUSES).toEqual(["concept", "generated", "validated", "playable", "styled", "scored", "packaged", "failed"]);
   });
 
   test("advances along the legal path and stamps updated_at", () => {
@@ -281,6 +312,19 @@ describe("setStatus", () => {
   test("scored can fail", () => {
     const m = { ...base(), status: "scored" };
     expect(setStatus(m, "failed").status).toBe("failed");
+  });
+  test("scored can advance to packaged (canonical packaging path)", () => {
+    const m = { ...base(), status: "scored" };
+    expect(setStatus(m, "packaged").status).toBe("packaged");
+  });
+  test("packaged is terminal — cannot leave it", () => {
+    const m = { ...base(), status: "packaged" };
+    expect(() => setStatus(m, "scored")).toThrow();
+    expect(() => setStatus(m, "failed")).toThrow();
+  });
+  test("rejects reaching packaged from a non-scored status", () => {
+    const styled = { ...base(), status: "styled" };
+    expect(() => setStatus(styled, "packaged")).toThrow(/illegal transition/);
   });
 });
 

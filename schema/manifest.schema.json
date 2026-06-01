@@ -10,7 +10,7 @@
     "name": { "type": "string", "minLength": 1 },
     "created_at": { "type": "string", "format": "date-time" },
     "updated_at": { "type": "string", "format": "date-time" },
-    "status": { "enum": ["concept", "generated", "validated", "playable", "styled", "scored", "failed"] },
+    "status": { "enum": ["concept", "generated", "validated", "playable", "styled", "scored", "packaged", "failed"] },
     "concept": {
       "type": "object",
       "additionalProperties": false,
@@ -184,6 +184,85 @@
             }
           }
         },
+        "notes": { "type": "string" }
+      }
+    },
+    "store_pass": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "icons": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "name": { "type": "string" },
+              "px": { "type": "number" },
+              "kind": { "type": "string" },
+              "source": { "type": "string" }
+            }
+          }
+        },
+        "splash": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "source": { "type": "string" },
+            "show_image": { "type": "boolean" }
+          }
+        },
+        "screenshots": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "name": { "type": "string" },
+              "px": { "type": "string" },
+              "source": { "type": "string" }
+            }
+          }
+        },
+        "atlas": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "sheet": { "type": "string" },
+            "map": { "type": "string" },
+            "sprite_count": { "type": "number" }
+          }
+        },
+        "size_budget": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "total_bytes": { "type": "number" },
+            "budget_bytes": { "type": "number" },
+            "pass": { "type": "boolean" },
+            "per_file": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "path": { "type": "string" },
+                  "bytes": { "type": "number" }
+                }
+              }
+            }
+          }
+        },
+        "export_preset": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "path": { "type": "string" },
+            "platform": { "type": "string" },
+            "package": { "type": "string" }
+          }
+        },
+        "icon_master": { "type": "string" },
         "notes": { "type": "string" }
       }
     },
