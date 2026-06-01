@@ -22,7 +22,7 @@ Turn a folder of mobile-grade assets into the **inputs a shippable Android build
 
 - `games/<id>/store/icons/*.png` — every `iconSizeTable()` entry (launcher mdpi→xxxhdpi, Play 512, adaptive fg/bg 432).
 - `games/<id>/store/atlas.png` + `games/<id>/store/atlas.json` — the texture atlas + coordinate map.
-- `games/<id>/store/screenshots/*.png` — gameplay frames at Play dimensions.
+- `games/<id>/store/screenshots/*.png` — gameplay frames at the game's portrait resolution (the tool saves whatever the running game renders — `builder` ships 720×1280; it does not resize to a fixed Play-store target).
 - `games/<id>/store/splash.png` (and the Godot `boot_splash` config).
 - `games/<id>/export_presets.cfg` — a valid Android export preset.
 - A populated `store_pass` block (icons, splash, screenshots, atlas, size_budget, export_preset, icon_master, notes).
@@ -61,6 +61,7 @@ node tools/manifest.mjs validate <id>
 ## Hard requirements & honesty
 
 - **Headless vs real renderer.** Icon resize + atlas composite use Godot's `Image` API and run **headless**. Screenshots **must not** be headless — the dummy renderer captures no pixels; `package.mjs` runs the harness on the real Vulkan renderer (see the `asset` raster note + `godot-binary-path`).
+- **Recording screenshots — assemble the schema shape, don't paste tool output.** `package.mjs screenshot` returns `{name, source, path}`, but `store_pass.screenshots[]` records `{name, px, source}` (schema-validated). When you merge, **drop the tool's `path`** (it's an absolute disk path) and **add `px`** as the captured `"WxH"` (e.g. `"720x1280"`). Pasting the tool's object verbatim fails the very next `validate` step (extra `path`, missing `px`).
 - **Mobile density.** Every launcher density comes from **downscaling** the high-res master, never upscaling — that is the app-store readiness the raster masters were sized for.
 - **Boot splash.** `splash` composites the icon master (~60%, centered) onto a themed solid background at the canonical portrait size (`splashSize()` → 1080×1920) and returns the `boot_splash_cfg` block for `project.godot`'s `[application]` section. `store_pass.splash` records only `{source, show_image}`; splicing `boot_splash_cfg` into the game's `project.godot` is applied at **real-package time** alongside the export preset (the foundation commits the asset + record, not the runtime project change). A splash composited from a master with an opaque background will show that background — for the final art, prefer a transparent-bg master or a deliberately-composed splash (the deferred owner aesthetic A/B).
 - **IP safety.** The icon/splash/screenshots inherit the art's IP posture; do not introduce franchise/character/studio likenesses. The owner aesthetic A/B is the final IP review (same as `asset`).
