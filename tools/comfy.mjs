@@ -78,25 +78,22 @@ function templateName(recipe) {
 
 export { templateName };
 
-// Pull the first output image descriptor out of a /history entry.
-function firstImage(historyEntry) {
+// Build a /history-entry picker for a given output kind ("images"/"audio").
+// Returns the first descriptor found. Our templates each carry exactly ONE save
+// node (one SaveImage or one SaveAudio) and no preview nodes, so /history holds a
+// single output node and "first" is unambiguous — keep that invariant if a
+// template ever gains a second/preview save node, or select by save-node id here.
+const firstOutput = (kind) => (historyEntry) => {
   const outputs = historyEntry?.outputs ?? {};
   for (const nodeId of Object.keys(outputs)) {
-    const imgs = outputs[nodeId]?.images;
-    if (Array.isArray(imgs) && imgs.length) return imgs[0];
+    const arr = outputs[nodeId]?.[kind];
+    if (Array.isArray(arr) && arr.length) return arr[0];
   }
   return null;
-}
+};
 
-// Pull the first output audio descriptor out of a /history entry.
-function firstAudio(historyEntry) {
-  const outputs = historyEntry?.outputs ?? {};
-  for (const nodeId of Object.keys(outputs)) {
-    const clips = outputs[nodeId]?.audio;
-    if (Array.isArray(clips) && clips.length) return clips[0];
-  }
-  return null;
-}
+const firstImage = firstOutput("images");
+const firstAudio = firstOutput("audio");
 
 // Shared ComfyUI flow: submit a workflow graph, poll for completion, download
 // the output bytes. Returns { bytes, prompt_id } on success; throws loudly on
