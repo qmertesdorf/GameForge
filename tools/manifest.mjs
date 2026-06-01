@@ -121,7 +121,10 @@ function cli(argv) {
     }
     case "merge": {
       const [id, json] = rest;
-      writeManifest(merge(readManifest(id), JSON.parse(json)));
+      const merged = merge(readManifest(id), JSON.parse(json));
+      const { valid, errors } = validate(merged);
+      if (!valid) throw new Error(`merge would produce an invalid manifest: ${errors.join("; ")}`);
+      writeManifest(merged);
       console.log(`merged into ${id}`);
       break;
     }

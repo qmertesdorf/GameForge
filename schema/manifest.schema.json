@@ -5,6 +5,21 @@
   "type": "object",
   "additionalProperties": false,
   "required": ["id", "name", "created_at", "updated_at", "status", "concept", "build", "assets", "validation", "_reserved"],
+  "allOf": [
+    {
+      "$comment": "A polish status must carry the pass block it certifies. status is lossy (a game is styled OR scored, never both at once); these tie whichever terminal status is set to the block that proves it. asset/audio are orthogonal axes, so styled requires only asset_pass and scored only audio_pass — but packaged is the real ship gate and demands all three.",
+      "if": { "properties": { "status": { "const": "styled" } }, "required": ["status"] },
+      "then": { "required": ["asset_pass"] }
+    },
+    {
+      "if": { "properties": { "status": { "const": "scored" } }, "required": ["status"] },
+      "then": { "required": ["audio_pass"] }
+    },
+    {
+      "if": { "properties": { "status": { "const": "packaged" } }, "required": ["status"] },
+      "then": { "required": ["asset_pass", "audio_pass", "store_pass"] }
+    }
+  ],
   "properties": {
     "id": { "type": "string", "minLength": 1 },
     "name": { "type": "string", "minLength": 1 },
@@ -72,7 +87,7 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "method": { "type": "string" },
+        "method": { "enum": ["svg", "raster"] },
         "visual_system": {
           "type": "object",
           "additionalProperties": false,
@@ -133,7 +148,7 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "method": { "type": "string" },
+        "method": { "enum": ["audio"] },
         "audio_system": {
           "type": "object",
           "additionalProperties": false,
@@ -199,7 +214,7 @@
             "properties": {
               "name": { "type": "string" },
               "px": { "type": "number" },
-              "kind": { "type": "string" },
+              "kind": { "enum": ["launcher", "play", "adaptive_fg", "adaptive_bg"] },
               "source": { "type": "string" }
             }
           }
@@ -219,7 +234,7 @@
             "additionalProperties": false,
             "properties": {
               "name": { "type": "string" },
-              "px": { "type": "string" },
+              "px": { "type": "string", "pattern": "^[0-9]+x[0-9]+$" },
               "source": { "type": "string" }
             }
           }

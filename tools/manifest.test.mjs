@@ -210,10 +210,68 @@ describe("validate", () => {
     expect(validate(m)).toEqual({ valid: true, errors: [] });
   });
 
-  test("accepts the packaged status value", () => {
+  // A fully-packaged manifest: all three polish passes present (the schema now
+  // requires each polish status to carry the block it certifies).
+  function packagedManifest() {
     const m = validManifest();
     m.status = "packaged";
-    expect(validate(m).valid).toBe(true);
+    m.asset_pass = { method: "raster", art_path: "games/runner-0001/art/" };
+    m.audio_pass = { method: "audio", notes: "music + sfx" };
+    m.store_pass = { icon_master: "art/hero.png", notes: "packaged" };
+    return m;
+  }
+
+  test("accepts the packaged status value when all three passes are present", () => {
+    expect(validate(packagedManifest()).valid).toBe(true);
+  });
+
+  test("rejects styled without an asset_pass", () => {
+    const m = validManifest();
+    m.status = "styled";
+    const r = validate(m);
+    expect(r.valid).toBe(false);
+    expect(r.errors.join(" ")).toMatch(/asset_pass/);
+  });
+
+  test("rejects scored without an audio_pass", () => {
+    const m = validManifest();
+    m.status = "scored";
+    expect(validate(m).valid).toBe(false);
+  });
+
+  test("rejects packaged missing a required pass block", () => {
+    const m = packagedManifest();
+    delete m.store_pass;
+    expect(validate(m).valid).toBe(false);
+    const m2 = packagedManifest();
+    delete m2.audio_pass;
+    expect(validate(m2).valid).toBe(false);
+  });
+
+  test("rejects an out-of-enum asset_pass.method", () => {
+    const m = validManifest();
+    m.status = "styled";
+    m.asset_pass = { method: "rastr" };
+    expect(validate(m).valid).toBe(false);
+  });
+
+  test("rejects an out-of-enum audio_pass.method", () => {
+    const m = validManifest();
+    m.status = "scored";
+    m.audio_pass = { method: "sound" };
+    expect(validate(m).valid).toBe(false);
+  });
+
+  test("rejects a malformed screenshots px (not WxH)", () => {
+    const m = validManifest();
+    m.store_pass = { screenshots: [{ name: "s1", px: "big", source: "store/screenshots/s1.png" }] };
+    expect(validate(m).valid).toBe(false);
+  });
+
+  test("rejects an out-of-enum icon kind", () => {
+    const m = validManifest();
+    m.store_pass = { icons: [{ name: "ic_x", px: 48, kind: "bogus", source: "store/icons/ic_x.png" }] };
+    expect(validate(m).valid).toBe(false);
   });
 
   test("store_pass is optional (no regression for pre-M2 manifests)", () => {
@@ -380,6 +438,20 @@ describe("CLI", () => {
       const m = JSON.parse(rf(pjoin(dir, "runner-0001.json"), "utf8"));
       expect(m.status).toBe("generated");
       expect(m.concept.genre).toBe("endless runner");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("merge refuses to write a result that fails the schema", () => {
+    const dir = mkdtempSync(pjoin(tmpdir(), "gf-"));
+    try {
+      runCli(["create", "runner-0001", "Neon Dash"], dir);
+      // assets must be an array; an object patch over it would corrupt the manifest.
+      expect(() => runCli(["merge", "runner-0001", JSON.stringify({ assets: { bogus: 1 } })], dir)).toThrow();
+      // the on-disk manifest is untouched (still the valid create skeleton).
+      const m = JSON.parse(rf(pjoin(dir, "runner-0001.json"), "utf8"));
+      expect(Array.isArray(m.assets)).toBe(true);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
