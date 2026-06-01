@@ -98,21 +98,10 @@ function firstAudio(historyEntry) {
   return null;
 }
 
-// Turn a recipe into a committed RGBA PNG at games/<id>/art/<name>.png.
-// Fails loudly (with host/graph context) so any failure is attributable to infra.
-export async function gen(id, name, recipe, {
-  fetch = globalThis.fetch,
-  host = COMFY_HOST,
-  templatesDir = TEMPLATES_DIR,
-  gamesDir = GAMES_DIR,
-  pollIntervalMs = 1000,
-  maxPolls = 1800 // ~30 min ceiling: an 8GB card offloads SDXL+LayerDiffuse and a
-                  // 1024² master can take 8-12 min; 10 min was too tight. 16GB is far faster.
-} = {}) {
-  const tplPath = join(templatesDir, `${templateName(recipe)}.json`);
-  const template = JSON.parse(readFileSync(tplPath, "utf8"));
-  const workflow = injectRecipe(template, recipe);
-
+// Shared ComfyUI flow: submit a workflow graph, poll for completion, download
+// the output bytes. Returns { bytes, prompt_id } on success; throws loudly on
+// every failure so callers get full host/graph context.
+async function runGraph(workflow, { fetch, host, pollIntervalMs, maxPolls, pick, label }) {
   let submit;
   try {
     submit = await fetch(`${host}/prompt`, {
@@ -129,7 +118,7 @@ export async function gen(id, name, recipe, {
   }
   const { prompt_id } = await submit.json();
 
-  let image = null;
+  let output = null;
   for (let i = 0; i < maxPolls; i++) {
     const hist = await fetch(`${host}/history/${prompt_id}`);
     if (!hist.ok) {
@@ -138,20 +127,39 @@ export async function gen(id, name, recipe, {
     const body = await hist.json();
     const entry = body?.[prompt_id];
     if (entry) {
-      image = firstImage(entry);
-      if (image) break;
-      throw new Error(`comfy: prompt ${prompt_id} finished with no image output (graph error?)`);
+      output = pick(entry);
+      if (output) break;
+      throw new Error(`comfy: prompt ${prompt_id} finished with no ${label} output (graph error?)`);
     }
     await sleep(pollIntervalMs);
   }
-  if (!image) throw new Error(`comfy: timed out waiting for prompt ${prompt_id} after ${maxPolls} polls`);
+  if (!output) throw new Error(`comfy: timed out waiting for prompt ${prompt_id} after ${maxPolls} polls`);
 
-  const params = new URLSearchParams({ filename: image.filename, subfolder: image.subfolder ?? "", type: image.type ?? "output" });
+  const params = new URLSearchParams({ filename: output.filename, subfolder: output.subfolder ?? "", type: output.type ?? "output" });
   const view = await fetch(`${host}/view?${params}`);
   if (!view.ok) {
-    throw new Error(`comfy: failed to download image from ${host}/view (HTTP ${view.status})`);
+    throw new Error(`comfy: failed to download ${label} from ${host}/view (HTTP ${view.status})`);
   }
   const bytes = Buffer.from(await view.arrayBuffer());
+  return { bytes, prompt_id };
+}
+
+// Turn a recipe into a committed RGBA PNG at games/<id>/art/<name>.png.
+// Fails loudly (with host/graph context) so any failure is attributable to infra.
+export async function gen(id, name, recipe, {
+  fetch = globalThis.fetch,
+  host = COMFY_HOST,
+  templatesDir = TEMPLATES_DIR,
+  gamesDir = GAMES_DIR,
+  pollIntervalMs = 1000,
+  maxPolls = 1800 // ~30 min ceiling: an 8GB card offloads SDXL+LayerDiffuse and a
+                  // 1024² master can take 8-12 min; 10 min was too tight. 16GB is far faster.
+} = {}) {
+  const tplPath = join(templatesDir, `${templateName(recipe)}.json`);
+  const template = JSON.parse(readFileSync(tplPath, "utf8"));
+  const workflow = injectRecipe(template, recipe);
+
+  const { bytes, prompt_id } = await runGraph(workflow, { fetch, host, pollIntervalMs, maxPolls, pick: firstImage, label: "image" });
 
   const artDir = join(gamesDir, id, "art");
   mkdirSync(artDir, { recursive: true });
@@ -177,45 +185,7 @@ export async function genAudio(id, name, recipe, {
   const template = JSON.parse(readFileSync(tplPath, "utf8"));
   const workflow = injectRecipe(template, recipe);
 
-  let submit;
-  try {
-    submit = await fetch(`${host}/prompt`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt: workflow })
-    });
-  } catch (e) {
-    throw new Error(`comfy: ComfyUI unreachable at ${host} (${String(e.message ?? e)}) — start the server or set COMFY_HOST`);
-  }
-  if (!submit.ok) {
-    const err = await submit.json().catch(() => ({}));
-    throw new Error(`comfy: graph error from ${host}/prompt (HTTP ${submit.status}): ${JSON.stringify(err.error ?? err)}`);
-  }
-  const { prompt_id } = await submit.json();
-
-  let clip = null;
-  for (let i = 0; i < maxPolls; i++) {
-    const hist = await fetch(`${host}/history/${prompt_id}`);
-    if (!hist.ok) {
-      throw new Error(`comfy: history poll failed for prompt ${prompt_id} at ${host} (HTTP ${hist.status})`);
-    }
-    const body = await hist.json();
-    const entry = body?.[prompt_id];
-    if (entry) {
-      clip = firstAudio(entry);
-      if (clip) break;
-      throw new Error(`comfy: prompt ${prompt_id} finished with no audio output (graph error?)`);
-    }
-    await sleep(pollIntervalMs);
-  }
-  if (!clip) throw new Error(`comfy: timed out waiting for prompt ${prompt_id} after ${maxPolls} polls`);
-
-  const params = new URLSearchParams({ filename: clip.filename, subfolder: clip.subfolder ?? "", type: clip.type ?? "output" });
-  const view = await fetch(`${host}/view?${params}`);
-  if (!view.ok) {
-    throw new Error(`comfy: failed to download audio from ${host}/view (HTTP ${view.status})`);
-  }
-  const bytes = Buffer.from(await view.arrayBuffer());
+  const { bytes, prompt_id } = await runGraph(workflow, { fetch, host, pollIntervalMs, maxPolls, pick: firstAudio, label: "audio" });
 
   const audioDir = join(gamesDir, id, "audio");
   mkdirSync(audioDir, { recursive: true });
