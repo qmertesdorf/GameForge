@@ -41,7 +41,7 @@ export function sizeBudget(files, budgetBytes) {
     return { path: f.path, bytes: f.bytes };
   });
   const total = per_file.reduce((s, f) => s + f.bytes, 0);
-  return { total, budget_bytes: budgetBytes, pass: total <= budgetBytes, per_file };
+  return { total_bytes: total, budget_bytes: budgetBytes, pass: total <= budgetBytes, per_file };
 }
 
 // Read a PNG's pixel dimensions straight from the IHDR chunk — no decode, no
@@ -261,7 +261,7 @@ export function verify(id, { gamesDir = GAMES_DIR } = {}) {
     else {
       const layout = JSON.parse(readFileSync(mapAbs, "utf8"));
       if ((layout.placements || []).length !== sp.atlas.sprite_count) {
-        issues.push(`atlas map covers ${layout.placements?.length} sprites, store_pass says ${sp.atlas.sprite_count}`);
+        issues.push(`atlas map covers ${(layout.placements || []).length} sprites, store_pass says ${sp.atlas.sprite_count}`);
       }
     }
   }

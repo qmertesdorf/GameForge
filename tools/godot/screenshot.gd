@@ -19,7 +19,7 @@ func _initialize() -> void:
 		quit(1)
 		return
 	get_root().add_child(packed.instantiate())
-	_capture(out_path, frames)
+	await _capture(out_path, frames)
 
 func _capture(out_path: String, frames: int) -> void:
 	for _i in range(frames):

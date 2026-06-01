@@ -37,7 +37,7 @@ describe("iconSizeTable", () => {
 describe("sizeBudget", () => {
   test("sums bytes and reports a per-file breakdown", () => {
     const r = sizeBudget([{ path: "a.png", bytes: 100 }, { path: "b.png", bytes: 250 }], 1000);
-    expect(r.total).toBe(350);
+    expect(r.total_bytes).toBe(350);
     expect(r.budget_bytes).toBe(1000);
     expect(r.pass).toBe(true);
     expect(r.per_file).toEqual([{ path: "a.png", bytes: 100 }, { path: "b.png", bytes: 250 }]);
@@ -52,7 +52,7 @@ describe("sizeBudget", () => {
   });
 
   test("empty file list totals 0 and passes", () => {
-    expect(sizeBudget([], 10)).toEqual({ total: 0, budget_bytes: 10, pass: true, per_file: [] });
+    expect(sizeBudget([], 10)).toEqual({ total_bytes: 0, budget_bytes: 10, pass: true, per_file: [] });
   });
 
   test("throws on a non-array files arg", () => {
