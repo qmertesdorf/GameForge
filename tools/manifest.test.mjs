@@ -145,6 +145,35 @@ describe("validate", () => {
     expect(validate(m).valid).toBe(false);
   });
 
+  test("accepts an asset_pass whose visual_system carries world_bible", () => {
+    const m = validManifest();
+    m.status = "styled";
+    m.assets = [{ type: "sprite", name: "hero", source: "art/hero.png", origin: "raster" }];
+    m.asset_pass = {
+      method: "raster",
+      visual_system: {
+        world_bible: "one storybook autumn-woodland: every actor is a soft felt forest creature; hazards are bramble/thorn from the same world",
+        palette: ["#1a1226", "#e0b15a"],
+        form: "stout painted creatures, soft edges",
+        shading: "painterly, single warm key light",
+        scale: "512px masters downscaled to footprint"
+      },
+      reskinned: ["hero", "hazard"],
+      art_path: "games/creature-0001/art/"
+    };
+    expect(validate(m)).toEqual({ valid: true, errors: [] });
+  });
+
+  test("rejects an unknown key inside visual_system", () => {
+    const m = validManifest();
+    m.status = "styled";
+    m.asset_pass = {
+      method: "raster",
+      visual_system: { world_bible: "x", bogus: true }
+    };
+    expect(validate(m).valid).toBe(false);
+  });
+
   test("accepts a scored manifest carrying an audio_pass", () => {
     const m = validManifest();
     m.status = "scored";

@@ -98,6 +98,7 @@
             "shading": { "type": "string" },
             "scale": { "type": "string" },
             "prompt_scaffold": { "type": "string" },
+            "world_bible": { "type": "string" },
             "style": {
               "type": "object",
               "additionalProperties": false,
