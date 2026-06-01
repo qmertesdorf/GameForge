@@ -144,6 +144,32 @@ describe("validate", () => {
     };
     expect(validate(m).valid).toBe(false);
   });
+
+  test("accepts a scored manifest carrying an audio_pass", () => {
+    const m = validManifest();
+    m.status = "scored";
+    m.audio_pass = {
+      method: "audio",
+      audio_system: { model: "stable-audio-open-1.0", mood_prompt: "calm forest", style_descriptors: ["ambient", "soft"] },
+      recipes: [{
+        name: "collect", kind: "sfx", prompt: "soft chime pickup", negative: "music, voice",
+        seed: 7, duration_s: 0.8, sampler: "dpmpp_3m_sde_gpu", steps: 8, cfg: 6, format: "wav",
+        loop: false, import_settings: { loop: false, loop_offset: 0 }
+      }],
+      events: [{ event: "collect", clip: "collect", node: "SfxCollect", signal: "seed_collected" }],
+      notes: "music + 1 sfx"
+    };
+    expect(validate(m)).toEqual({ valid: true, errors: [] });
+  });
+  test("rejects an unknown key inside audio_pass", () => {
+    const m = validManifest();
+    m.status = "scored";
+    m.audio_pass = { method: "audio", bogus: true };
+    expect(validate(m).valid).toBe(false);
+  });
+  test("still accepts a playable manifest with no audio_pass (no regression)", () => {
+    expect(validate(validManifest()).valid).toBe(true);
+  });
 });
 
 describe("newManifest", () => {
@@ -167,8 +193,8 @@ describe("newManifest", () => {
 describe("setStatus", () => {
   const base = () => newManifest({ id: "a", name: "A" }, "2026-05-30T12:00:00Z");
 
-  test("exposes the six statuses through styled", () => {
-    expect(STATUSES).toEqual(["concept", "generated", "validated", "playable", "styled", "failed"]);
+  test("exposes the seven statuses through scored", () => {
+    expect(STATUSES).toEqual(["concept", "generated", "validated", "playable", "styled", "scored", "failed"]);
   });
 
   test("advances along the legal path and stamps updated_at", () => {
@@ -214,6 +240,23 @@ describe("setStatus", () => {
   test("rejects leaving styled (terminal)", () => {
     const styled = { ...base(), status: "styled" };
     expect(() => setStatus(styled, "playable")).toThrow(/illegal transition/);
+  });
+
+  test("playable can advance to scored", () => {
+    const m = { ...base(), status: "playable" };
+    expect(setStatus(m, "scored").status).toBe("scored");
+  });
+  test("styled can advance to scored (visual pass first)", () => {
+    const m = { ...base(), status: "styled" };
+    expect(setStatus(m, "scored").status).toBe("scored");
+  });
+  test("scored can advance to styled (audio pass first)", () => {
+    const m = { ...base(), status: "scored" };
+    expect(setStatus(m, "styled").status).toBe("styled");
+  });
+  test("scored can fail", () => {
+    const m = { ...base(), status: "scored" };
+    expect(setStatus(m, "failed").status).toBe("failed");
   });
 });
 
