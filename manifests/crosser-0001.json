@@ -2,7 +2,7 @@
   "id": "crosser-0001",
   "name": "Pixel Hop",
   "created_at": "2026-05-31T22:39:59.474Z",
-  "updated_at": "2026-06-01T06:20:50.431Z",
+  "updated_at": "2026-06-01T22:41:18.652Z",
   "status": "validated",
   "concept": {
     "genre": "lane-crossing hopper",
@@ -59,7 +59,12 @@
     }
   ],
   "validation": {
-    "issues": [],
+    "issues": [
+      "asset: within-game visual INCOHESION (styled A/B, 2026-06-01) — generated sprites read as different worlds: a sci-fi CYAN ROBOT hero vs fantasy RED OGRE/demon hazards. Each sprite subject is derived independently with no shared character/world design language; concept.theme (bright punchy 8-bit retro arcade roadside) does not pin a unifying character bible. FIX: asset SKILL.md must derive a shared world/character design language from concept.theme and constrain EVERY sprite recipe to it (one world, one character family).",
+      "asset: background not re-skinned — asset_pass.recipes=[hero,hazard] only; BG is still primitive flat lane bands (no background art asset), so sprites float on untextured primitives, breaking the one-rendered-system goal. NOTE: backgrounds are M1.7-deferred scope, but their absence undercuts cohesion now — pull a background recipe into asset scope or accelerate M1.7.",
+      "audio: SFX character wrong for theme (audio A/B 2026-06-01) — even in the bright 8-bit arcade theme the SFX are \"strange, aggressive sudden explosions\" (owner). concept.theme asks for crisp chiptune (pop + score tick, 8-bit), not explosions. CONTRAST RESULT vs creature: the SAME explosive palette is wrong for BOTH a cozy-woodland and an arcade theme — confirming the audio skill defaults to a generic aggressive/explosive SFX character instead of DERIVING from concept.theme. FIX: audio SKILL.md must derive SFX sonic character from concept.theme.",
+      "audio: BGM CONFIRMED NOT PLAYING (probe 2026-06-01: MusicAmbient.playing=false, pos=0 after 90 frames; corroborated — owner heard SFX but not the equal-level -14 dBFS bgm). ROOT CAUSE: the looping bed play() is called synchronously inside _ready right after add_child (_setup_audio Main.gd:166-177), which does not reliably start an AudioStreamPlayer that frame; SFX work because they fire later in gameplay. FIX: audio SKILL.md should start the bed via autoplay=true (set before add_child) or a deferred/awaited play(), not an immediate in-_ready play()."
+    ],
     "opens_in_editor": true,
     "runs": true,
     "core_loop_functional": true
