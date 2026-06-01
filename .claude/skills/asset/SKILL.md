@@ -13,7 +13,7 @@ concept → builder → validator → [playable] → asset → validator(re-run)
 
 ## Choosing the method (branch on `concept.art_direction`)
 
-`art_direction` is the **visual expression of `concept.theme`** (the title's modality-neutral world). The visual system you derive below must read as *that theme's world* — the same premise/tone/setting the audio and (at M2) the icon also express — not a free-standing aesthetic. Honor the theme; do not reinterpret it.
+Before choosing a method, **read `concept.theme`** (the title's modality-neutral world — premise/tone/mood_keywords/setting). `art_direction` is the **visual expression of `concept.theme`**: the visual system you derive below must read as *that theme's world* — the same premise/tone/setting the audio and the store icon also express — not a free-standing aesthetic. Honor the theme; do not reinterpret it. (Reading the theme is not editing it — the "consume `concept` as-is" rule still holds.)
 
 This skill has **two methods**, picked from `art_direction`. Both share *all* the rewiring craft below (texture-on-disk → `Sprite2D`/`TextureRect`/`draw_texture*`, footprint placement, primitive removal, the run-007 immediate-mode lessons) — only how the texture is *produced* differs.
 
