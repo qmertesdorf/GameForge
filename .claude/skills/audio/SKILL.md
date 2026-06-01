@@ -30,13 +30,14 @@ Read **`concept.theme`** — the title's modality-neutral world (premise/tone/mo
 - `model`: `"stable-audio-open-1.0"`.
 - `mood_prompt`: one shared mood sentence threaded into every clip prompt for coherence (the audio analog of the visual prompt scaffold), derived from `concept.theme`'s `tone` + `mood_keywords` — e.g. for a "cozy autumn-woodland" theme, "warm, organic, gentle woodland atmosphere".
 - `style_descriptors`: 2–4 tags drawn from / consistent with `concept.theme.mood_keywords` (e.g. a "cozy/organic/storybook" theme → `["ambient", "soft", "acoustic"]`; a "retro/hard-edged/arcade" theme → `["chiptune", "8-bit", "upbeat"]`).
+- `sonic_character`: the **SFX sound-material/timbre vocabulary** derived from `concept.theme` — the audio sibling of the visual world bible, and the thing that keeps SFX *on theme* instead of defaulting to generic explosive transients. Name the materials and timbre: a cozy/organic theme → "soft organic wooden/leaf/cloth taps, gentle, no electronic transients"; a retro/arcade theme → "crisp 8-bit square/triangle-wave blips, clean chip transients". Recorded verbatim in `audio_pass.audio_system.sonic_character`. **`mood_prompt`/`style_descriptors` steer the music mood; `sonic_character` governs the SFX** — both are required.
 
 ## 2. Map core-loop events to SFX
 From `concept.core_loop` + the entity/signal set, list the discrete events that deserve a one-shot: typically a positive beat (collect/score), a negative beat (hurt/hit), a loss beat (game over), and the primary action (jump/hop/shoot). For each, record an `events[]` entry: `{ event, clip, node, signal }` where `node` is the `AudioStreamPlayer` you will add and `signal` is the Godot signal (or call site) that triggers it. Be honest: if an event has no SFX, leave it out and note it.
 
 ## 3. Author recipes
 One recipe per SFX + one music recipe. Each prompt = `mood_prompt` + the clip-specific description. Defaults confirmed at the feasibility gate (`docs/superpowers/m1.6-feasibility-notes.md`):
-- **SFX**: `kind:"sfx"`, `format:"wav"`, `duration_s` **1.0–2.0** (`EmptyLatentAudio` enforces a 1.0 s minimum — do not go below), `loop:false`, `steps` ~8, `cfg` ~5–6 — short, punchy, single sound; negative prompt excludes "music, melody, voice, speech". (cfg too high can clip the transient.)
+- **SFX**: `kind:"sfx"`, `format:"wav"`, `duration_s` **1.0–2.0** (`EmptyLatentAudio` enforces a 1.0 s minimum — do not go below), `loop:false`, `steps` ~8, `cfg` ~5–6. Each SFX prompt = `mood_prompt` + **`sonic_character`** + the clip-specific event description. The *envelope* is theme-neutral — **short, single-shot** (~1–2 s) — but the **timbre/material MUST come from `sonic_character`**: do **not** default to a punchy/explosive transient. An aggressive/electronic/explosive SFX character that ignores `sonic_character` is the **finding-#3 failure** (the same explosive palette was wrong for *both* a cozy-woodland and a bright-arcade theme) and is attributable to this step. The negative prompt always excludes "music, melody, voice, speech", **plus a theme-aware exclusion**: a cozy/organic theme adds "explosion, harsh, distortion, aggressive, electronic"; an arcade theme keeps chip transients but still excludes "explosion, noise burst". (cfg too high can clip the transient.)
 - **Music**: `kind:"music"`, `format:"wav"`, `duration_s` 20–40, `steps` ~50, `cfg` ~7, `loop:true`, `import_settings:{loop:true, loop_offset:0}`. Target loop-friendly content (steady texture, no hard intro/outro) — seamless looping is imperfect for generative output (known limitation). Note: WAV music is uncompressed (~5 MB / 30 s stereo); acceptable for a milestone, OGG is a future size optimization.
 - All recipes use `sampler:"dpmpp_3m_sde_gpu"` (scheduler `exponential` is baked into the template).
 - **IP-safety**: never name artists or copyrighted tracks; negative prompt excludes "voice, speech, lyrics, vocals" for music unless intended. Document this in `notes`.
@@ -47,7 +48,9 @@ One recipe per SFX + one music recipe. Each prompt = `mood_prompt` + the clip-sp
 ## 5. Wire into the Godot scene
 - Add one `AudioStreamPlayer` per SFX (named per the `events[]` `node`) and one for music.
 - Set import flags: music stream `loop = true` (and `loop_offset` if needed); SFX one-shot.
-- Music: `play()` on scene ready / loop start. SFX: `play()` from the mapped `signal`/call site, replayable (call `play()` each event; for rapid repeats consider a small pool or `AudioStreamPlayer` per channel).
+- **Music — start it so it actually plays.** Set **`autoplay = true` on the music `AudioStreamPlayer` *before* `add_child`**, or call `play()` **deferred/awaited a frame after** `add_child` (`await get_tree().process_frame` then `play()`, or `call_deferred("play")`). An immediate in-`_ready` `play()` called the **same frame** as `add_child` does **not** reliably start the stream — this is the confirmed **finding-#4 bug** (`MusicAmbient.playing=false, pos=0` after 90 frames); SFX escaped it only because they fire later in gameplay.
+- **Levels:** set the music `volume_db` deliberately so the bed is **audible but sits under** the SFX — do not bury it (the proof bed was mixed ~13 dB under SFX *and* not playing). Balance the two.
+- SFX: `play()` from the mapped `signal`/call site, replayable (call `play()` each event; for rapid repeats consider a small pool or `AudioStreamPlayer` per channel).
 - Keep wiring minimal and reuse the game's existing signal points; do not restructure the core loop.
 
 ## 5b. Import the clips (before re-validation)
@@ -58,7 +61,7 @@ godot --headless --path games/<id>/ --import
 Commit the generated `*.wav.import` sidecars alongside the clips (expected Godot output, like `.png.import`).
 
 ## 6. Record `audio_pass` and advance status
-Merge an `audio_pass` block (`method:"audio"`, `audio_system`, `recipes`, `events`, `notes`) via the manifest tool, then `node tools/manifest.mjs set-status <id> scored`. State plainly in `notes` what was produced and anything skipped (mixed honesty). (`method:"audio"` is a constant provenance tag — the block name already says it's audio — **not** a branch key; unlike `asset_pass.method` (`svg`/`raster`), no consumer reads it.)
+Merge an `audio_pass` block (`method:"audio"`, `audio_system` — including `sonic_character` — `recipes`, `events`, `notes`) via the manifest tool, then `node tools/manifest.mjs set-status <id> scored`. State plainly in `notes` what was produced and anything skipped (mixed honesty). (`method:"audio"` is a constant provenance tag — the block name already says it's audio — **not** a branch key; unlike `asset_pass.method` (`svg`/`raster`), no consumer reads it.)
 
 ## 7. Hand off to validator
-Run the validator's audio method to confirm files import, players reference valid streams, and SFX fire on events.
+Run the validator's audio method to confirm files import, players reference valid streams, and SFX fire on events — **and that the music bed is actually playing.** Confirm `MusicAmbient.playing == true` with an advancing `get_playback_position()` a few frames in, not merely that the node exists and is wired (a wired bed can still be silent — that is exactly the finding-#4 bug, caught by this probe).
