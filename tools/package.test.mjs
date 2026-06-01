@@ -88,4 +88,10 @@ describe("pngSize", () => {
   test("throws on a too-short buffer", () => {
     expect(() => pngSize(Buffer.alloc(10))).toThrow(/24|PNG/);
   });
+
+  test("throws on a PNG with a non-IHDR first chunk", () => {
+    const buf = pngHeader(48, 48);
+    buf.write("tEXt", 12, "latin1"); // corrupt the chunk type
+    expect(() => pngSize(buf)).toThrow(/IHDR|corrupt/);
+  });
 });
