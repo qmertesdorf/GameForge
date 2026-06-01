@@ -130,6 +130,11 @@ var pending_sidestep: int = 0   # -1/0/+1 from swipe, consumed each frame
 # HUD animation
 var score_pop_timer: float = 0.0
 
+# --- Audio (M1.6 audio_pass) ---
+# Generated via Stable Audio Open; chiptune SFX one-shots + a looping chip bed.
+var _audio_players: Dictionary = {}      # event -> AudioStreamPlayer
+var audio_play_counts: Dictionary = {}   # event -> int, selftest hook
+
 # ============================================================
 # Init
 # ============================================================
@@ -138,7 +143,46 @@ func _ready() -> void:
 	var vp: Vector2 = get_viewport_rect().size
 	screen_w = vp.x
 	screen_h = vp.y
+	_setup_audio()
 	_start_game()
+
+
+# ============================================================
+# Audio (M1.6)
+# ============================================================
+func _setup_audio() -> void:
+	if not _audio_players.is_empty():
+		return   # idempotent (selftest may call this explicitly)
+	_make_player("hop", "res://audio/hop.wav", false)
+	_make_player("cross", "res://audio/cross.wav", false)
+	_make_player("streak", "res://audio/streak.wav", false)
+	_make_player("gameover", "res://audio/gameover.wav", false)
+	_make_player("bgm", "res://audio/bgm.wav", true)
+	if _audio_players.has("bgm"):
+		var bgm: AudioStreamPlayer = _audio_players["bgm"]
+		if bgm.stream != null and bgm.is_inside_tree():
+			bgm.play()
+
+
+func _make_player(event_name: String, path: String, looping: bool) -> void:
+	var p: AudioStreamPlayer = AudioStreamPlayer.new()
+	# Node name (PascalCase) is what audio_pass.events[].node references.
+	p.name = "Sfx" + event_name.capitalize() if event_name != "bgm" else "MusicAmbient"
+	var stream: Resource = load(path)
+	if stream is AudioStreamWAV and looping:
+		stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
+	if stream != null:
+		p.stream = stream
+	add_child(p)
+	_audio_players[event_name] = p
+
+
+func _play_sfx(event_name: String) -> void:
+	# Count first so the selftest hook is robust even if a stream failed to load.
+	audio_play_counts[event_name] = int(audio_play_counts.get(event_name, 0)) + 1
+	var p: AudioStreamPlayer = _audio_players.get(event_name)
+	if p != null and p.stream != null and p.is_inside_tree():
+		p.play()
 
 
 func _start_game() -> void:
@@ -288,6 +332,7 @@ func _hop(dir: int) -> void:
 	hero_lane = new_lane
 	hop_anim = HOP_ANIM_FRAMES
 	hop_dir  = dir
+	_play_sfx("hop")
 
 	# Track backtracking for streak penalty
 	if dir < 0:
@@ -317,6 +362,7 @@ func _on_crossing() -> void:
 	if quick:
 		streak_count = min(streak_count + 1, MAX_STREAK)
 		pts += streak_count * STREAK_BONUS_BASE
+		_play_sfx("streak")   # rising arpeggio on a quick (bonus) crossing
 	else:
 		streak_count = 0
 
@@ -324,6 +370,7 @@ func _on_crossing() -> void:
 	best = max(best, score)
 	score_pulse     = 1.0
 	score_pop_timer = 0.22
+	_play_sfx("cross")
 
 	# Ramp difficulty every N crossings
 	if crossings % RAMP_EVERY_N_CROSSINGS == 0:
@@ -411,6 +458,7 @@ func _game_over() -> void:
 	alive       = false
 	shake       = SHAKE_MAG
 	white_flash = FLASH_FRAMES
+	_play_sfx("gameover")
 
 
 func _update_juice(delta: float) -> void:

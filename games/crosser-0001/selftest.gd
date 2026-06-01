@@ -119,6 +119,36 @@ func _init() -> void:
 		failures.append("sidestep left past edge did not clamp (got %d)" % game.hero_col)
 
 	# ----------------------------------------------------------
+	# Test 8: audio cues fire on hop / cross / streak / game-over (M1.6 audio_pass)
+	# ----------------------------------------------------------
+	game._setup_audio()
+	for node_name in ["SfxHop", "SfxCross", "SfxStreak", "SfxGameover", "MusicAmbient"]:
+		var nd: Node = game.get_node_or_null(node_name)
+		if nd == null or not (nd is AudioStreamPlayer):
+			failures.append("missing AudioStreamPlayer node: " + node_name)
+	game._start_game()
+	game.cross_timer = 0.0
+	game.backtrack_count = 0
+	var hop_before: int = int(game.audio_play_counts.get("hop", 0))
+	for _i in range(game.NUM_HAZARD_LANES + 1):
+		game._hop(1)   # last hop reaches the goal → crossing (quick → streak)
+	if int(game.audio_play_counts.get("hop", 0)) <= hop_before:
+		failures.append("hop sfx not triggered on hop")
+	if int(game.audio_play_counts.get("cross", 0)) <= 0:
+		failures.append("cross sfx not triggered on crossing")
+	if int(game.audio_play_counts.get("streak", 0)) <= 0:
+		failures.append("streak sfx not triggered on quick crossing")
+	# Game over → gameover cue
+	game._start_game()
+	game.hero_lane = 1
+	game.hero_col  = 0
+	game.lanes[0]["hazards"] = [{ "x": 0.0, "w": game.CELL * 2.0 }]
+	var go_before: int = int(game.audio_play_counts.get("gameover", 0))
+	game._check_collision()
+	if int(game.audio_play_counts.get("gameover", 0)) <= go_before:
+		failures.append("gameover sfx not triggered on hazard hit")
+
+	# ----------------------------------------------------------
 	# Report
 	# ----------------------------------------------------------
 	if failures.size() == 0:

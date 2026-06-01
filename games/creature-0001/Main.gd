@@ -119,6 +119,11 @@ var tree_far: Array = []
 var parallax_offset: float = 0.0   # scrolls gently
 var ground_dots: Array = []        # faint leaf/texture dots on ground layer
 
+# --- Audio (M1.6 audio_pass) ---
+# Generated via Stable Audio Open; SFX one-shots + a looping ambient bed.
+var _audio_players: Dictionary = {}      # event -> AudioStreamPlayer
+var audio_play_counts: Dictionary = {}   # event -> int, selftest hook
+
 
 # ============================================================
 # Init
@@ -128,8 +133,47 @@ func _ready() -> void:
 	var vp: Vector2 = get_viewport_rect().size
 	screen_w = vp.x
 	screen_h = vp.y
+	_setup_audio()
 	_build_background()
 	_start_game()
+
+
+# ============================================================
+# Audio (M1.6)
+# ============================================================
+func _setup_audio() -> void:
+	if not _audio_players.is_empty():
+		return   # idempotent (selftest may call this explicitly)
+	_make_player("collect", "res://audio/collect.wav", false)
+	_make_player("streak", "res://audio/streak.wav", false)
+	_make_player("gameover", "res://audio/gameover.wav", false)
+	_make_player("bgm", "res://audio/bgm.wav", true)
+	# Start the ambient bed (loops continuously across runs).
+	if _audio_players.has("bgm"):
+		var bgm: AudioStreamPlayer = _audio_players["bgm"]
+		if bgm.stream != null and bgm.is_inside_tree():
+			bgm.play()
+
+
+func _make_player(event_name: String, path: String, looping: bool) -> void:
+	var p: AudioStreamPlayer = AudioStreamPlayer.new()
+	# Node name (PascalCase) is what audio_pass.events[].node references.
+	p.name = "Sfx" + event_name.capitalize() if event_name != "bgm" else "MusicAmbient"
+	var stream: Resource = load(path)
+	if stream is AudioStreamWAV and looping:
+		stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
+	if stream != null:
+		p.stream = stream
+	add_child(p)
+	_audio_players[event_name] = p
+
+
+func _play_sfx(event_name: String) -> void:
+	# Count first so the selftest hook is robust even if a stream failed to load.
+	audio_play_counts[event_name] = int(audio_play_counts.get(event_name, 0)) + 1
+	var p: AudioStreamPlayer = _audio_players.get(event_name)
+	if p != null and p.stream != null and p.is_inside_tree():
+		p.play()
 
 
 func _build_background() -> void:
@@ -397,9 +441,11 @@ func _on_seed_collected(pos: Vector2) -> void:
 	if new_mult != multiplier:
 		multiplier = new_mult
 		mult_pulse = 1.0
+		_play_sfx("streak")   # brighter cue when the multiplier steps up
 	score += SCORE_PER_SEED * multiplier
 	best = max(best, score)
 	score_pulse = 1.0
+	_play_sfx("collect")
 	# Warm burst particles at seed location
 	_spawn_particles(pos, COL_SEED, 12, 160.0)
 	# Spirit squash-pop on pickup
@@ -410,6 +456,7 @@ func _game_over() -> void:
 	alive = false
 	shake = SHAKE_MAG
 	hurt_flash = 1.0
+	_play_sfx("gameover")
 	_spawn_particles(spirit_pos, COL_SPIRIT, 20, 280.0)
 	_spawn_particles(spirit_pos, COL_HAZARD, 14, 200.0)
 

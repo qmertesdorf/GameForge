@@ -2,7 +2,7 @@
   "id": "creature-0001",
   "name": "Glade Spirit",
   "created_at": "2026-05-31T21:59:34.615Z",
-  "updated_at": "2026-05-31T22:05:01.569Z",
+  "updated_at": "2026-06-01T03:21:03.207Z",
   "status": "validated",
   "concept": {
     "genre": "top-down creature forager",
@@ -61,5 +61,115 @@
     "compliance": null,
     "store": null,
     "maintenance": null
+  },
+  "audio_pass": {
+    "method": "audio",
+    "audio_system": {
+      "model": "stable-audio-open-1.0",
+      "mood_prompt": "warm, organic, gentle woodland atmosphere",
+      "style_descriptors": [
+        "ambient",
+        "soft",
+        "acoustic",
+        "woodland"
+      ]
+    },
+    "recipes": [
+      {
+        "name": "collect",
+        "kind": "sfx",
+        "prompt": "soft bright bell chime pickup, single short pluck, warm gentle woodland, magical sparkle",
+        "negative": "music, melody, loop, voice, speech, noise",
+        "seed": 11,
+        "duration_s": 1.5,
+        "sampler": "dpmpp_3m_sde_gpu",
+        "steps": 8,
+        "cfg": 5,
+        "format": "wav",
+        "loop": false,
+        "import_settings": {
+          "loop": false,
+          "loop_offset": 0
+        }
+      },
+      {
+        "name": "streak",
+        "kind": "sfx",
+        "prompt": "bright ascending magical shimmer, short rising sparkle, warm celebratory",
+        "negative": "music, loop, voice, speech, harsh",
+        "seed": 22,
+        "duration_s": 1.5,
+        "sampler": "dpmpp_3m_sde_gpu",
+        "steps": 8,
+        "cfg": 5,
+        "format": "wav",
+        "loop": false,
+        "import_settings": {
+          "loop": false,
+          "loop_offset": 0
+        }
+      },
+      {
+        "name": "gameover",
+        "kind": "sfx",
+        "prompt": "soft low gentle descending tone, muted woodland thud, melancholy chime fade",
+        "negative": "music, loop, voice, speech, harsh, bright",
+        "seed": 33,
+        "duration_s": 2,
+        "sampler": "dpmpp_3m_sde_gpu",
+        "steps": 8,
+        "cfg": 5,
+        "format": "wav",
+        "loop": false,
+        "import_settings": {
+          "loop": false,
+          "loop_offset": 0
+        }
+      },
+      {
+        "name": "bgm",
+        "kind": "music",
+        "prompt": "gentle looping forest ambient pad, warm organic woodland atmosphere, soft sustained strings and soft flute texture, calm peaceful",
+        "negative": "voice, speech, lyrics, vocals, drums, percussion, hard beat",
+        "seed": 44,
+        "duration_s": 30,
+        "sampler": "dpmpp_3m_sde_gpu",
+        "steps": 50,
+        "cfg": 7,
+        "format": "wav",
+        "loop": true,
+        "import_settings": {
+          "loop": true,
+          "loop_offset": 0
+        }
+      }
+    ],
+    "events": [
+      {
+        "event": "collect",
+        "clip": "collect",
+        "node": "SfxCollect",
+        "signal": "_on_seed_collected"
+      },
+      {
+        "event": "streak",
+        "clip": "streak",
+        "node": "SfxStreak",
+        "signal": "_on_seed_collected multiplier bump"
+      },
+      {
+        "event": "gameover",
+        "clip": "gameover",
+        "node": "SfxGameover",
+        "signal": "_game_over"
+      },
+      {
+        "event": "music",
+        "clip": "bgm",
+        "node": "MusicAmbient",
+        "signal": "_ready loops continuously"
+      }
+    ],
+    "notes": "Warm woodland audio identity (style A). 3 SFX one-shots + 1 looping ambient bed, generated via Stable Audio Open (WAV, soundfile patch). Wired in code (_setup_audio); selftest Test 5 asserts collect/streak/gameover cues fire + nodes exist; headless run clean. STAGED pending owner gates: ~60s playtest (validated->playable) then audio A/B (->scored). No artist/track names used; music negative excludes vocals (IP-safe)."
   }
 }
