@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A/B-Round-1 Skill Fixes — Design</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #171a21;
+    --panel-2: #1d212b;
+    --ink: #e6e9ef;
+    --muted: #9aa3b2;
+    --line: #2a2f3a;
+    --accent: #7aa2f7;
+    --green: #9ece6a;
+    --amber: #e0af68;
+    --red: #f7768e;
+    --mono: ui-monospace, "Cascadia Code", "Consolas", monospace;
+    --sans: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: var(--sans); line-height: 1.6; font-size: 16px;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 48px 28px 96px; }
+  header.title { border-bottom: 1px solid var(--line); padding-bottom: 22px; margin-bottom: 8px; }
+  h1 { font-size: 30px; line-height: 1.2; margin: 0 0 12px; letter-spacing: -0.01em; }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+  .pill {
+    font-family: var(--mono); font-size: 12px; padding: 4px 10px; border-radius: 999px;
+    background: var(--panel-2); border: 1px solid var(--line); color: var(--muted);
+  }
+  .pill.ok { color: var(--green); border-color: #2f4a2a; }
+  .pill.accent { color: var(--accent); border-color: #2c3a5e; }
+  .lede { color: var(--muted); margin: 18px 0 0; }
+  h2 {
+    font-size: 21px; margin: 40px 0 14px; padding-top: 14px;
+    border-top: 1px solid var(--line); letter-spacing: -0.01em;
+  }
+  h2 .num { color: var(--accent); font-family: var(--mono); font-size: 16px; margin-right: 8px; }
+  h3 { font-size: 16px; margin: 24px 0 8px; color: var(--ink); }
+  h3 .tag {
+    font-family: var(--mono); font-size: 12px; font-weight: 600; padding: 2px 8px;
+    border-radius: 6px; margin-right: 8px; vertical-align: middle;
+  }
+  .tag.asset { background: #1e2a3f; color: var(--accent); }
+  .tag.audio { background: #2a2438; color: #c0a3f0; }
+  p { margin: 10px 0; }
+  code {
+    font-family: var(--mono); font-size: 0.88em; background: var(--panel-2);
+    padding: 2px 6px; border-radius: 5px; border: 1px solid var(--line); color: #cdd6e4;
+  }
+  ul, ol { margin: 10px 0; padding-left: 22px; }
+  li { margin: 7px 0; }
+  .findings { display: grid; gap: 12px; margin: 18px 0; }
+  .finding {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    padding: 16px 18px; border-left: 4px solid var(--red);
+  }
+  .finding .fhead { font-weight: 700; margin-bottom: 4px; }
+  .finding .fhead .n { font-family: var(--mono); color: var(--red); margin-right: 8px; }
+  .finding .domain {
+    font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em;
+    padding: 2px 7px; border-radius: 5px; margin-left: 6px;
+  }
+  .finding .domain.asset { background: #1e2a3f; color: var(--accent); }
+  .finding .domain.audio { background: #2a2438; color: #c0a3f0; }
+  .finding p { margin: 6px 0 0; color: var(--muted); font-size: 14.5px; }
+  .callout {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    padding: 4px 20px; margin: 16px 0;
+  }
+  .callout.decisions { border-left: 4px solid var(--green); }
+  .callout.scope { border-left: 4px solid var(--accent); }
+  .callout.bounds { border-left: 4px solid var(--amber); }
+  .callout h2 { border-top: none; margin-top: 18px; padding-top: 0; }
+  blockquote {
+    margin: 12px 0; padding: 12px 16px; background: var(--panel-2);
+    border-left: 3px solid var(--accent); border-radius: 0 8px 8px 0; color: #cdd6e4;
+  }
+  strong { color: #fff; }
+  .foot { margin-top: 48px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="title">
+    <h1>A/B-Round-1 skill fixes — design</h1>
+    <div class="meta">
+      <span class="pill">2026-06-01</span>
+      <span class="pill ok">approved (owner)</span>
+      <span class="pill accent">main@ac13de0</span>
+      <span class="pill">vitest stays green (+2–3)</span>
+    </div>
+    <p class="lede">A/B Round 1 (<code>main@8531b06</code>) surfaced 4 recurring skill gaps — 2 asset, 2 audio — across two genres (creature-0001, crosser-0001). This fixes the responsible <code>SKILL.md</code> prose, with two additive schema fields to record the new derived systems.</p>
+  </header>
+
+  <h2>Problem — the 4 findings</h2>
+  <p>Recorded verbatim in each proof manifest's <code>validation.issues</code>:</p>
+  <div class="findings">
+    <div class="finding">
+      <div class="fhead"><span class="n">#1</span>Within-game visual <strong>incohesion</strong><span class="domain asset">asset</span></div>
+      <p>Sprites are generated from independently-derived subjects with no shared world/character design language: creature shows a fox vs thorns; crosser shows a sci-fi <strong>cyan robot</strong> hero vs a fantasy <strong>red ogre/demon</strong> hazard. The existing raster <code>prompt_scaffold</code> + <code>style</code> pin only the <em>rendering style</em> (painterly, palette, params) — never the <em>fictional world or character family</em> the subjects belong to. So two sprites can be individually clean yet read as different worlds.</p>
+    </div>
+    <div class="finding">
+      <div class="fhead"><span class="n">#2</span>Background never re-skinned<span class="domain asset">asset</span></div>
+      <p><code>asset_pass.recipes</code> only cover hero/hazard; the background stays flat primitive bands, so sprites float on untextured primitives, breaking the one-rendered-system goal. Static themed backdrop is in-principle asset scope; scrolling/parallax/animation is M1.7.</p>
+    </div>
+    <div class="finding">
+      <div class="fhead"><span class="n">#3</span>SFX not theme-bound<span class="domain audio">audio</span></div>
+      <p>SFX default to an aggressive/electronic/explosive character regardless of theme — wrong for <em>both</em> the cozy-woodland creature AND the bright-arcade crosser (the contrast proves it's a generic default, not a one-off mismatch). §1 derives a <code>mood_prompt</code>/<code>style_descriptors</code> (which steer the <em>music</em> mood) but nothing pins the <em>SFX timbre/material</em>, and §3's "short, <strong>punchy</strong>" default biases toward explosive transients.</p>
+    </div>
+    <div class="finding">
+      <div class="fhead"><span class="n">#4</span>BGM never plays<span class="domain audio">audio</span></div>
+      <p>Probe-confirmed <code>MusicAmbient.playing=false, pos=0</code> after 90 frames. Root cause: the looping bed's <code>play()</code> is called synchronously inside <code>_ready</code> immediately after <code>add_child</code> (<code>_setup_audio</code>), which does not reliably start an <code>AudioStreamPlayer</code> that frame; SFX work because they fire later in gameplay. Secondary: the bed was also mixed ~13 dB under SFX.</p>
+    </div>
+  </div>
+
+  <div class="callout decisions">
+    <h2>Decisions (owner)</h2>
+    <ul>
+      <li><strong>Background (#2): M1.7-deferred.</strong> No background generation here. The asset skill must <em>record</em> the missing-backdrop gap honestly (in <code>left_primitive</code> + <code>notes</code>) rather than silently omit it. Static-backdrop generation waits for the M1.7 animation/backgrounds milestone.</li>
+      <li><strong>Capture (#1, #3): recorded fields.</strong> Add two optional schema fields with vitest, consistent with how <code>visual_system</code> already records the system verbatim — so the bible/sonic-character are reviewable, critique-able artifacts, not just prose.</li>
+      <li><strong>World bible is method-neutral.</strong> Lives in asset Step 0 and applies to both <code>svg</code> and <code>raster</code> (robot-vs-ogre divergence is possible in SVG too). Raster binds it hardest (per-recipe subjects), but the derivation is shared.</li>
+      <li><strong>No manifest backfill.</strong> creature-0001/crosser-0001 were generated under the old skills; inventing post-hoc bibles would be dishonest. Their <code>validation.issues</code> already document the gaps.</li>
+    </ul>
+  </div>
+
+  <div class="callout scope">
+    <h2>Scope</h2>
+    <p>Edits only to:</p>
+    <ul>
+      <li><code>schema/manifest.schema.json</code> — 2 new optional string fields.</li>
+      <li>the schema vitest (existing <code>asset_pass</code>/<code>audio_pass</code> tests) — accept-with / accept-without / reject-unknown-sibling.</li>
+      <li><code>.claude/skills/asset/SKILL.md</code> — findings #1, #2.</li>
+      <li><code>.claude/skills/audio/SKILL.md</code> — findings #3, #4.</li>
+    </ul>
+    <p>No tool changes, no background generation, no <code>concept</code>/<code>builder</code> edits, no manifest backfill. vitest stays green (currently 136/136; +2–3 schema tests expected).</p>
+  </div>
+
+  <h2><span class="num">A</span>Schema</h2>
+  <p>Inside the existing <code>additionalProperties:false</code> objects:</p>
+  <ol>
+    <li><code>asset_pass.visual_system.world_bible</code> — <code>{ "type": "string" }</code>, optional. The shared world/character design language derived from <code>concept.theme</code> that every sprite is an instance of.</li>
+    <li><code>audio_pass.audio_system.sonic_character</code> — <code>{ "type": "string" }</code>, optional. The SFX sound-material/timbre vocabulary derived from <code>concept.theme</code> that every SFX recipe is bound to.</li>
+  </ol>
+  <p>Both optional → all 9 committed manifests stay valid. Tests mirror the existing symmetric pattern: a manifest with the field validates; one without it still validates; an unknown sibling field is rejected (proves <code>additionalProperties:false</code> still bites).</p>
+
+  <h2><span class="num">B</span>asset/SKILL.md</h2>
+  <h3><span class="tag asset">#1</span>World/character bible — Step 0, method-neutral</h3>
+  <p>Add a sub-step to <strong>Step 0 — Derive the visual system FIRST</strong>, before palette/form/etc., applying to <em>both</em> methods:</p>
+  <blockquote><strong>Derive the world/character bible first.</strong> From <code>concept.theme.setting</code> + <code>premise</code>, pin <strong>one fictional world and one character family</strong> before writing any entity's subject or silhouette. Every actor — hero, hazard, pickup — is an <em>inhabitant of that one world</em>, drawn from that one family (same materials, same era/genre, same "what kind of thing is this"). The hero and the hazard must read as belonging together (not a cyan robot vs a red ogre). This is the <strong>subject-level</strong> sibling of the style/scaffold cohesion below, which pins only <em>how things are rendered</em>, never <em>what world they're from</em> — the gap that let two individually-clean sprites read as different worlds. Record it verbatim in <code>asset_pass.visual_system.world_bible</code>.</blockquote>
+  <p>Then, in the <strong>raster</strong> Step 0(b)/per-entity flow, bind every recipe subject to the bible: a recipe's subject is "<em>this actor as a member of the world_bible's family</em>", composed onto the shared scaffold — never a free-standing subject. Add to the existing "each sprite is fine but they don't cohere" note that subject-world divergence (not just style divergence) is a <code>world_bible</code> finding.</p>
+  <p>For <strong>svg</strong>, fold the bible into the existing Step 0 form-language guidance: the one signature silhouette per actor must be a variation <em>within the one character family</em>, not an unrelated shape.</p>
+
+  <h3><span class="tag asset">#2</span>Record the background gap</h3>
+  <p>Strengthen the existing "<strong>c) What stays primitive</strong>" / backgrounds prose: when the background is left as a primitive (the M1.7-deferred default), it <strong>must</strong> be recorded in <code>left_primitive</code> + called out in <code>asset_pass.notes</code> as a known cohesion gap deferred to M1.7 (static themed backdrop), never silently omitted. A sprite set floating on untextured primitive bands undercuts the one-rendered-system goal, and that must be a legible recorded choice.</p>
+
+  <h2><span class="num">C</span>audio/SKILL.md</h2>
+  <h3><span class="tag audio">#3</span>SFX sonic character — §1 + §3</h3>
+  <ul>
+    <li><strong>§1:</strong> add <code>sonic_character</code> to the derived <code>audio_system</code>: from <code>concept.theme</code>, pin the SFX <strong>sound-material/timbre vocabulary</strong> (the audio sibling of the visual <code>world_bible</code>). Examples: a cozy/organic theme → "soft organic wooden/leaf/cloth taps, gentle, no electronic transients"; a retro/arcade theme → "crisp 8-bit square/triangle-wave blips, clean chip transients". Record verbatim in <code>audio_pass.audio_system.sonic_character</code>.</li>
+    <li><strong>§3:</strong> every SFX recipe prompt = <code>mood_prompt</code> + <code>sonic_character</code> + the clip-specific event description. Reframe the "short, <strong>punchy</strong>, single sound" default: the <em>envelope</em> (short, single-shot, ~1–2 s) stays theme-neutral, but the <em>timbre/material</em> MUST come from <code>sonic_character</code> — do not default to punchy/explosive transients. Make the SFX negative prompt theme-aware (a cozy theme excludes "explosion, harsh, distortion, aggressive, electronic"; an arcade theme keeps chip transients but still excludes "explosion, noise burst"). An aggressive/explosive SFX character that ignores <code>sonic_character</code> is the finding #3 failure, attributable to this step.</li>
+  </ul>
+
+  <h3><span class="tag audio">#4</span>BGM must actually play — §5 + hard req</h3>
+  <ul>
+    <li><strong>§5:</strong> replace "Music: <code>play()</code> on scene ready / loop start" with the working pattern: start the looping bed via <strong><code>autoplay = true</code> set on the <code>AudioStreamPlayer</code> before <code>add_child</code></strong>, or a <strong>deferred/awaited <code>play()</code></strong> a frame after <code>add_child</code>. State the failure mode explicitly: an immediate in-<code>_ready</code> <code>play()</code> called the same frame as <code>add_child</code> does <strong>not</strong> reliably start the stream (probe-confirmed <code>playing=false</code>); SFX escape this only because they fire later.</li>
+    <li><strong>Levels:</strong> the music bed must be audible but sit sensibly under SFX — set <code>volume_db</code> deliberately (the proof had the bed ~13 dB under <em>and</em> not playing). Avoid burying it.</li>
+    <li><strong>Verification:</strong> add a line (hard requirements / hand-off) that the validator/owner must confirm the bed is <em>actually playing</em> (<code>playing=true</code>, advancing position), not merely wired — the probe pattern that caught this.</li>
+  </ul>
+
+  <div class="callout bounds">
+    <h2>Out of scope / honest boundaries</h2>
+    <ul>
+      <li><strong>No backfill</strong> of the new fields into existing proof manifests.</li>
+      <li><strong>Proving the fix is owner-gated A/B Round 2.</strong> Re-running <code>asset</code>/<code>audio</code> needs ComfyUI+GPU (not CI). The autonomous deliverable here is the skill prose + schema + tests; the playtest that confirms the bible/sonic-character fix cohesion is a later owner A/B — the same autonomous/gated split as every prior milestone.</li>
+    </ul>
+  </div>
+
+  <h2>Success criteria</h2>
+  <ul>
+    <li>Schema has both optional fields; vitest green with the new accept/reject tests; all 9 committed manifests still validate.</li>
+    <li><code>asset/SKILL.md</code> derives a method-neutral world/character bible bound to every subject, and records the deferred-background gap.</li>
+    <li><code>audio/SKILL.md</code> derives an SFX <code>sonic_character</code> bound to every SFX recipe (no implicit explosive default) and starts the music bed with <code>autoplay</code>/deferred-<code>play()</code> at a balanced level.</li>
+    <li>Every change is attributable to a specific finding; nothing claims the A/B itself is re-passed (that's owner-gated).</li>
+  </ul>
+
+  <div class="foot">
+    Source spec: <code>docs/superpowers/specs/2026-06-01-ab-round1-skill-fixes-design.md</code> · GameForge / mobile-gen
+  </div>
+
+</div>
+</body>
+</html>
