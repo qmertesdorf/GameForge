@@ -124,6 +124,42 @@ export function exportPresetsFile({ id, name, packageName } = {}) {
   return `${debug}\n${release}`;
 }
 
+// Is the Android toolchain available? Env-driven (NOT the hardcoded SDK path) so
+// it is deterministic in tests and on CI. The android-setup helper exports
+// ANDROID_HOME for the session, flipping this on. Mirrors the no-GPU/no-ComfyUI
+// guard posture — buildArtifact() and verifyBuildArtifact() skip when this is false.
+export function androidToolchainPresent() {
+  return Boolean(process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT);
+}
+
+// Pure plan for a headless Godot Android export. No SDK touched — fully unit-testable.
+// debug → APK via preset "<name>"; release → AAB via preset "<name> Release"
+// (the two presets exportPresetsFile() writes). Returns the spawn args + out path
+// so buildArtifact() only has to prepend godotBin() and run it.
+export function buildArtifactPlan({ id, name, packageName, format = "apk", buildType = "debug", gamesDir = GAMES_DIR } = {}) {
+  if (!id || !name) {
+    throw new Error("package: buildArtifactPlan requires both { id, name }");
+  }
+  if (format !== "apk" && format !== "aab") {
+    throw new Error(`package: buildArtifactPlan format must be "apk" or "aab", got ${JSON.stringify(format)}`);
+  }
+  if (buildType !== "debug" && buildType !== "release") {
+    throw new Error(`package: buildArtifactPlan buildType must be "debug" or "release", got ${JSON.stringify(buildType)}`);
+  }
+  const preset = buildType === "debug" ? name : `${name} Release`;
+  const flag = buildType === "debug" ? "--export-debug" : "--export-release";
+  const projectDir = join(gamesDir, id);
+  const outPath = join(projectDir, "build", `${id}-${buildType}.${format}`);
+  return {
+    args: ["--headless", "--path", projectDir, flag, preset, outPath],
+    outPath,
+    package: packageName || `com.gameforge.${id}`,
+    preset,
+    format,
+    build_type: buildType
+  };
+}
+
 // Parse a Godot .cfg/export_presets.cfg into { section: { key: value } }.
 // Strips surrounding quotes; coerces true/false and bare integers. Throws
 // loudly on a malformed line so the validator can assert "the preset parses".

@@ -1,5 +1,5 @@
 import { test, expect, describe } from "vitest";
-import { iconSizeTable, sizeBudget, pngSize, exportPresetCfg, parsePresetCfg, atlasLayout, splashSize, bootSplashCfg, verify, budgetReport, exportPresetsFile } from "./package.mjs";
+import { iconSizeTable, sizeBudget, pngSize, exportPresetCfg, parsePresetCfg, atlasLayout, splashSize, bootSplashCfg, verify, budgetReport, exportPresetsFile, buildArtifactPlan, androidToolchainPresent } from "./package.mjs";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -443,5 +443,59 @@ describe("exportPresetsFile", () => {
   test("throws without id or name", () => {
     expect(() => exportPresetsFile({ id: "x-0001" })).toThrow(/name|id/);
     expect(() => exportPresetsFile({ name: "X" })).toThrow(/id|name/);
+  });
+});
+
+describe("buildArtifactPlan (pure)", () => {
+  test("debug+apk → --export-debug, the game preset name, a build/<id>-debug.apk out path", () => {
+    const plan = buildArtifactPlan({ id: "creature-0001", name: "Glade Spirit", gamesDir: "/g" });
+    expect(plan.format).toBe("apk");
+    expect(plan.build_type).toBe("debug");
+    expect(plan.preset).toBe("Glade Spirit");
+    expect(plan.package).toBe("com.gameforge.creature-0001");
+    expect(plan.outPath).toBe(join("/g", "creature-0001", "build", "creature-0001-debug.apk"));
+    expect(plan.args).toEqual([
+      "--headless", "--path", join("/g", "creature-0001"),
+      "--export-debug", "Glade Spirit", plan.outPath
+    ]);
+  });
+
+  test("release+aab → --export-release, the '<name> Release' preset, a .aab out path", () => {
+    const plan = buildArtifactPlan({ id: "creature-0001", name: "Glade Spirit", format: "aab", buildType: "release", gamesDir: "/g" });
+    expect(plan.preset).toBe("Glade Spirit Release");
+    expect(plan.outPath).toBe(join("/g", "creature-0001", "build", "creature-0001-release.aab"));
+    expect(plan.args[3]).toBe("--export-release");
+    expect(plan.args[4]).toBe("Glade Spirit Release");
+  });
+
+  test("honors an explicit packageName", () => {
+    expect(buildArtifactPlan({ id: "x", name: "X", packageName: "com.acme.x", gamesDir: "/g" }).package).toBe("com.acme.x");
+  });
+
+  test("throws without id or name", () => {
+    expect(() => buildArtifactPlan({ id: "x", gamesDir: "/g" })).toThrow(/name|id/);
+    expect(() => buildArtifactPlan({ name: "X", gamesDir: "/g" })).toThrow(/id|name/);
+  });
+
+  test("throws on an unknown format or buildType", () => {
+    expect(() => buildArtifactPlan({ id: "x", name: "X", format: "ipa", gamesDir: "/g" })).toThrow(/format/);
+    expect(() => buildArtifactPlan({ id: "x", name: "X", buildType: "beta", gamesDir: "/g" })).toThrow(/buildType/);
+  });
+});
+
+describe("androidToolchainPresent", () => {
+  test("true only when ANDROID_HOME or ANDROID_SDK_ROOT is set", () => {
+    const save = { home: process.env.ANDROID_HOME, root: process.env.ANDROID_SDK_ROOT };
+    try {
+      delete process.env.ANDROID_HOME; delete process.env.ANDROID_SDK_ROOT;
+      expect(androidToolchainPresent()).toBe(false);
+      process.env.ANDROID_HOME = "C:/fake/sdk";
+      expect(androidToolchainPresent()).toBe(true);
+      delete process.env.ANDROID_HOME; process.env.ANDROID_SDK_ROOT = "C:/fake/sdk";
+      expect(androidToolchainPresent()).toBe(true);
+    } finally {
+      if (save.home === undefined) delete process.env.ANDROID_HOME; else process.env.ANDROID_HOME = save.home;
+      if (save.root === undefined) delete process.env.ANDROID_SDK_ROOT; else process.env.ANDROID_SDK_ROOT = save.root;
+    }
   });
 });
