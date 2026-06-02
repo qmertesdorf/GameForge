@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, mkdirSync, statSync, existsSync, readdirSync, copyFileSync, rmSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, statSync, existsSync, readdirSync, copyFileSync, rmSync, openSync, readSync, closeSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, join, basename } from "node:path";
@@ -400,7 +400,9 @@ export function verifyBuildArtifact(id, { gamesDir = GAMES_DIR, build_artifact, 
   }
   const bytes = statSync(abs).size;
   if (bytes < 1024) issues.push(`build artifact suspiciously small: ${bytes} bytes`);
-  const head = readFileSync(abs).subarray(0, 4);
+  const head = Buffer.alloc(4);
+  const fd = openSync(abs, "r");
+  try { readSync(fd, head, 0, 4, 0); } finally { closeSync(fd); }
   const signature_ok = head.equals(Buffer.from([0x50, 0x4b, 0x03, 0x04]));
   if (!signature_ok) issues.push(`build artifact is not a ZIP (bad signature, not an APK/AAB): ${ba.path}`);
   return { ok: issues.length === 0, issues, signature_ok, bytes };
