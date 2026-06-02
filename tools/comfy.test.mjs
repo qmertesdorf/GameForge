@@ -119,6 +119,9 @@ import { check, gen } from "./comfy.mjs";
 import { mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join as pjoin } from "node:path";
+import { readFileSync as _rf } from "node:fs";
+import { fileURLToPath as _ffu } from "node:url";
+import { dirname as _dn, join as _jn } from "node:path";
 
 // Build a fake fetch that routes by method+path and records calls. Each route
 // value is either a response spec or a function(callIndex) returning one, so a
@@ -414,6 +417,12 @@ describe("templateName", () => {
   test("image recipe (no kind) still selects an image template", () => {
     expect(templateName({ layerdiffuse: false })).toBe("sdxl");
   });
+  test("layerdiffuse + refine (no lora) → sdxl-layerdiffuse-refine", () => {
+    expect(templateName({ layerdiffuse: true, refine: true })).toBe("sdxl-layerdiffuse-refine");
+  });
+  test("layerdiffuse + refine + lora still → lora template (refine+lora unsupported this round)", () => {
+    expect(templateName({ layerdiffuse: true, refine: true, lora: "x.safetensors" })).toBe("sdxl-layerdiffuse-lora");
+  });
 });
 
 // Build a mono 16-bit WAV: `pre` ms of near-silence, `tone` ms of a sine at
@@ -487,4 +496,13 @@ describe("envelopeSfxWav", () => {
     envelopeSfxWav(buf);
     expect(buf.equals(before)).toBe(true);
   });
+});
+
+test("refine template injects with a refine recipe (no leftover %tokens%)", () => {
+  const dir = _dn(_ffu(import.meta.url));
+  const tpl = JSON.parse(_rf(_jn(dir, "comfy-templates", "sdxl-layerdiffuse-refine.json"), "utf8"));
+  const recipe = { checkpoint: "j.safetensors", prompt: "a hero", negative: "logo", seed: 1, sampler: "euler", steps: 24, cfg: 7, master_resolution: 1024, scheduler: "karras", layerdiffuse: true, refine: true };
+  const out = JSON.stringify(injectRecipe(tpl, recipe));
+  expect(out).not.toMatch(/%[a-z_]+%/); // every token resolved
+  expect(JSON.parse(out).ksampler_refine.inputs.scheduler).toBe("karras");
 });

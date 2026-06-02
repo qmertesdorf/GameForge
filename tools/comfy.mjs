@@ -187,6 +187,7 @@ export async function check({ fetch = globalThis.fetch, host = COMFY_HOST } = {}
 function templateName(recipe) {
   if (recipe.kind === "sfx" || recipe.kind === "music") return "stable-audio";
   if (!recipe.layerdiffuse) return "sdxl";
+  if (recipe.refine && !recipe.lora) return "sdxl-layerdiffuse-refine"; // hi-res second pass; refine+lora not supported this round
   return recipe.lora ? "sdxl-layerdiffuse-lora" : "sdxl-layerdiffuse";
 }
 
