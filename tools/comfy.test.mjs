@@ -258,17 +258,23 @@ describe("genAudio", () => {
     body: { abc: { outputs: { "12": { audio: [{ filename: "ComfyUI_0001.wav", subfolder: "", type: "output" }] } } } }
   };
 
-  test("happy path: submits, polls, downloads, writes the audio file at games/<id>/audio/<name>.<format>", async () => {
+  test("happy path (sfx): writes an enveloped, valid WAV at games/<id>/audio/<name>.wav", async () => {
     await withDirs(async ({ templatesDir, gamesDir }) => {
+      // a real 16-bit WAV with leading/trailing silence so the envelope has work to do
+      const rate = 44100, n = rate; // 1 s
+      const ch = new Float32Array(n);
+      for (let i = 0; i < n; i++) ch[i] = (i > rate * 0.3 && i < rate * 0.6) ? 0.4 * Math.sin((2 * Math.PI * 440 * i) / rate) : 0;
+      const wav = encodeWav(1, rate, [ch]);
       const fetch = mockFetch({
         "POST /prompt": { body: { prompt_id: "abc" } },
         "GET /history/abc": HISTORY_DONE,
-        "GET /view": { bytes: new TextEncoder().encode("WAVDATA").buffer }
+        "GET /view": { bytes: wav.buffer.slice(wav.byteOffset, wav.byteOffset + wav.byteLength) }
       });
       const res = await genAudio("creature-0001", "collect", recipe(), { fetch, templatesDir, gamesDir, pollIntervalMs: 0 });
       const outPath = pjoin(gamesDir, "creature-0001", "audio", "collect.wav");
       expect(existsSync(outPath)).toBe(true);
-      expect(readFileSync(outPath, "utf8")).toBe("WAVDATA");
+      const written = decodeWav(readFileSync(outPath));   // parses → still a valid WAV
+      expect(written.samples[0].length).toBeLessThan(n);  // silence trimmed → enveloped
       expect(res.path).toBe(outPath);
       expect(res.prompt_id).toBe("abc");
     });
@@ -285,6 +291,19 @@ describe("genAudio", () => {
       const res = await genAudio("creature-0001", "bgm", r, { fetch, templatesDir, gamesDir, pollIntervalMs: 0 });
       expect(res.path).toBe(pjoin(gamesDir, "creature-0001", "audio", "bgm.ogg"));
       expect(existsSync(res.path)).toBe(true);
+    });
+  });
+
+  test("music bytes are written through UNCHANGED (envelope is sfx-only)", async () => {
+    await withDirs(async ({ templatesDir, gamesDir }) => {
+      const fetch = mockFetch({
+        "POST /prompt": { body: { prompt_id: "abc" } },
+        "GET /history/abc": HISTORY_DONE,
+        "GET /view": { bytes: new TextEncoder().encode("OGGDATA").buffer }
+      });
+      const r = { ...recipe(), name: "bgm", kind: "music", format: "ogg", duration_s: 30, loop: true };
+      const res = await genAudio("creature-0001", "bgm", r, { fetch, templatesDir, gamesDir, pollIntervalMs: 0 });
+      expect(readFileSync(res.path, "utf8")).toBe("OGGDATA"); // not parsed, not enveloped
     });
   });
 
@@ -313,10 +332,15 @@ describe("genAudio", () => {
 
   test("polls /history until the result appears", async () => {
     await withDirs(async ({ templatesDir, gamesDir }) => {
+      // sfx recipe requires a real WAV now that the envelope runs
+      const rate = 44100, n = rate;
+      const ch = new Float32Array(n);
+      for (let i = 0; i < n; i++) ch[i] = (i > rate * 0.3 && i < rate * 0.6) ? 0.4 * Math.sin((2 * Math.PI * 440 * i) / rate) : 0;
+      const wav = encodeWav(1, rate, [ch]);
       const fetch = mockFetch({
         "POST /prompt": { body: { prompt_id: "abc" } },
         "GET /history/abc": (n) => (n < 3 ? { body: {} } : HISTORY_DONE),
-        "GET /view": { bytes: new TextEncoder().encode("WAVDATA").buffer }
+        "GET /view": { bytes: wav.buffer.slice(wav.byteOffset, wav.byteOffset + wav.byteLength) }
       });
       await genAudio("creature-0001", "collect", recipe(), { fetch, templatesDir, gamesDir, pollIntervalMs: 0 });
       const historyCalls = fetch.calls.filter((c) => c.key === "GET /history/abc").length;

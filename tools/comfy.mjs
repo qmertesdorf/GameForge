@@ -295,7 +295,9 @@ export async function genAudio(id, name, recipe, {
   const template = JSON.parse(readFileSync(tplPath, "utf8"));
   const workflow = injectRecipe(template, recipe);
 
-  const { bytes, prompt_id } = await runGraph(workflow, { fetch, host, pollIntervalMs, maxPolls, pick: firstAudio, label: "audio" });
+  const { bytes: rawBytes, prompt_id } = await runGraph(workflow, { fetch, host, pollIntervalMs, maxPolls, pick: firstAudio, label: "audio" });
+  // SFX get the deterministic envelope (trim/loudness/fades); music is written as-is.
+  const bytes = recipe.kind === "sfx" ? envelopeSfxWav(rawBytes) : rawBytes;
 
   const audioDir = join(gamesDir, id, "audio");
   mkdirSync(audioDir, { recursive: true });
