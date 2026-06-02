@@ -83,7 +83,13 @@ tap={
 "deadzone": 0.5,
 "events": []
 }
+
+[rendering]
+renderer/rendering_method="mobile"
+textures/vram_compression/import_etc2_astc=true
 ```
+
+**Android export requirement (proven Phase A, 2026-06-02):** the `[rendering]` block above is mandatory for an Android build. `import_etc2_astc=true` is **required** — without it `godot --export-debug "Android"` fails the export validation with an empty/opaque "configuration errors:" message (the headless CLI does not name the cause; the editor's Export dialog does). `rendering_method="mobile"` (Vulkan) is the authored default and **runs** on real devices; note that the GL-compatibility renderer needs GLES 3 and that Android *emulators* often cannot drive either renderer (Vulkan → black, GLES3 → EGL crash), so emulators are an unreliable visual test for Godot — confirm visuals on desktop or a real device, not an AVD. (See `packager`/README "Android export" for the build seam.)
 
 `games/<id>/Main.gd` (skeleton — fill the genre-specific loop):
 ```gdscript

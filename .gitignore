@@ -39,3 +39,6 @@ node_modules/
 tools/_*.mjs
 **/_probe_*
 **/_aud_*
+
+# Godot Android build template (installed per-project via --install-android-build-template)
+games/*/android/

@@ -2,7 +2,7 @@
   "id": "creature-0001",
   "name": "Glade Spirit",
   "created_at": "2026-05-31T21:59:34.615Z",
-  "updated_at": "2026-06-01T22:41:18.764Z",
+  "updated_at": "2026-06-02T22:55:36.786Z",
   "status": "styled",
   "concept": {
     "genre": "top-down creature forager",
@@ -353,7 +353,7 @@
       "platform": "android",
       "package": "com.gameforge.creature-0001"
     },
-    "notes": "M2 foundation PROOF EXERCISE — tooling run against the validated substrate to confirm the seam executes + CI-checkable gate assertions pass. NOT packaged: creature-0001 is validated; both asset_pass + audio_pass are present but their owner A/B confirmations (and the cross-modal cohesion A/B) are still pending, and validated->packaged is illegal. icon_master derived from the styled spirit sprite; boot splash composites that master (60%) centered on a deep-forest bg via splash_render.gd; final icon/splash art is the deferred owner aesthetic A/B. APK build = the deferred Android-toolchain feasibility gate (ANDROID_HOME unset).",
+    "notes": "M2 foundation PROOF EXERCISE — tooling run against the validated substrate to confirm the seam executes + CI-checkable gate assertions pass. NOT packaged: creature-0001 is validated; both asset_pass + audio_pass are present but their owner A/B confirmations (and the cross-modal cohesion A/B) are still pending, and validated->packaged is illegal. icon_master derived from the styled spirit sprite; boot splash composites that master (60%) centered on a deep-forest bg via splash_render.gd; final icon/splash art is the deferred owner aesthetic A/B. ANDROID-SHIPPABLE POC Phase A DONE (2026-06-02): debug APK now BUILT + verified + installed + run on an Android emulator (AVD) via the codified package.mjs build seam. build_artifact recorded (mobile apk, 39035554 bytes); status intentionally HELD at styled (the build proves the toolchain, not the game's polish — the packaged gate's owner A/B remains owner-gated). Findings/fixes: (1) package-name bug — hyphenated ids like creature-0001 are Android-illegal; package.mjs packageNameFor() now sanitizes to com.gameforge.creature_0001; (2) Android export REQUIRES rendering/textures/vram_compression/import_etc2_astc=true in project.godot (added) — without it the export fails with an empty/opaque 'configuration errors' message (headless CLI does not name the cause; the editor Export dialog does); (3) machine SDK completed (cmdline-tools + build-tools 34 + android-34/35 + gf_pixel AVD). CAVEAT: the android-31 x86_64 AVD renders Godot 4.6 black (Vulkan) / crashes (GLES3) — an emulator-GPU limitation, NOT a build/app defect; the game renders correctly on desktop (RTX 5080, freshly verified). On-device VISUAL confirmation is pending a real Android device. Phase B (signed release AAB + Play submission doc) deferred.",
     "size_budget": {
       "total_bytes": 3427142,
       "budget_bytes": 52428800,
@@ -408,6 +408,13 @@
           "bytes": 448264
         }
       ]
+    },
+    "build_artifact": {
+      "format": "apk",
+      "build_type": "debug",
+      "path": "build/creature-0001-debug.apk",
+      "bytes": 39035554,
+      "package": "com.gameforge.creature_0001"
     }
   }
 }
