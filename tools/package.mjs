@@ -116,6 +116,10 @@ export function exportPresetCfg({ id, name, packageName, exportPath, format = "a
     `[${p}.options]`,
     "",
     `gradle_build/use_gradle_build=${useGradle ? "true" : "false"}`,
+    // export_format: 0=APK, 1=AAB. Required for AAB output — Godot keys the
+    // output container off this, NOT the export_path extension. Without it a
+    // .aab path is rejected with "Android APK requires the *.apk extension".
+    `gradle_build/export_format=${format === "aab" ? 1 : 0}`,
     `package/unique_name="${unique}"`,
     `package/name="${name}"`,
     ""

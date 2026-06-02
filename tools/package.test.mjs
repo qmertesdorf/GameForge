@@ -411,12 +411,14 @@ describe("exportPresetCfg format/buildType variants", () => {
     expect(parsed["preset.0"].name).toBe("Glade Spirit");
     expect(parsed["preset.0"].export_path).toBe("build/creature-0001-debug.apk");
     expect(parsed["preset.0.options"]["gradle_build/use_gradle_build"]).toBe(false);
+    expect(parsed["preset.0.options"]["gradle_build/export_format"]).toBe(0); // 0 = APK
   });
 
   test("release+aab preset turns gradle build on and targets a .aab path", () => {
     const parsed = parsePresetCfg(exportPresetCfg({ id: "creature-0001", name: "Glade Spirit", format: "aab", buildType: "release" }));
     expect(parsed["preset.0"].export_path).toBe("build/creature-0001-release.aab");
     expect(parsed["preset.0.options"]["gradle_build/use_gradle_build"]).toBe(true);
+    expect(parsed["preset.0.options"]["gradle_build/export_format"]).toBe(1); // 1 = AAB; without this Godot rejects the .aab path as "APK requires *.apk"
   });
 
   test("presetIndex emits a [preset.N] section with that index", () => {
@@ -444,9 +446,11 @@ describe("exportPresetsFile", () => {
     expect(parsed["preset.0"].name).toBe("Glade Spirit");
     expect(parsed["preset.0"].export_path).toBe("build/creature-0001-debug.apk");
     expect(parsed["preset.0.options"]["gradle_build/use_gradle_build"]).toBe(false);
+    expect(parsed["preset.0.options"]["gradle_build/export_format"]).toBe(0);
     expect(parsed["preset.1"].name).toBe("Glade Spirit Release");
     expect(parsed["preset.1"].export_path).toBe("build/creature-0001-release.aab");
     expect(parsed["preset.1.options"]["gradle_build/use_gradle_build"]).toBe(true);
+    expect(parsed["preset.1.options"]["gradle_build/export_format"]).toBe(1);
     expect(parsed["preset.1.options"]["package/unique_name"]).toBe("com.gameforge.creature_0001");
   });
 
