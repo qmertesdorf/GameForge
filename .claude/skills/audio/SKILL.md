@@ -47,8 +47,19 @@ One recipe per SFX + one music recipe. Each prompt = `mood_prompt` + the clip-sp
 
 ## 5. Wire into the Godot scene
 - Add one `AudioStreamPlayer` per SFX (named per the `events[]` `node`) and one for music.
-- Set import flags: music stream `loop = true` (and `loop_offset` if needed); SFX one-shot.
-- **Music — start it so it actually plays.** Set **`autoplay = true` on the music `AudioStreamPlayer` *before* `add_child`**, or call `play()` **deferred/awaited a frame after** `add_child` (`await get_tree().process_frame` then `play()`, or `call_deferred("play")`). An immediate in-`_ready` `play()` called the **same frame** as `add_child` does **not** reliably start the stream — this is the confirmed **finding-#4 bug** (`MusicAmbient.playing=false, pos=0` after 90 frames); SFX escaped it only because they fire later in gameplay.
+- Set import flags: for the music bed, `compress/mode=0` (PCM) in its `.wav.import` — **required** by the rebuild below (a QOA/ADPCM import returns compressed bytes in `.data`, which the rebuild would copy as if raw PCM and corrupt). SFX one-shot.
+- **Music — start it so it actually plays (REAL root cause, A/B-round-2; supersedes the earlier same-frame-play() guess).** A *long* IMPORTED `AudioStreamWAV` (the ~20–40 s bed) **silently refuses to play** — `play()` leaves `playing=false, pos=0` even on the real WASAPI driver, with explicit `play()` and a valid 30 s stream — while short SFX from the same generator play fine. A freshly **constructed** `AudioStreamWAV` built from the *same* PCM data **does** play. So **rebuild the bed stream in code** before wiring it (verified on creature-0001 + crosser-0001):
+  ```gdscript
+  var src := load("res://audio/bgm.wav") as AudioStreamWAV
+  var w := AudioStreamWAV.new()
+  w.format = src.format; w.mix_rate = src.mix_rate; w.stereo = src.stereo
+  w.data = src.data
+  w.loop_mode = AudioStreamWAV.LOOP_FORWARD
+  w.loop_begin = 0
+  w.loop_end = src.data.size() / (4 if src.stereo else 2)  # 16-bit frames
+  p.stream = w
+  ```
+  Then set **`autoplay = true` *before* `add_child`** so it starts on tree entry (deferred/awaited `play()` is a fallback). The earlier "same-frame `play()` after `add_child`" diagnosis was **wrong** — autoplay/deferred alone does NOT fix it; the imported long stream must be rebuilt. (Confirm with the §7 probe: a wired, autoplaying bed can still be silent if not rebuilt.) A future cleaner fix is OGG/Vorbis for music, which sidesteps the WAV path entirely.
 - **Levels:** set the music `volume_db` deliberately so the bed is **audible but sits under** the SFX — do not bury it (the proof bed was mixed ~13 dB under SFX *and* not playing). Balance the two.
 - SFX: `play()` from the mapped `signal`/call site, replayable (call `play()` each event; for rapid repeats consider a small pool or `AudioStreamPlayer` per channel).
 - Keep wiring minimal and reuse the game's existing signal points; do not restructure the core loop.
@@ -64,4 +75,4 @@ Commit the generated `*.wav.import` sidecars alongside the clips (expected Godot
 Merge an `audio_pass` block (`method:"audio"`, `audio_system` — including `sonic_character` — `recipes`, `events`, `notes`) via the manifest tool, then `node tools/manifest.mjs set-status <id> scored`. State plainly in `notes` what was produced and anything skipped (mixed honesty). (`method:"audio"` is a constant provenance tag — the block name already says it's audio — **not** a branch key; unlike `asset_pass.method` (`svg`/`raster`), no consumer reads it.)
 
 ## 7. Hand off to validator
-Run the validator's audio method to confirm files import, players reference valid streams, and SFX fire on events — **and that the music bed is actually playing.** Confirm `MusicAmbient.playing == true` with an advancing `get_playback_position()` a few frames in, not merely that the node exists and is wired (a wired bed can still be silent — that is exactly the finding-#4 bug, caught by this probe).
+Run the validator's audio method to confirm files import, players reference valid streams, and SFX fire on events — **and that the music bed is actually playing.** Confirm `MusicAmbient.playing == true` with an advancing `get_playback_position()` a few frames in, not merely that the node exists and is wired (a wired, autoplaying bed can still be silent if the long imported WAV wasn't rebuilt per §5 — caught by this probe). The probe must run on the **real audio driver** (`godot --path ... --script`, NOT `--headless`, whose dummy driver reports `playing=false` even for a good stream).

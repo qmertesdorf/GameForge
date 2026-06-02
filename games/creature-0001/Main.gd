@@ -160,11 +160,8 @@ func _setup_audio() -> void:
 	_make_player("streak", "res://audio/streak.wav", false)
 	_make_player("gameover", "res://audio/gameover.wav", false)
 	_make_player("bgm", "res://audio/bgm.wav", true)
-	# Start the ambient bed (loops continuously across runs).
-	if _audio_players.has("bgm"):
-		var bgm: AudioStreamPlayer = _audio_players["bgm"]
-		if bgm.stream != null and bgm.is_inside_tree():
-			bgm.play()
+	# Bed starts via autoplay (set in _make_player BEFORE add_child) — an immediate
+	# play() the same frame as add_child does not reliably start it (finding #4).
 
 
 func _make_player(event_name: String, path: String, looping: bool) -> void:
@@ -172,10 +169,29 @@ func _make_player(event_name: String, path: String, looping: bool) -> void:
 	# Node name (PascalCase) is what audio_pass.events[].node references.
 	p.name = "Sfx" + event_name.capitalize() if event_name != "bgm" else "MusicAmbient"
 	var stream: Resource = load(path)
-	if stream is AudioStreamWAV and looping:
-		stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
+	if looping and stream is AudioStreamWAV:
+		# REAL bgm-not-playing root cause (A/B-round-2; supersedes the earlier
+		# same-frame-play() guess): an IMPORTED long AudioStreamWAV (the ~30s bed)
+		# silently refuses to play -- play() leaves playing=false, pos=0 -- while a
+		# freshly-CONSTRUCTED AudioStreamWAV from the SAME PCM data plays. So rebuild
+		# the bed stream in code and loop the whole sample.
+		var src: AudioStreamWAV = stream
+		var w := AudioStreamWAV.new()
+		w.format = src.format
+		w.mix_rate = src.mix_rate
+		w.stereo = src.stereo
+		w.data = src.data
+		w.loop_mode = AudioStreamWAV.LOOP_FORWARD
+		w.loop_begin = 0
+		w.loop_end = src.data.size() / (4 if src.stereo else 2)  # 16-bit frames
+		stream = w
 	if stream != null:
 		p.stream = stream
+	if looping:
+		# Start on tree entry (autoplay set BEFORE add_child).
+		p.autoplay = true
+		# Audible bed mixed UNDER the SFX (which play at 0 dB default).
+		p.volume_db = -4.0
 	add_child(p)
 	_audio_players[event_name] = p
 

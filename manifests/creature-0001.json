@@ -80,6 +80,7 @@
   "asset_pass": {
     "method": "raster",
     "visual_system": {
+      "world_bible": "A hand-painted autumn-woodland storybook folktale — warm gouache, soft inner glow, the look of a single cozy children's picture book. ONE world: a dappled autumn forest at golden hour. ONE character family: every actor is a small, round, soft-bodied woodland sprite-creature rendered in the same painterly medium and warm amber/rust/gold palette, lit by the same soft magical glow, so hero and hazard read as inhabitants of the same book. The hero is a gentle amber seed-spirit (soft, round, friendly); the hazard is its dark sibling — a thorn-sprite of the same forest, the same painterly storybook rendering but coated in dark charcoal brambles and rust-red thorns with glowing eyes, a bristling spiky silhouette so threat reads at a glance. Distinguished by material + silhouette + value (soft/warm/light vs spiky/dark), unified by world + medium + palette + lighting — never two different worlds (the A/B-round-1 incohesion finding).",
       "palette": [
         "#0E2E10 deep forest-green field (bg)",
         "#F2B34D warm amber spirit",
@@ -106,7 +107,7 @@
       "background"
     ],
     "art_path": "games/creature-0001/art/",
-    "notes": "Style A (painterly/warm-woodland) raster re-skin via ComfyUI + SDXL Juggernaut v9 + LayerDiffuse (RGBA). spirit + hazard are raster sprites drawn via draw_texture_rect in the existing immediate-mode _draw() (z-order, screen-shake, squash/stretch preserved for free; glow halos kept as procedural juice except the hazard halo, removed because a small primitive halo behind the larger sprite read as an odd disc). MIXED-METHOD by deliberate choice: the seed stays a primitive glow-mote — across 4 attempts SDXL over-elaborated a 14px pulsing dot (autumn-leaf scene -> wreath -> hanging ornament -> row of blobs); a procedural glow halo + bright core + white sparkle + pulse is the higher-quality pickup and is what immediate-mode does best. The parallax tree background also stays procedural (depth/motion, not a hero asset). Iteration: spirit accepted on pass 1; hazard took 3 passes (cute-fox-with-ground-shadow -> hollow thorn-wreath -> solid spiky thorn-critter). Visual-verified by composing a play frame with a SceneTree screenshot harness (real Vulkan renderer on the RTX 5080). Selftest still SELFTEST OK; headless run clean; logic untouched. STATUS HELD AT validated (validated->styled is illegal): awaits owner ~60s playtest -> playable, then human A/B + IP-safety -> styled. IP-safety: generic descriptors only, no franchise/character/studio names; every recipe negative excludes logo/watermark/text/trademarked-character/brand/celebrity.",
+    "notes": "A/B-ROUND-2 RE-SKIN (2026-06-01) — addresses the round-1 'very bad / incohesion' finding by deriving a world_bible FIRST (see visual_system.world_bible) and regenerating the hazard as the spirit's dark sibling in the SAME painterly storybook world, instead of an unrelated darker critter. spirit KEPT (round-1 pass-1 amber seed-spirit, already on-bible). hazard REGENERATED: round-1 produced a dark spiky bird holding a stick (off-family, prop, different read); round-2 hazard is a dark charcoal+rust-red thorn-creature with glowing eyes and a bristling spiky silhouette that reads as danger at a glance while sharing the spirit's painterly medium + autumn palette + soft glow (cohesion via world/medium/palette/lighting, contrast via material/silhouette/value). Hazard iteration (4 passes, the cozy-storybook scaffold is a strong 'cute mammal' attractor): fox-in-a-jacket -> cute bird-on-branch -> [KEPT] dark red-eyed thorn-creature -> cute hamster-with-pumpkin; attempt 3 (seed 352) is the only one whose threat reads at a glance, so it was restored. Style A (painterly/warm-woodland) via ComfyUI + SDXL Juggernaut v9 + LayerDiffuse (RGBA); both sprites drawn via draw_texture_rect in the existing immediate-mode _draw() (z-order/shake/squash preserved). MIXED-METHOD unchanged: seed stays a primitive glow-mote (round-1: SDXL over-elaborated a 14px dot across 4 tries; procedural glow is higher-quality). BACKGROUND: parallax autumn tree-silhouette field stays PROCEDURAL and is listed in left_primitive — a KNOWN M1.7-DEFERRED cohesion gap (static-themed-backdrop generation waits for M1.7), not a silent omission. Visual-verified by composing a play frame with the SceneTree screenshot harness (real Vulkan renderer, RTX 5080) — spirit, hazard, seeds, backdrop, HUD all render with no double-draw. Selftest SELFTEST OK; headless run clean; logic untouched. STATUS HELD AT validated (validated->styled is illegal): awaits owner ~60s playtest -> playable, then human A/B + IP-safety -> styled. IP-safety: generic descriptors only, no franchise/character/studio names; every recipe negative excludes logo/watermark/text/trademarked-character/brand/celebrity.",
     "recipes": [
       {
         "name": "spirit",
@@ -128,12 +129,12 @@
       {
         "name": "hazard",
         "checkpoint": "juggernautXL_v9.safetensors",
-        "prompt": "painterly storybook illustration, soft hand-painted brushwork, cozy childrens book art, warm autumn woodland palette of amber rust and gold, soft diffuse magical lighting, single centered subject, full body, clean transparent background, high detail, a small round menacing thorn monster, compact solid spiky ball-shaped creature densely covered in sharp rust-red and charcoal thorns, two glowing angry yellow eyes in the center, bristling spikes, dangerous bramble beast, floating isolated",
-        "negative": "logo, watermark, text, signature, frame, border, ring, wreath, circle, hollow, crown, donut, trademarked character, brand, fox, cute, fluffy, soft fur, ground, floor, shadow, autumn leaves, scene, photo, photograph, realistic, blurry, low quality, deformed",
-        "seed": 323,
+        "prompt": "painterly storybook illustration, soft hand-painted brushwork, warm autumn woodland palette, soft diffuse magical lighting, single centered subject, full body, clean transparent background, high detail, a menacing creature made entirely of a dense tangled ball of dark black brambles and rust-red thorns, a round prickly thornball forest sprite, sharp spikes radiating outward in every direction, dark charcoal body with deep rust-red thorn tips, two glowing angry amber eyes peering out from within the dark thorns, ominous bristling bramble creature",
+        "negative": "logo, watermark, text, signature, frame, border, ring, wreath, circle, hollow, crown, donut, trademarked character, brand, branch, twig, perched, bird, beak, wings, feathers, yellow body, fox, rabbit, mammal, soft fur, fluffy, cute, adorable, friendly, smiling, happy, jacket, coat, clothing, stick, held object, realistic, photo, photograph, blurry, low quality, deformed, multiple characters, scene, ground, floor, shadow",
+        "seed": 352,
         "sampler": "euler",
-        "steps": 24,
-        "cfg": 7.5,
+        "steps": 26,
+        "cfg": 8,
         "master_resolution": 1024,
         "layerdiffuse": true,
         "import_settings": {
@@ -154,14 +155,15 @@
         "soft",
         "acoustic",
         "woodland"
-      ]
+      ],
+      "sonic_character": "soft organic acoustic timbre — gentle wooden, leaf and cloth taps, soft bell and chime tones, warm woodland textures; NO electronic/synth transients, NO explosive or harsh attacks. SFX keep a short single-shot envelope but draw their material from this vocabulary (the audio sibling of the visual world_bible), which is what kept them off the generic explosive default."
     },
     "recipes": [
       {
         "name": "collect",
         "kind": "sfx",
-        "prompt": "soft bright bell chime pickup, single short pluck, warm gentle woodland, magical sparkle",
-        "negative": "music, melody, loop, voice, speech, noise",
+        "prompt": "warm gentle organic woodland atmosphere, soft acoustic timbre, soft wooden and leaf textures, a soft bright wooden bell chime pickup, single short gentle pluck, warm magical sparkle",
+        "negative": "music, melody, loop, voice, speech, explosion, harsh, distortion, aggressive, electronic, synth, noise burst",
         "seed": 11,
         "duration_s": 1.5,
         "sampler": "dpmpp_3m_sde_gpu",
@@ -177,8 +179,8 @@
       {
         "name": "streak",
         "kind": "sfx",
-        "prompt": "bright ascending magical shimmer, short rising sparkle, warm celebratory",
-        "negative": "music, loop, voice, speech, harsh",
+        "prompt": "warm gentle organic woodland atmosphere, soft acoustic timbre, a gentle bright ascending wooden chime shimmer, short rising magical sparkle, warm celebratory",
+        "negative": "music, melody, loop, voice, speech, explosion, harsh, distortion, aggressive, electronic, synth, noise burst",
         "seed": 22,
         "duration_s": 1.5,
         "sampler": "dpmpp_3m_sde_gpu",
@@ -194,8 +196,8 @@
       {
         "name": "gameover",
         "kind": "sfx",
-        "prompt": "soft low gentle descending tone, muted woodland thud, melancholy chime fade",
-        "negative": "music, loop, voice, speech, harsh, bright",
+        "prompt": "warm gentle organic woodland atmosphere, soft acoustic timbre, a soft low gentle descending wooden tone, muted soft woodland thud, melancholy chime fade",
+        "negative": "music, melody, loop, voice, speech, explosion, harsh, distortion, aggressive, electronic, synth, noise burst, bright",
         "seed": 33,
         "duration_s": 2,
         "sampler": "dpmpp_3m_sde_gpu",
@@ -211,8 +213,8 @@
       {
         "name": "bgm",
         "kind": "music",
-        "prompt": "gentle looping forest ambient pad, warm organic woodland atmosphere, soft sustained strings and soft flute texture, calm peaceful",
-        "negative": "voice, speech, lyrics, vocals, drums, percussion, hard beat",
+        "prompt": "gentle looping forest ambient pad, warm organic woodland atmosphere, soft sustained strings and soft flute texture, calm peaceful, steady seamless continuous texture",
+        "negative": "voice, speech, lyrics, vocals, drums, percussion, hard beat, intro, outro, sudden change",
         "seed": 44,
         "duration_s": 30,
         "sampler": "dpmpp_3m_sde_gpu",
@@ -252,7 +254,7 @@
         "signal": "_ready loops continuously"
       }
     ],
-    "notes": "Warm woodland audio identity (style A). 3 SFX one-shots + 1 looping ambient bed, generated via Stable Audio Open (WAV, soundfile patch). Wired in code (_setup_audio); selftest Test 5 asserts collect/streak/gameover cues fire + nodes exist; headless run clean. STAGED pending owner gates: ~60s playtest (validated->playable) then audio A/B (->scored). No artist/track names used; music negative excludes vocals (IP-safe)."
+    "notes": "A/B-ROUND-2 AUDIO RE-PASS (2026-06-01). (1) SFX TIMBRE FIX: derived audio_system.sonic_character from concept.theme (soft organic acoustic — wooden/leaf/bell, no electronic/explosive) and regenerated all 3 SFX with it threaded into every prompt PLUS theme-aware negatives ('explosion, harsh, distortion, aggressive, electronic, synth, noise burst') that round 1 lacked — directly addresses the round-1 'SFX explosive, wrong for cozy theme' finding. (2) BGM-NOT-PLAYING — REAL ROOT CAUSE FOUND, supersedes round-1's wrong guess: round 1 blamed a same-frame play() after add_child; probing here proved that an IMPORTED long AudioStreamWAV (the ~30s bed) silently refuses to play (play() -> playing=false, pos=0) on the REAL WASAPI driver, while SFX (short) play fine AND a freshly-CONSTRUCTED AudioStreamWAV from the SAME PCM data plays. FIX (verified): _make_player rebuilds the bed stream in code from the loaded PCM data + loops the whole sample + autoplay before add_child; bgm.wav.import set to compress/mode=0 (PCM) so the rebuilt data is raw 16-bit (a QOA-compressed import would copy compressed bytes). Probe confirms MusicAmbient.playing=true with advancing get_playback_position(). (3) LEVELS: bed volume_db=-4 so it sits audibly UNDER the 0 dB SFX. Generated via Stable Audio Open (WAV, soundfile patch). Selftest still SELFTEST OK; headless run clean; game logic untouched. STATUS HELD (not auto-advanced to scored): awaits owner playtest + audio A/B. IP-safe: no artist/track names; music negative excludes vocals."
   },
   "store_pass": {
     "icon_master": "art/spirit.png",
