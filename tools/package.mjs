@@ -481,10 +481,20 @@ export function verify(id, { gamesDir = GAMES_DIR, manifest } = {}) {
 
   // 5. both polish passes present (A/B confirmation is the human gate -- reported, not asserted here)
   const bothPasses = Boolean(m.asset_pass) && Boolean(m.audio_pass);
+
+  // 6. build artifact record (shape only — the real file is git-ignored and
+  // checked by verifyBuildArtifact() when the toolchain is present).
+  if (sp.build_artifact) {
+    const ba = sp.build_artifact;
+    if (ba.format !== "apk" && ba.format !== "aab") issues.push(`build_artifact.format is "${ba.format}", expected apk|aab`);
+    if (ba.build_type !== "debug" && ba.build_type !== "release") issues.push(`build_artifact.build_type is "${ba.build_type}", expected debug|release`);
+    if (typeof ba.path !== "string" || !ba.path) issues.push(`build_artifact.path is missing`);
+  }
+
   return { id, issues, file_checks_pass: issues.length === 0, both_passes_present: bothPasses, status: m.status };
 }
 
-const USAGE = "usage: node tools/package.mjs <icons|atlas|screenshot|splash|budget|preset|verify|--check> <id> ...";
+const USAGE = "usage: node tools/package.mjs <icons|atlas|screenshot|splash|budget|preset|build|verify|verify-build|--check> <id> ...";
 
 async function cli(argv) {
   const [cmd, ...rest] = argv;
@@ -507,6 +517,21 @@ async function cli(argv) {
     case "preset": {
       const m = readManifest(id);
       console.log(exportPresetCfg({ id, name: m.name }));
+      return;
+    }
+    case "build": {
+      const format = rest.includes("--aab") ? "aab" : "apk";
+      const buildType = rest.includes("--release") ? "release" : "debug";
+      const r = buildArtifact(id, { format, buildType });
+      console.log(JSON.stringify(r, null, 2));
+      if (r.skipped) process.exit(3); // distinct code: "toolchain absent", not a failure
+      return;
+    }
+    case "verify-build": {
+      const r = verifyBuildArtifact(id);
+      console.log(JSON.stringify(r, null, 2));
+      if (r.skipped) return;
+      if (!r.ok) process.exit(1);
       return;
     }
     case "verify": { const r = verify(id); console.log(JSON.stringify(r, null, 2)); if (r.issues.length) process.exit(1); return; }

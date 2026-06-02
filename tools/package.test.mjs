@@ -356,6 +356,22 @@ describe("verify (packaging gate)", () => {
         .toThrow(/no store_pass/);
     });
   });
+
+  test("a well-formed build_artifact record passes verify() with no new issue", () => {
+    withFixture((dir, sp) => {
+      sp.build_artifact = { format: "apk", build_type: "debug", path: "build/fix-0001-debug.apk", bytes: 1000, package: "com.gameforge.fix-0001" };
+      const r = verify("fix-0001", { gamesDir: dir, manifest: manifestFor(sp) });
+      expect(r.file_checks_pass).toBe(true);
+    });
+  });
+
+  test("a malformed build_artifact record (bad format) is flagged by verify()", () => {
+    withFixture((dir, sp) => {
+      sp.build_artifact = { format: "exe", build_type: "debug", path: "build/x" };
+      const r = verify("fix-0001", { gamesDir: dir, manifest: manifestFor(sp) });
+      expect(r.issues.join(" ")).toMatch(/build_artifact.*format|format/);
+    });
+  });
 });
 
 describe("budgetReport", () => {
