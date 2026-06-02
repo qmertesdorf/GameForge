@@ -333,6 +333,79 @@ export function generateSplash(id, { gamesDir = GAMES_DIR, bg = "#000000ff", sho
   return { source: "store/splash.png", show_image: showImage, boot_splash_cfg: bootSplashCfg({ image: "res://store/splash.png", showImage }) };
 }
 
+// Source the release-signing env vars Godot reads (GODOT_ANDROID_KEYSTORE_RELEASE_*)
+// from a git-ignored local config so no secret is ever committed. Returns the env
+// overlay for the spawned process (empty for debug builds). Throws if a release
+// build is requested without the config.
+function releaseSigningEnv(buildType) {
+  if (buildType !== "release") return {};
+  const cfgPath = join(REPO_ROOT, "tools", "android-signing.local.json");
+  if (!existsSync(cfgPath)) {
+    throw new Error(`package: a release build needs signing config at ${cfgPath} (git-ignored). Create it with { "keystore_path", "keystore_user", "keystore_password" }.`);
+  }
+  const c = JSON.parse(readFileSync(cfgPath, "utf8"));
+  for (const k of ["keystore_path", "keystore_user", "keystore_password"]) {
+    if (!c[k]) throw new Error(`package: android-signing.local.json is missing "${k}"`);
+  }
+  return {
+    GODOT_ANDROID_KEYSTORE_RELEASE_PATH: c.keystore_path,
+    GODOT_ANDROID_KEYSTORE_RELEASE_USER: c.keystore_user,
+    GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD: c.keystore_password
+  };
+}
+
+// Build the Android artifact by spawning headless Godot. Toolchain-guarded: returns
+// { skipped, reason } when ANDROID_HOME/ANDROID_SDK_ROOT is unset (CI / no-SDK),
+// so this is never reached in vitest. On success returns the build_artifact record.
+export function buildArtifact(id, { gamesDir = GAMES_DIR, format = "apk", buildType = "debug", present = androidToolchainPresent() } = {}) {
+  if (!present) {
+    return { skipped: true, reason: "Android toolchain absent (ANDROID_HOME/ANDROID_SDK_ROOT unset) — skipping real export, same posture as no-GPU/no-ComfyUI." };
+  }
+  const m = readManifest(id);
+  if (!m?.name) throw new Error(`package: buildArtifact needs a name in manifests/${id}.json`);
+  const plan = buildArtifactPlan({ id, name: m.name, format, buildType, gamesDir });
+  mkdirSync(join(gamesDir, id, "build"), { recursive: true });
+  const env = { ...process.env, ...releaseSigningEnv(buildType) };
+  try {
+    execFileSync(godotBin(), plan.args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], env });
+  } catch (e) {
+    const out = `${e.stdout ?? ""}${e.stderr ?? ""}`;
+    throw new Error(`package: Godot ${buildType} ${format} export failed: ${out || e.message}`);
+  }
+  if (!existsSync(plan.outPath)) {
+    throw new Error(`package: Godot reported success but no artifact at ${plan.outPath}`);
+  }
+  const bytes = statSync(plan.outPath).size;
+  return {
+    format: plan.format,
+    build_type: plan.build_type,
+    path: plan.outPath.slice(join(gamesDir, id).length + 1).replace(/\\/g, "/"),
+    bytes,
+    package: plan.package
+  };
+}
+
+// Assert a recorded build_artifact's real file exists and is a well-formed ZIP
+// (APK and AAB are both ZIP containers — first 4 bytes are PK\x03\x04). Guarded:
+// skips when the toolchain is absent (binaries are git-ignored, not on CI).
+export function verifyBuildArtifact(id, { gamesDir = GAMES_DIR, build_artifact, present = androidToolchainPresent() } = {}) {
+  if (!present) return { skipped: true, reason: "toolchain absent — build artifact not checked" };
+  const ba = build_artifact || readManifest(id)?.store_pass?.build_artifact;
+  const issues = [];
+  if (!ba) return { ok: false, issues: ["no build_artifact recorded in store_pass"] };
+  const abs = join(gamesDir, id, ba.path);
+  if (!existsSync(abs)) {
+    issues.push(`build artifact absent: ${ba.path} (not found at ${abs})`);
+    return { ok: false, issues, signature_ok: false };
+  }
+  const bytes = statSync(abs).size;
+  if (bytes < 1024) issues.push(`build artifact suspiciously small: ${bytes} bytes`);
+  const head = readFileSync(abs).subarray(0, 4);
+  const signature_ok = head.equals(Buffer.from([0x50, 0x4b, 0x03, 0x04]));
+  if (!signature_ok) issues.push(`build artifact is not a ZIP (bad signature, not an APK/AAB): ${ba.path}`);
+  return { ok: issues.length === 0, issues, signature_ok, bytes };
+}
+
 // Sum the committed store assets and compare to the budget. File-based; pure math via sizeBudget.
 export function budgetReport(id, { gamesDir = GAMES_DIR, budgetBytes = DEFAULT_SIZE_BUDGET } = {}) {
   const storeDir = join(gamesDir, id, "store");

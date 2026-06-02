@@ -1,5 +1,5 @@
 import { test, expect, describe } from "vitest";
-import { iconSizeTable, sizeBudget, pngSize, exportPresetCfg, parsePresetCfg, atlasLayout, splashSize, bootSplashCfg, verify, budgetReport, exportPresetsFile, buildArtifactPlan, androidToolchainPresent } from "./package.mjs";
+import { iconSizeTable, sizeBudget, pngSize, exportPresetCfg, parsePresetCfg, atlasLayout, splashSize, bootSplashCfg, verify, budgetReport, exportPresetsFile, buildArtifactPlan, androidToolchainPresent, buildArtifact, verifyBuildArtifact } from "./package.mjs";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -497,5 +497,60 @@ describe("androidToolchainPresent", () => {
       if (save.home === undefined) delete process.env.ANDROID_HOME; else process.env.ANDROID_HOME = save.home;
       if (save.root === undefined) delete process.env.ANDROID_SDK_ROOT; else process.env.ANDROID_SDK_ROOT = save.root;
     }
+  });
+});
+
+describe("buildArtifact (guarded)", () => {
+  test("skips cleanly when the toolchain is absent (no spawn)", () => {
+    const r = buildArtifact("creature-0001", { present: false });
+    expect(r.skipped).toBe(true);
+    expect(r.reason).toMatch(/ANDROID_HOME|toolchain/i);
+  });
+});
+
+describe("verifyBuildArtifact (guarded)", () => {
+  test("skips when the toolchain is absent", () => {
+    expect(verifyBuildArtifact("creature-0001", { present: false }).skipped).toBe(true);
+  });
+
+  test("passes for a present file whose first bytes are the ZIP magic PK\\x03\\x04", () => {
+    const dir = mkdtempSync(join(tmpdir(), "gf-apk-"));
+    try {
+      const buildDir = join(dir, "creature-0001", "build");
+      mkdirSync(buildDir, { recursive: true });
+      const apk = join(buildDir, "creature-0001-debug.apk");
+      // ZIP local-file-header magic + padding to clear the size floor.
+      writeFileSync(apk, Buffer.concat([Buffer.from([0x50, 0x4b, 0x03, 0x04]), Buffer.alloc(2048)]));
+      const r = verifyBuildArtifact("creature-0001", {
+        gamesDir: dir, present: true,
+        build_artifact: { format: "apk", build_type: "debug", path: "build/creature-0001-debug.apk", bytes: 2052, package: "com.gameforge.creature-0001" }
+      });
+      expect(r.skipped).toBeUndefined();
+      expect(r.ok).toBe(true);
+      expect(r.signature_ok).toBe(true);
+      expect(r.issues).toEqual([]);
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
+
+  test("flags a missing file and a bad signature", () => {
+    const dir = mkdtempSync(join(tmpdir(), "gf-apk-"));
+    try {
+      const buildDir = join(dir, "creature-0001", "build");
+      mkdirSync(buildDir, { recursive: true });
+      writeFileSync(join(buildDir, "creature-0001-debug.apk"), Buffer.from("NOT A ZIP....."));
+      const bad = verifyBuildArtifact("creature-0001", {
+        gamesDir: dir, present: true,
+        build_artifact: { format: "apk", build_type: "debug", path: "build/creature-0001-debug.apk" }
+      });
+      expect(bad.ok).toBe(false);
+      expect(bad.issues.join(" ")).toMatch(/signature|not a zip/i);
+
+      const missing = verifyBuildArtifact("creature-0001", {
+        gamesDir: dir, present: true,
+        build_artifact: { format: "aab", build_type: "release", path: "build/creature-0001-release.aab" }
+      });
+      expect(missing.ok).toBe(false);
+      expect(missing.issues.join(" ")).toMatch(/absent|not found/i);
+    } finally { rmSync(dir, { recursive: true, force: true }); }
   });
 });
