@@ -22,3 +22,10 @@ node_modules/
 
 # Claude Code runtime artifacts
 .claude/scheduled_tasks.lock
+
+# Throwaway calibration/probe artifacts (skill A/B rounds). Convention: a leading
+# underscore = scratch, never committed. Locked winners live in the SKILL.md /
+# probe-results docs, so these are reproducible — keep them out of `git status`.
+tools/_*.mjs
+**/_probe_*
+**/_aud_*
