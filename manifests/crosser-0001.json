@@ -56,6 +56,12 @@
       "name": "hazard",
       "source": "art/hazard.png",
       "origin": "raster"
+    },
+    {
+      "type": "background",
+      "name": "background",
+      "source": "art/background.png",
+      "origin": "raster"
     }
   ],
   "validation": {
@@ -99,15 +105,15 @@
     },
     "reskinned": [
       "hero",
-      "hazard"
+      "hazard",
+      "background"
     ],
     "left_primitive": [
-      "background",
       "lanes",
       "goal_row"
     ],
     "art_path": "games/crosser-0001/art/",
-    "notes": "A/B-ROUND-2 RE-SKIN (2026-06-01) — fixes the round-1 cyan-ROBOT-vs-red-DEMON incohesion (sci-fi vs fantasy = two worlds) by deriving a world_bible FIRST (see visual_system.world_bible: ONE cartoon blob-creature family) and regenerating BOTH actors as members of it. hero REGENERATED: round-1 was a mechanical cyan robot; round-2 hero is a cute round CYAN blob-creature (seed 410, accepted pass 1). hazard REGENERATED as the hero's red sibling — same blocky cartoon blob family, big/angry/red so danger reads at a glance. Hazard iteration (6 passes — the single-subject + color constraints fought each other): red-blob+stray-2nd-creature+shadow -> red-blob with white-alpha-hole -> clean GREEN blob (wrong color role) -> red TOMATO (literal, my 'tomato-red' wording) -> GREY blob (over-negation) -> [KEPT seed 420] clean single bright-RED blob, stocky/snarling, no shadow/hole/extra. Lesson folded: name the COLOR plainly ('bright red', not 'tomato-red') and don't over-stack color negatives. Style B (hard-edged pixel-art retro) via ComfyUI + SDXL Juggernaut v9 + pixel-art-xl LoRA + LayerDiffuse (RGBA). Still deliberate maximal contrast to creature-0001's soft painterly woodland = the 'one system, two visibly distinct identities' milestone evidence. hero + hazard both raster, drawn via draw_texture_rect in the existing immediate-mode _draw() (z-order/shake/hop-pop preserved). KEY TECHNIQUE — variable-width hazard: the game scrolls hazard bars of continuous width (CELL..CELL*3); a fixed-aspect sprite would stretch and break the pixel grid, so each bar is filled with N=round(w/HAZ_UNIT) exact-fit demon units (uw=w/N) — a 'pack of monsters' that keeps square pixels and makes visual width == collision width. PIXEL CRISPNESS: 1024 masters are downscaled to 128px on import (size_limit) then drawn at 64px (clean ÷2) with TEXTURE_FILTER_NEAREST + mipmaps off. Lanes/goal/HUD/pixel-grid stay procedural (flat retro bands — correct for the aesthetic, recorded as left_primitive). Both sprites accepted on pass 1 (the LoRA nailed the look). Folded creature-0001 findings: constrained single-centered-subject prompts + anti-smooth negatives; mixed-method awareness (here both actors suit raster, the flat lanes suit primitive). Visual-verified via SceneTree screenshot harness (real Vulkan renderer, RTX 5080). Selftest still SELFTEST OK; headless run clean; logic untouched. STATUS HELD AT validated (validated->styled illegal): awaits owner ~60s playtest -> playable, then human A/B + IP-safety -> styled. IP-safety: generic descriptors only, no franchise/character/studio names; every recipe negative excludes logo/watermark/text/trademarked-character/brand/celebrity.",
+    "notes": "A/B-ROUND-3 ART RE-PASS (2026-06-02, GPU-validated). Addresses the round-2 owner verdict ('art terrible/not great'). Reframe (round-3 probe): sprites were already fine; the problems were a flat near-black background void + a hero too small vs the red hazards. Fixes: (a) NEW themed BACKGROUND (M1.7-deferred capability, now in scope) — a full-frame pixel-art sunny-roadside via the plain sdxl template (layerdiffuse:false, 768x1344, seed 720); drawn as the bottom layer in _draw_background (guarded), framing the centered Frogger playfield instead of black void. NOTE: the opaque sdxl template has no LoRA node, so the pixel-art-xl LoRA can't apply to the background; the pixel look comes from prompt terms + the project's NEAREST texture_filter (set on the Main node, inherited at draw time) — validated good in-frame. (b) HERO SIZING: HERO_DRAW 64->80 px (visual only; collision HERO_SIZE=42 untouched) so the hero reads larger than a single 64px hazard unit. NEW FINDING (recorded for the asset skill): for a full-PLAYFIELD game like a lane-crosser, a background image only enriches the MARGINS — the core playfield (flat lane bands) still reads flat against the rich backdrop. Fully fixing that needs lane-TILE textures (a different technique: draw_texture_rect tiled per lane), which also risks lane-readability and so is deferred to an owner-directed follow-up rather than done speculatively. Sprites (hero, hazard) UNCHANGED from round-2. selftest SELFTEST OK; headless import clean; logic untouched. Owner aesthetic A/B pending (Phase-2 playtest). --- PRIOR (A/B-ROUND-2 RE-SKIN, 2026-06-01) — fixes the round-1 cyan-ROBOT-vs-red-DEMON incohesion (sci-fi vs fantasy = two worlds) by deriving a world_bible FIRST (see visual_system.world_bible: ONE cartoon blob-creature family) and regenerating BOTH actors as members of it. hero REGENERATED: round-1 was a mechanical cyan robot; round-2 hero is a cute round CYAN blob-creature (seed 410, accepted pass 1). hazard REGENERATED as the hero's red sibling — same blocky cartoon blob family, big/angry/red so danger reads at a glance. Hazard iteration (6 passes — the single-subject + color constraints fought each other): red-blob+stray-2nd-creature+shadow -> red-blob with white-alpha-hole -> clean GREEN blob (wrong color role) -> red TOMATO (literal, my 'tomato-red' wording) -> GREY blob (over-negation) -> [KEPT seed 420] clean single bright-RED blob, stocky/snarling, no shadow/hole/extra. Lesson folded: name the COLOR plainly ('bright red', not 'tomato-red') and don't over-stack color negatives. Style B (hard-edged pixel-art retro) via ComfyUI + SDXL Juggernaut v9 + pixel-art-xl LoRA + LayerDiffuse (RGBA). Still deliberate maximal contrast to creature-0001's soft painterly woodland = the 'one system, two visibly distinct identities' milestone evidence. hero + hazard both raster, drawn via draw_texture_rect in the existing immediate-mode _draw() (z-order/shake/hop-pop preserved). KEY TECHNIQUE — variable-width hazard: the game scrolls hazard bars of continuous width (CELL..CELL*3); a fixed-aspect sprite would stretch and break the pixel grid, so each bar is filled with N=round(w/HAZ_UNIT) exact-fit demon units (uw=w/N) — a 'pack of monsters' that keeps square pixels and makes visual width == collision width. PIXEL CRISPNESS: 1024 masters are downscaled to 128px on import (size_limit) then drawn at 64px (clean ÷2) with TEXTURE_FILTER_NEAREST + mipmaps off. Lanes/goal/HUD/pixel-grid stay procedural (flat retro bands — correct for the aesthetic, recorded as left_primitive). Both sprites accepted on pass 1 (the LoRA nailed the look). Folded creature-0001 findings: constrained single-centered-subject prompts + anti-smooth negatives; mixed-method awareness (here both actors suit raster, the flat lanes suit primitive). Visual-verified via SceneTree screenshot harness (real Vulkan renderer, RTX 5080). Selftest still SELFTEST OK; headless run clean; logic untouched. STATUS HELD AT validated (validated->styled illegal): awaits owner ~60s playtest -> playable, then human A/B + IP-safety -> styled. IP-safety: generic descriptors only, no franchise/character/studio names; every recipe negative excludes logo/watermark/text/trademarked-character/brand/celebrity.",
     "recipes": [
       {
         "name": "hero",
@@ -144,6 +150,25 @@
           "filter": "nearest",
           "compression": "lossless"
         }
+      },
+      {
+        "name": "background",
+        "checkpoint": "juggernautXL_v9.safetensors",
+        "prompt": "pixel art, 8-bit retro NES video game background scene, a bright sunny rural roadside landscape, vivid green grass fields, blue sky with simple chunky white clouds, a warm yellow sun, distant rolling green hills, flat cheerful midday light, limited bright retro arcade palette, crisp chunky pixels",
+        "negative": "logo, watermark, text, signature, ui, hud, character, creature, monster, person, animal, car, vehicle, road, lanes, smooth, blurry, antialiased, gradient, realistic, photo, 3d render, dark, gloomy, night, low quality",
+        "seed": 720,
+        "sampler": "euler",
+        "steps": 30,
+        "cfg": 7,
+        "width": 768,
+        "height": 1344,
+        "layerdiffuse": false,
+        "note": "opaque sdxl template has no LoRA node, so the pixel-art-xl LoRA cannot apply here; pixel look comes from the prompt + the project's NEAREST texture_filter (inherited at draw time). Validated good in-frame.",
+        "import_settings": {
+          "mipmaps": false,
+          "filter": "nearest",
+          "compression": "lossless"
+        }
       }
     ]
   },
@@ -164,12 +189,12 @@
       {
         "name": "hop",
         "kind": "sfx",
-        "prompt": "upbeat retro 8-bit chiptune arcade, crisp clean square-wave chip timbre, a short square wave hop blip, retro arcade jump sound, clean chip transient",
+        "prompt": "crisp clean 8-bit chiptune arcade, a short bright square-wave hop blip, retro NES jump sound, clean chip transient, single note",
         "negative": "music, melody, loop, voice, speech, ambient, reverb, explosion, noise burst, harsh, distortion, aggressive, realistic",
         "seed": 51,
         "duration_s": 1,
         "sampler": "dpmpp_3m_sde_gpu",
-        "steps": 8,
+        "steps": 100,
         "cfg": 5,
         "format": "wav",
         "loop": false,
@@ -181,12 +206,12 @@
       {
         "name": "cross",
         "kind": "sfx",
-        "prompt": "upbeat retro 8-bit chiptune arcade, crisp clean square-wave chip timbre, a bright clean 8-bit coin pickup, short cheerful chiptune chime, retro arcade score blip",
+        "prompt": "crisp clean 8-bit chiptune arcade, a bright cheerful 8-bit coin pickup, short clean chiptune chime, retro NES score blip, square wave",
         "negative": "music, loop, voice, speech, ambient, reverb, explosion, noise burst, harsh, distortion, aggressive, realistic",
         "seed": 52,
         "duration_s": 1.2,
         "sampler": "dpmpp_3m_sde_gpu",
-        "steps": 8,
+        "steps": 100,
         "cfg": 5,
         "format": "wav",
         "loop": false,
@@ -198,12 +223,12 @@
       {
         "name": "streak",
         "kind": "sfx",
-        "prompt": "upbeat retro 8-bit chiptune arcade, crisp clean square-wave chip timbre, a rising clean 8-bit arpeggio, quick chiptune power-up sparkle, square wave",
+        "prompt": "crisp clean 8-bit chiptune arcade, a quick rising clean 8-bit arpeggio power-up sparkle, bright square-wave ascending run, retro NES",
         "negative": "voice, speech, ambient, loop, explosion, noise burst, harsh, distortion, aggressive, realistic",
         "seed": 53,
         "duration_s": 1.2,
         "sampler": "dpmpp_3m_sde_gpu",
-        "steps": 8,
+        "steps": 100,
         "cfg": 5,
         "format": "wav",
         "loop": false,
@@ -215,12 +240,12 @@
       {
         "name": "gameover",
         "kind": "sfx",
-        "prompt": "upbeat retro 8-bit chiptune arcade, crisp clean square-wave chip timbre, a short descending 8-bit chiptune fail jingle, retro game over melody, square wave",
+        "prompt": "crisp clean 8-bit chiptune arcade, a short descending 8-bit fail jingle, retro NES game over melody, clean square wave",
         "negative": "voice, speech, ambient, loop, explosion, noise burst, harsh, distortion, aggressive, realistic",
         "seed": 54,
-        "duration_s": 2,
+        "duration_s": 1.8,
         "sampler": "dpmpp_3m_sde_gpu",
-        "steps": 8,
+        "steps": 100,
         "cfg": 5,
         "format": "wav",
         "loop": false,
@@ -232,13 +257,13 @@
       {
         "name": "bgm",
         "kind": "music",
-        "prompt": "upbeat chiptune loop, retro 8-bit arcade background music, square wave melody with simple bassline, energetic driving, steady seamless continuous loop",
-        "negative": "voice, speech, lyrics, vocals, ambient drone, orchestral, intro, outro, sudden change",
-        "seed": 55,
+        "prompt": "a mellow upbeat chiptune melody, soft square and triangle wave lead with a simple gentle bassline, relaxed retro 8-bit arcade tune, light and bouncy repeating melody, steady continuous loop",
+        "negative": "drone, pad, sustained, monotone, single note, held note, atmosphere, texture, harsh, aggressive, voice, speech, lyrics, vocals, intro, outro, sudden change",
+        "seed": 202,
         "duration_s": 30,
         "sampler": "dpmpp_3m_sde_gpu",
         "steps": 50,
-        "cfg": 7,
+        "cfg": 6,
         "format": "wav",
         "loop": true,
         "import_settings": {
@@ -279,6 +304,6 @@
         "signal": "_ready loops continuously"
       }
     ],
-    "notes": "A/B-ROUND-2 AUDIO RE-PASS (2026-06-01). (1) SFX TIMBRE FIX: derived audio_system.sonic_character from concept.theme (crisp clean 8-bit chiptune — square/triangle blips, clean chip transients) and regenerated all 4 SFX with it threaded into every prompt PLUS theme-aware negatives ('explosion, noise burst, harsh, distortion, aggressive, realistic') that round 1 lacked — addresses the round-1 'strange aggressive sudden explosions' finding (the SFX defaulted to generic explosive transients in BOTH this arcade theme and the cozy creature theme = the skill wasn't theme-bound). (2) BGM-NOT-PLAYING — same REAL root cause found on creature-0001 and fixed identically here (proves it generalizes, not game-specific): an IMPORTED long AudioStreamWAV (~30s bed) silently won't play on the real WASAPI driver while SFX do; _make_player now REBUILDS the bed stream in code from the loaded PCM data + loops the whole sample + autoplay before add_child; bgm.wav.import set compress/mode=0 (PCM) so rebuilt data is raw 16-bit. Probe confirms MusicAmbient.playing=true, advancing. Supersedes round-1's same-frame-play() guess. (3) LEVELS: bed volume_db=-4 under the 0 dB SFX. Stable Audio Open (WAV, soundfile patch). Hard-edged chiptune identity (style B) — deliberate sonic contrast to creature-0001's warm acoustic. selftest SELFTEST OK; headless run clean; logic untouched. STATUS HELD (not auto-advanced to scored): awaits owner playtest + audio A/B. IP-safe: no artist/track names; music negative excludes vocals."
+    "notes": "A/B-ROUND-3 AUDIO RE-PASS (2026-06-02, GPU-validated calibration). Addresses the round-2 owner verdict (SFX 'explosive', BGM 'weak'). Root cause (shared with creature; docs/superpowers/2026-06-02-audio-art-probe-results.md): explosive SFX = steps≈8 broadband noise, NOT prompt. Regenerated all 4 SFX as clean square-wave chiptune at steps 100 (objective check: ZCR 1400-3900/s clean; gameover trimmed to 0.54s by the envelope; streak is a deliberately-bright ascending arpeggio so its ZCR runs higher). The deterministic loudness/trim envelope is now AUTO-APPLIED by comfy.mjs genAudio for kind:sfx (SFX hit ~RMS 0.13). BGM: regenerated as a mellow chiptune MELODY (cfg 6, anti-drone negatives, winning probe seed 202) — chiptune is naturally melodic so it only needed de-harshening. LEVELS: the chiptune bed is dense/loud (~RMS 0.20, ~4 dB ABOVE the SFX), so volume_db CUT to -12 (round-2 was -4) to sit ~8-9 dB under. Wiring (bed rebuild + autoplay) unchanged from round-2. Owner ear-judgment pending (Phase-2 playtest). --- PRIOR (A/B-ROUND-2 AUDIO RE-PASS, 2026-06-01). (1) SFX TIMBRE FIX: derived audio_system.sonic_character from concept.theme (crisp clean 8-bit chiptune — square/triangle blips, clean chip transients) and regenerated all 4 SFX with it threaded into every prompt PLUS theme-aware negatives ('explosion, noise burst, harsh, distortion, aggressive, realistic') that round 1 lacked — addresses the round-1 'strange aggressive sudden explosions' finding (the SFX defaulted to generic explosive transients in BOTH this arcade theme and the cozy creature theme = the skill wasn't theme-bound). (2) BGM-NOT-PLAYING — same REAL root cause found on creature-0001 and fixed identically here (proves it generalizes, not game-specific): an IMPORTED long AudioStreamWAV (~30s bed) silently won't play on the real WASAPI driver while SFX do; _make_player now REBUILDS the bed stream in code from the loaded PCM data + loops the whole sample + autoplay before add_child; bgm.wav.import set compress/mode=0 (PCM) so rebuilt data is raw 16-bit. Probe confirms MusicAmbient.playing=true, advancing. Supersedes round-1's same-frame-play() guess. (3) LEVELS: bed volume_db=-4 under the 0 dB SFX. Stable Audio Open (WAV, soundfile patch). Hard-edged chiptune identity (style B) — deliberate sonic contrast to creature-0001's warm acoustic. selftest SELFTEST OK; headless run clean; logic untouched. STATUS HELD (not auto-advanced to scored): awaits owner playtest + audio A/B. IP-safe: no artist/track names; music negative excludes vocals."
   }
 }

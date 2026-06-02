@@ -127,10 +127,11 @@ var audio_play_counts: Dictionary = {}   # event -> int, selftest hook
 # --- Raster art (M1.5 asset_pass) ---
 # Painterly RGBA sprites generated via ComfyUI+SDXL(Juggernaut)+LayerDiffuse.
 # spirit + hazard are raster; seed stays a procedural glow-mote (mixed-method).
-const SPIRIT_DRAW: float = 110.0   # on-screen sprite size (px); footprint/hitbox = SPIRIT_RADIUS
+const SPIRIT_DRAW: float = 150.0   # on-screen sprite size (px); footprint/hitbox = SPIRIT_RADIUS (round-3: bigger hero presence vs the new backdrop)
 const HAZARD_DRAW: float = 92.0
 var tex_spirit: Texture2D = null
 var tex_hazard: Texture2D = null
+var tex_bg: Texture2D = null
 
 
 # ============================================================
@@ -145,6 +146,7 @@ func _ready() -> void:
 	texture_filter = TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	tex_spirit = load("res://art/spirit.png")
 	tex_hazard = load("res://art/hazard.png")
+	tex_bg = load("res://art/background.png")
 	_setup_audio()
 	_build_background()
 	_start_game()
@@ -191,7 +193,9 @@ func _make_player(event_name: String, path: String, looping: bool) -> void:
 		# Start on tree entry (autoplay set BEFORE add_child).
 		p.autoplay = true
 		# Audible bed mixed UNDER the SFX (which play at 0 dB default).
-		p.volume_db = -4.0
+		# Round-3 bed is a quiet fingerpicked nylon lullaby (~RMS 0.037, already
+		# ~11 dB under the SFX), so a small BOOST keeps it audible-but-under.
+		p.volume_db = 2.0
 	add_child(p)
 	_audio_players[event_name] = p
 
@@ -566,7 +570,12 @@ func _draw() -> void:
 
 
 func _draw_background() -> void:
-	# Deep forest green base
+	# Round-3: themed painterly autumn-glade backdrop (raster) replaces the flat
+	# procedural green void + parallax silhouettes that read "cheap" in playtest.
+	if tex_bg != null:
+		draw_texture_rect(tex_bg, Rect2(0, 0, screen_w, screen_h), false)
+		return
+	# Deep forest green base (procedural fallback)
 	draw_rect(Rect2(0, 0, screen_w, screen_h), COL_BG)
 
 	# Far parallax tree silhouettes (crowns at top, slow drift)

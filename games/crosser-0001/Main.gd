@@ -139,10 +139,11 @@ var audio_play_counts: Dictionary = {}   # event -> int, selftest hook
 # Pixel-art RGBA sprites via ComfyUI + SDXL Juggernaut + pixel-art-xl LoRA + LayerDiffuse.
 # Masters downscaled to 128px on import; drawn small with NEAREST filter = crisp pixels.
 # Variable-width hazard bars are filled with N exact-fit demon units (no stretch).
-const HERO_DRAW: float = 64.0    # visual size; collision footprint stays HERO_SIZE
+const HERO_DRAW: float = 80.0    # visual size; collision footprint stays HERO_SIZE (round-3: bigger hero, clearly larger than 64px hazard units)
 const HAZ_UNIT: float  = 64.0    # target square size per tiled hazard-creature unit
 var tex_hero: Texture2D = null
 var tex_hazard: Texture2D = null
+var tex_bg: Texture2D = null
 
 # ============================================================
 # Init
@@ -155,6 +156,7 @@ func _ready() -> void:
 	# NEAREST filtering keeps the downscaled pixel-art sprites crisp (no blur).
 	texture_filter = TEXTURE_FILTER_NEAREST
 	tex_hero = load("res://art/hero.png")
+	tex_bg = load("res://art/background.png")
 	tex_hazard = load("res://art/hazard.png")
 	_setup_audio()
 	_start_game()
@@ -201,7 +203,9 @@ func _make_player(event_name: String, path: String, looping: bool) -> void:
 		# Start on tree entry (autoplay set BEFORE add_child).
 		p.autoplay = true
 		# Audible bed mixed UNDER the SFX (which play at 0 dB default).
-		p.volume_db = -4.0
+		# Round-3 chiptune bed is dense/loud (~RMS 0.20, ~4 dB ABOVE the SFX), so it
+		# needs a firm cut to sit ~8-9 dB UNDER them.
+		p.volume_db = -12.0
 	add_child(p)
 	_audio_players[event_name] = p
 
@@ -531,8 +535,12 @@ func _draw() -> void:
 
 
 func _draw_background() -> void:
-	# Dark near-black fill outside field
-	draw_rect(Rect2(0, 0, screen_w, screen_h), COL_BG)
+	# Round-3: pixel-art sunny-roadside backdrop (raster) frames the playfield,
+	# replacing the flat near-black void in the margins around the lanes.
+	if tex_bg != null:
+		draw_texture_rect(tex_bg, Rect2(0, 0, screen_w, screen_h), false)
+	else:
+		draw_rect(Rect2(0, 0, screen_w, screen_h), COL_BG)
 
 	# Faint pixel-grid overlay on the field area (retro look)
 	var field_w: float  = CELL * float(NUM_CELLS_X)

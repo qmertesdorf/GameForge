@@ -129,8 +129,12 @@
               "steps": { "type": "number" },
               "cfg": { "type": "number" },
               "master_resolution": { "type": "number" },
+              "width": { "type": "number" },
+              "height": { "type": "number" },
               "layerdiffuse": { "type": "boolean" },
+              "refine": { "type": "boolean" },
               "lora": { "type": "string" },
+              "note": { "type": "string" },
               "import_settings": {
                 "type": "object",
                 "additionalProperties": false,

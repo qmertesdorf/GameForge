@@ -60,6 +60,12 @@
       "name": "hazard",
       "source": "art/hazard.png",
       "origin": "raster"
+    },
+    {
+      "type": "background",
+      "name": "background",
+      "source": "art/background.png",
+      "origin": "raster"
     }
   ],
   "validation": {
@@ -100,14 +106,14 @@
     },
     "reskinned": [
       "spirit",
-      "hazard"
-    ],
-    "left_primitive": [
-      "seed",
+      "hazard",
       "background"
     ],
+    "left_primitive": [
+      "seed"
+    ],
     "art_path": "games/creature-0001/art/",
-    "notes": "A/B-ROUND-2 RE-SKIN (2026-06-01) — addresses the round-1 'very bad / incohesion' finding by deriving a world_bible FIRST (see visual_system.world_bible) and regenerating the hazard as the spirit's dark sibling in the SAME painterly storybook world, instead of an unrelated darker critter. spirit KEPT (round-1 pass-1 amber seed-spirit, already on-bible). hazard REGENERATED: round-1 produced a dark spiky bird holding a stick (off-family, prop, different read); round-2 hazard is a dark charcoal+rust-red thorn-creature with glowing eyes and a bristling spiky silhouette that reads as danger at a glance while sharing the spirit's painterly medium + autumn palette + soft glow (cohesion via world/medium/palette/lighting, contrast via material/silhouette/value). Hazard iteration (4 passes, the cozy-storybook scaffold is a strong 'cute mammal' attractor): fox-in-a-jacket -> cute bird-on-branch -> [KEPT] dark red-eyed thorn-creature -> cute hamster-with-pumpkin; attempt 3 (seed 352) is the only one whose threat reads at a glance, so it was restored. Style A (painterly/warm-woodland) via ComfyUI + SDXL Juggernaut v9 + LayerDiffuse (RGBA); both sprites drawn via draw_texture_rect in the existing immediate-mode _draw() (z-order/shake/squash preserved). MIXED-METHOD unchanged: seed stays a primitive glow-mote (round-1: SDXL over-elaborated a 14px dot across 4 tries; procedural glow is higher-quality). BACKGROUND: parallax autumn tree-silhouette field stays PROCEDURAL and is listed in left_primitive — a KNOWN M1.7-DEFERRED cohesion gap (static-themed-backdrop generation waits for M1.7), not a silent omission. Visual-verified by composing a play frame with the SceneTree screenshot harness (real Vulkan renderer, RTX 5080) — spirit, hazard, seeds, backdrop, HUD all render with no double-draw. Selftest SELFTEST OK; headless run clean; logic untouched. STATUS HELD AT validated (validated->styled is illegal): awaits owner ~60s playtest -> playable, then human A/B + IP-safety -> styled. IP-safety: generic descriptors only, no franchise/character/studio names; every recipe negative excludes logo/watermark/text/trademarked-character/brand/celebrity.",
+    "notes": "A/B-ROUND-3 ART RE-PASS (2026-06-02, GPU-validated). Addresses the round-2 owner re-playtest verdict ('art terrible/not great'). KEY REFRAME (round-3 probe): the SPRITES were already fine; 'terrible' came from (1) a flat primitive background (dark-green void + parallax silhouettes) and (2) the hero too small in a big field — NOT sprite quality. Fixes: (a) NEW themed BACKGROUND generation (the M1.7-deferred capability, now in scope) — a full-frame OPAQUE painterly autumn-glade via the plain sdxl template (layerdiffuse:false, 768x1344 portrait, seed 701); drawn as the bottom layer in _draw_background (guarded, procedural fallback kept), replacing the flat void. In-frame screenshot confirms a rich golden-hour forest backdrop with the spirit compositing cleanly (no alpha halo, no double-draw). (b) HERO SIZING: SPIRIT_DRAW 110->150 px (visual only; hitbox SPIRIT_RADIUS=26 untouched) so the spirit reads as the subject. (c) REFINE-PASS VALIDATION (the UNPROVEN structural concern): generated a spirit via the sdxl-layerdiffuse-refine template (1.5x LatentUpscale + denoise-0.45 second pass -> 1536 master) and objectively verified the LayerDiffuse alpha-join stays CLEAN on the upscaled latent (Godot alpha check: transparent corners 0.00, transFrac 0.61 == the 1024 original's 0.62, equivalent edge). So refine is now GPU-VERIFIED-CLEAN, but per the round-3 low-ROI reframe it was NOT adopted as the shipped spirit (marginal gain + would churn the store icon/atlas derived from spirit.png); kept as a validated lever. Sprites (spirit, hazard) UNCHANGED from round-2. selftest SELFTEST OK; headless import clean; logic untouched. Owner aesthetic A/B pending (Phase-2 playtest) — technical validation done, aesthetic sign-off is the remaining gate. --- PRIOR (A/B-ROUND-2 RE-SKIN, 2026-06-01) — addresses the round-1 'very bad / incohesion' finding by deriving a world_bible FIRST (see visual_system.world_bible) and regenerating the hazard as the spirit's dark sibling in the SAME painterly storybook world, instead of an unrelated darker critter. spirit KEPT (round-1 pass-1 amber seed-spirit, already on-bible). hazard REGENERATED: round-1 produced a dark spiky bird holding a stick (off-family, prop, different read); round-2 hazard is a dark charcoal+rust-red thorn-creature with glowing eyes and a bristling spiky silhouette that reads as danger at a glance while sharing the spirit's painterly medium + autumn palette + soft glow (cohesion via world/medium/palette/lighting, contrast via material/silhouette/value). Hazard iteration (4 passes, the cozy-storybook scaffold is a strong 'cute mammal' attractor): fox-in-a-jacket -> cute bird-on-branch -> [KEPT] dark red-eyed thorn-creature -> cute hamster-with-pumpkin; attempt 3 (seed 352) is the only one whose threat reads at a glance, so it was restored. Style A (painterly/warm-woodland) via ComfyUI + SDXL Juggernaut v9 + LayerDiffuse (RGBA); both sprites drawn via draw_texture_rect in the existing immediate-mode _draw() (z-order/shake/squash preserved). MIXED-METHOD unchanged: seed stays a primitive glow-mote (round-1: SDXL over-elaborated a 14px dot across 4 tries; procedural glow is higher-quality). BACKGROUND: parallax autumn tree-silhouette field stays PROCEDURAL and is listed in left_primitive — a KNOWN M1.7-DEFERRED cohesion gap (static-themed-backdrop generation waits for M1.7), not a silent omission. Visual-verified by composing a play frame with the SceneTree screenshot harness (real Vulkan renderer, RTX 5080) — spirit, hazard, seeds, backdrop, HUD all render with no double-draw. Selftest SELFTEST OK; headless run clean; logic untouched. STATUS HELD AT validated (validated->styled is illegal): awaits owner ~60s playtest -> playable, then human A/B + IP-safety -> styled. IP-safety: generic descriptors only, no franchise/character/studio names; every recipe negative excludes logo/watermark/text/trademarked-character/brand/celebrity.",
     "recipes": [
       {
         "name": "spirit",
@@ -142,6 +148,24 @@
           "filter": "linear",
           "compression": "lossless"
         }
+      },
+      {
+        "name": "background",
+        "checkpoint": "juggernautXL_v9.safetensors",
+        "prompt": "painterly storybook illustration, soft hand-painted brushwork, cozy childrens picture book art, a dappled autumn woodland glade at golden hour, warm amber rust and gold autumn forest, soft rounded trees and gently falling leaves, mossy forest floor, soft depth and gentle bokeh light, a peaceful empty clearing, warm magical glow, background environment scene",
+        "negative": "logo, watermark, text, signature, frame, border, character, creature, person, animal, monster, sprite, ui, hud, dark, gloomy, scary, harsh, photo, realistic, 3d render, low quality, blurry",
+        "seed": 701,
+        "sampler": "euler",
+        "steps": 32,
+        "cfg": 7,
+        "width": 768,
+        "height": 1344,
+        "layerdiffuse": false,
+        "import_settings": {
+          "mipmaps": true,
+          "filter": "linear",
+          "compression": "lossless"
+        }
       }
     ]
   },
@@ -156,19 +180,19 @@
         "acoustic",
         "woodland"
       ],
-      "sonic_character": "soft organic acoustic timbre — gentle wooden, leaf and cloth taps, soft bell and chime tones, warm woodland textures; NO electronic/synth transients, NO explosive or harsh attacks. SFX keep a short single-shot envelope but draw their material from this vocabulary (the audio sibling of the visual world_bible), which is what kept them off the generic explosive default."
+      "sonic_character": "warm wooden KALIMBA / thumb-piano pluck (mbira) — soft organic rounded notes, gentle warm taps, NO electronic/synth transients, NO explosive or harsh attacks. Round-3 lesson: generic 'bell chime'/music-box/celesta read as 'irritating tings'; naming a concrete warm instrument (kalimba) is the cozy winner. SFX draw their material from this vocabulary (the audio sibling of the visual world_bible); the deterministic envelope (comfy.mjs envelopeSfxWav) shapes loudness, and steps 50-100 (not 8) keep the tone clean instead of broadband-noisy."
     },
     "recipes": [
       {
         "name": "collect",
         "kind": "sfx",
-        "prompt": "warm gentle organic woodland atmosphere, soft acoustic timbre, soft wooden and leaf textures, a soft bright wooden bell chime pickup, single short gentle pluck, warm magical sparkle",
-        "negative": "music, melody, loop, voice, speech, explosion, harsh, distortion, aggressive, electronic, synth, noise burst",
+        "prompt": "warm gentle organic woodland atmosphere, a single soft warm kalimba thumb-piano pluck, gentle wooden mbira note, a cozy collectible seed pickup, warm rounded tone, soft magical sparkle",
+        "negative": "music, melody, loop, voice, speech, explosion, harsh, distortion, aggressive, electronic, synth, gunshot, noise burst, bright tinny",
         "seed": 11,
-        "duration_s": 1.5,
+        "duration_s": 1.2,
         "sampler": "dpmpp_3m_sde_gpu",
-        "steps": 8,
-        "cfg": 5,
+        "steps": 55,
+        "cfg": 6,
         "format": "wav",
         "loop": false,
         "import_settings": {
@@ -179,13 +203,13 @@
       {
         "name": "streak",
         "kind": "sfx",
-        "prompt": "warm gentle organic woodland atmosphere, soft acoustic timbre, a gentle bright ascending wooden chime shimmer, short rising magical sparkle, warm celebratory",
-        "negative": "music, melody, loop, voice, speech, explosion, harsh, distortion, aggressive, electronic, synth, noise burst",
+        "prompt": "warm gentle organic woodland atmosphere, a gentle ascending warm kalimba thumb-piano arpeggio, soft rising wooden mbira shimmer, cozy celebratory sparkle, warm rounded tone",
+        "negative": "music, loop, voice, speech, explosion, harsh, distortion, aggressive, electronic, synth, gunshot, noise burst, bright tinny, shrill",
         "seed": 22,
-        "duration_s": 1.5,
+        "duration_s": 1.2,
         "sampler": "dpmpp_3m_sde_gpu",
-        "steps": 8,
-        "cfg": 5,
+        "steps": 55,
+        "cfg": 6,
         "format": "wav",
         "loop": false,
         "import_settings": {
@@ -196,13 +220,13 @@
       {
         "name": "gameover",
         "kind": "sfx",
-        "prompt": "warm gentle organic woodland atmosphere, soft acoustic timbre, a soft low gentle descending wooden tone, muted soft woodland thud, melancholy chime fade",
-        "negative": "music, melody, loop, voice, speech, explosion, harsh, distortion, aggressive, electronic, synth, noise burst, bright",
+        "prompt": "warm gentle organic woodland atmosphere, a soft low gentle descending warm kalimba phrase, mellow wooden mbira fall, a gentle melancholy woodland fade, warm and soft",
+        "negative": "music, loop, voice, speech, explosion, harsh, distortion, aggressive, electronic, synth, gunshot, noise burst, bright tinny, shrill",
         "seed": 33,
-        "duration_s": 2,
+        "duration_s": 1.8,
         "sampler": "dpmpp_3m_sde_gpu",
-        "steps": 8,
-        "cfg": 5,
+        "steps": 55,
+        "cfg": 6,
         "format": "wav",
         "loop": false,
         "import_settings": {
@@ -213,13 +237,13 @@
       {
         "name": "bgm",
         "kind": "music",
-        "prompt": "gentle looping forest ambient pad, warm organic woodland atmosphere, soft sustained strings and soft flute texture, calm peaceful, steady seamless continuous texture",
-        "negative": "voice, speech, lyrics, vocals, drums, percussion, hard beat, intro, outro, sudden change",
-        "seed": 44,
+        "prompt": "a gentle fingerpicked nylon-string acoustic guitar lullaby, simple warm repeating folk melody, low warm register, cozy autumn woodland storybook, soft plucked notes, calm and tender, steady continuous looping melody",
+        "negative": "drone, pad, sustained, monotone, single note, held note, atmosphere, texture, ambient, high pitched, shrill, tinny, bright, voice, speech, lyrics, vocals, drums, percussion, intro, outro, sudden change",
+        "seed": 311,
         "duration_s": 30,
         "sampler": "dpmpp_3m_sde_gpu",
         "steps": 50,
-        "cfg": 7,
+        "cfg": 8,
         "format": "wav",
         "loop": true,
         "import_settings": {
@@ -254,7 +278,7 @@
         "signal": "_ready loops continuously"
       }
     ],
-    "notes": "A/B-ROUND-2 AUDIO RE-PASS (2026-06-01). (1) SFX TIMBRE FIX: derived audio_system.sonic_character from concept.theme (soft organic acoustic — wooden/leaf/bell, no electronic/explosive) and regenerated all 3 SFX with it threaded into every prompt PLUS theme-aware negatives ('explosion, harsh, distortion, aggressive, electronic, synth, noise burst') that round 1 lacked — directly addresses the round-1 'SFX explosive, wrong for cozy theme' finding. (2) BGM-NOT-PLAYING — REAL ROOT CAUSE FOUND, supersedes round-1's wrong guess: round 1 blamed a same-frame play() after add_child; probing here proved that an IMPORTED long AudioStreamWAV (the ~30s bed) silently refuses to play (play() -> playing=false, pos=0) on the REAL WASAPI driver, while SFX (short) play fine AND a freshly-CONSTRUCTED AudioStreamWAV from the SAME PCM data plays. FIX (verified): _make_player rebuilds the bed stream in code from the loaded PCM data + loops the whole sample + autoplay before add_child; bgm.wav.import set to compress/mode=0 (PCM) so the rebuilt data is raw 16-bit (a QOA-compressed import would copy compressed bytes). Probe confirms MusicAmbient.playing=true with advancing get_playback_position(). (3) LEVELS: bed volume_db=-4 so it sits audibly UNDER the 0 dB SFX. Generated via Stable Audio Open (WAV, soundfile patch). Selftest still SELFTEST OK; headless run clean; game logic untouched. STATUS HELD (not auto-advanced to scored): awaits owner playtest + audio A/B. IP-safe: no artist/track names; music negative excludes vocals."
+    "notes": "A/B-ROUND-3 AUDIO RE-PASS (2026-06-02, GPU-validated calibration). Addresses the round-2 owner re-playtest verdict (SFX still 'explosive', BGM 'weak'). ROOT CAUSES found empirically (docs/superpowers/2026-06-02-audio-art-probe-results.md): (a) explosive SFX = generation params not prompt — steps≈8 under-denoises to broadband noise (ZCR up to 8.9k/s); steps 50-100 = clean tone. Regenerated all 3 SFX at steps 55 cfg 6 (objective check: ZCR 740-1205/s = clean, vs round-2's noise). (b) SFX needed a deterministic loudness/trim envelope — now AUTO-APPLIED by comfy.mjs genAudio for kind:sfx (envelopeSfxWav: trim-to-event -> loudness-normalize RMS 0.13 / 0.97 peak clamp -> fade 6/40ms); no hand-application. (c) cozy timbre must name a concrete warm instrument: switched to KALIMBA/thumb-piano (generic bell-chime read as irritating tings). (d) BGM ambient/pad prompt collapsed to a DRONE; fix = force a plucked MELODY (fingerpicked nylon-guitar lullaby, low/warm register) + aggressive anti-drone + anti-high-pitch negatives + cfg 8 (winning probe seed 311). LEVELS re-balanced for the new beds: bed is a quiet lullaby (~RMS 0.037), so volume_db RAISED to +2 (round-2 was -4, which buried it) to sit audible-but-under the SFX. Wiring (bed rebuild + autoplay) unchanged from round-2 (still correct). Owner ear-judgment pending (Phase-2 playtest). --- PRIOR (A/B-ROUND-2 AUDIO RE-PASS, 2026-06-01). (1) SFX TIMBRE FIX: derived audio_system.sonic_character from concept.theme (soft organic acoustic — wooden/leaf/bell, no electronic/explosive) and regenerated all 3 SFX with it threaded into every prompt PLUS theme-aware negatives ('explosion, harsh, distortion, aggressive, electronic, synth, noise burst') that round 1 lacked — directly addresses the round-1 'SFX explosive, wrong for cozy theme' finding. (2) BGM-NOT-PLAYING — REAL ROOT CAUSE FOUND, supersedes round-1's wrong guess: round 1 blamed a same-frame play() after add_child; probing here proved that an IMPORTED long AudioStreamWAV (the ~30s bed) silently refuses to play (play() -> playing=false, pos=0) on the REAL WASAPI driver, while SFX (short) play fine AND a freshly-CONSTRUCTED AudioStreamWAV from the SAME PCM data plays. FIX (verified): _make_player rebuilds the bed stream in code from the loaded PCM data + loops the whole sample + autoplay before add_child; bgm.wav.import set to compress/mode=0 (PCM) so the rebuilt data is raw 16-bit (a QOA-compressed import would copy compressed bytes). Probe confirms MusicAmbient.playing=true with advancing get_playback_position(). (3) LEVELS: bed volume_db=-4 so it sits audibly UNDER the 0 dB SFX. Generated via Stable Audio Open (WAV, soundfile patch). Selftest still SELFTEST OK; headless run clean; game logic untouched. STATUS HELD (not auto-advanced to scored): awaits owner playtest + audio A/B. IP-safe: no artist/track names; music negative excludes vocals."
   },
   "store_pass": {
     "icon_master": "art/spirit.png",
