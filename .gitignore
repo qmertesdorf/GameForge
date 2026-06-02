@@ -12,6 +12,16 @@
 *.p12
 *.mobileprovision
 
+# Per-game Android build outputs (APK/AAB already ignored by extension; this
+# also keeps the build dir itself out of git status)
+games/*/build/
+
+# Local-only Android signing config (paths + passwords for the release keystore).
+# The release keystore is referenced by buildArtifact() via env vars sourced from
+# this file; it MUST NOT be committed.
+tools/android-signing.local.json
+*-signing.local.json
+
 # OS cruft
 .DS_Store
 Thumbs.db
