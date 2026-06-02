@@ -506,3 +506,101 @@ test("refine template injects with a refine recipe (no leftover %tokens%)", () =
   expect(out).not.toMatch(/%[a-z_]+%/); // every token resolved
   expect(JSON.parse(out).ksampler_refine.inputs.scheduler).toBe("karras");
 });
+
+// ---- structural template contracts (no GPU): pin the LayerDiffuse alpha-join wiring ----
+// The RGBA join (LayeredDiffusionDecodeRGBA) must read the SAME latent the VAE decoded.
+// In the refine variant that shared latent must be the *refined* (post-upscale) sampler —
+// NOT the first pass. If a template edit ever rewires the join to the pre-upscale latent,
+// the latent resolutions mismatch and the alpha silently breaks. The A/B-round-3 resume
+// note flags exactly this as the Phase-2 GPU risk; these tests catch it in CI instead.
+function loadTemplate(name) {
+  const dir = _dn(_ffu(import.meta.url));
+  return JSON.parse(_rf(_jn(dir, "comfy-templates", name), "utf8"));
+}
+
+describe("sdxl-layerdiffuse-refine alpha-join contract", () => {
+  const tpl = loadTemplate("sdxl-layerdiffuse-refine.json");
+
+  test("the RGBA join reads the SAME latent the VAE decoded", () => {
+    expect(tpl.ld_decode.class_type).toBe("LayeredDiffusionDecodeRGBA");
+    expect(tpl.ld_decode.inputs.samples).toEqual(tpl.vaedecode.inputs.samples);
+    expect(tpl.ld_decode.inputs.images).toEqual(["vaedecode", 0]);
+  });
+
+  test("the join runs on the REFINED (post-upscale) pass, not the first pass", () => {
+    expect(tpl.upscale.class_type).toBe("LatentUpscaleBy");
+    expect(tpl.upscale.inputs.samples).toEqual(["ksampler", 0]);          // upscale the first-pass latent
+    expect(tpl.ksampler_refine.inputs.latent_image).toEqual(["upscale", 0]); // refine consumes the upscaled latent
+    expect(tpl.ld_decode.inputs.samples).toEqual(["ksampler_refine", 0]);   // join reads the refined latent
+  });
+
+  test("the refine pass is a partial-denoise second pass; first pass is a full roll", () => {
+    expect(tpl.ksampler.inputs.denoise).toBe(1.0);
+    expect(tpl.ksampler_refine.inputs.denoise).toBeGreaterThan(0);
+    expect(tpl.ksampler_refine.inputs.denoise).toBeLessThan(1);
+  });
+
+  test("LayerDiffuse is applied to BOTH passes", () => {
+    expect(tpl.ld_apply.class_type).toBe("LayeredDiffusionApply");
+    expect(tpl.ksampler.inputs.model).toEqual(["ld_apply", 0]);
+    expect(tpl.ksampler_refine.inputs.model).toEqual(["ld_apply", 0]);
+  });
+
+  test("the saved image is the RGBA join, not the opaque VAE output", () => {
+    expect(tpl.save.inputs.images).toEqual(["ld_decode", 0]);
+  });
+
+  test("matches the base layerdiffuse join contract (same decode node + save source + same-latent invariant)", () => {
+    const base = loadTemplate("sdxl-layerdiffuse.json");
+    expect(tpl.ld_decode.class_type).toBe(base.ld_decode.class_type);
+    expect(tpl.ld_decode.inputs.images).toEqual(base.ld_decode.inputs.images);
+    expect(tpl.save.inputs.images).toEqual(base.save.inputs.images);
+    expect(base.ld_decode.inputs.samples).toEqual(base.vaedecode.inputs.samples); // invariant holds in base too
+  });
+});
+
+describe("background-gen path (opaque sdxl, non-square)", () => {
+  test("injects a non-square background with no leftover tokens and no alpha-join node", () => {
+    const recipe = { checkpoint: "j.safetensors", prompt: "a misty forest clearing", negative: "logo", seed: 7, sampler: "dpmpp_2m", steps: 24, cfg: 6, width: 1024, height: 576, scheduler: "karras" };
+    const out = injectRecipe(loadTemplate("sdxl.json"), recipe);
+    const s = JSON.stringify(out);
+    expect(s).not.toMatch(/%[a-z_]+%/);                  // every token resolved
+    expect(out.latent.inputs.width).toBe(1024);          // non-square honored…
+    expect(out.latent.inputs.height).toBe(576);          // …not coerced to a square
+    expect(s).not.toMatch(/LayeredDiffusionDecodeRGBA/); // opaque path: no alpha join
+    expect(out.save.inputs.images).toEqual(["vaedecode", 0]); // saves the opaque pixels
+  });
+});
+
+describe("envelopeSfxWav — degenerate clips", () => {
+  // Build an N-channel WAV with a tone window over sub-threshold "silence", per channel.
+  function makeMultiWav(amps, { rate = 44100, pre = 100, tone = 80, post = 120, freq = 440 } = {}) {
+    const ms = (m) => Math.floor((rate * m) / 1000);
+    const n = ms(pre) + ms(tone) + ms(post), s = ms(pre), e = ms(pre) + ms(tone);
+    const chans = amps.map((amp) => {
+      const ch = new Float32Array(n);
+      for (let i = 0; i < n; i++) ch[i] = (i >= s && i < e) ? amp * Math.sin((2 * Math.PI * freq * (i - s)) / rate) : 0.0002 * Math.sin(i);
+      return ch;
+    });
+    return encodeWav(amps.length, rate, chans);
+  }
+
+  test("a near-silent dud is NOT loudness-lifted to full scale", () => {
+    // peak ~0.0005 — below the silence floor. Current behaviour would apply a ~400× gain and
+    // amplify noise toward the 0.97 clamp; a dud generation must stay quiet, not become a blast.
+    const out = decodeWav(envelopeSfxWav(makeMultiWav([0.0005])));
+    const s = out.samples[0];
+    let pk = 0, sumsq = 0; for (const v of s) { pk = Math.max(pk, Math.abs(v)); sumsq += v * v; }
+    expect(pk).toBeLessThan(0.05);                       // not blown up to the clamp
+    expect(Math.sqrt(sumsq / s.length)).toBeLessThan(0.05); // not lifted toward the 0.13 RMS target
+  });
+
+  test("preserves stereo: 2-channel in → 2-channel out, both channels enveloped", () => {
+    const out = decodeWav(envelopeSfxWav(makeMultiWav([0.5, 0.4])));
+    expect(out.channels).toBe(2);
+    expect(out.samples[0].length).toBe(out.samples[1].length); // trimmed to one common window
+    let pk = 0; for (const ch of out.samples) for (const v of ch) pk = Math.max(pk, Math.abs(v));
+    expect(pk).toBeLessThanOrEqual(0.97 + 1e-3);          // peak clamp holds across channels
+    for (const ch of out.samples) expect(Math.abs(ch[ch.length - 1])).toBeLessThan(0.05); // fade-out on both
+  });
+});

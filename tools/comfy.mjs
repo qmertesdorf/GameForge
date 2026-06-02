@@ -123,7 +123,7 @@ export function encodeWav(channels, sampleRate, samples) {
 
 // trim-to-event → loudness-normalize (RMS target + peak clamp) → fade-in/out.
 // Defaults are the round-3 locked values. Pure.
-export function envelopeSfxWav(buf, { targetRms = 0.13, peak = 0.97, fadeInMs = 6, fadeOutMs = 40, eventDb = -32, padMs = 8 } = {}) {
+export function envelopeSfxWav(buf, { targetRms = 0.13, peak = 0.97, fadeInMs = 6, fadeOutMs = 40, eventDb = -32, padMs = 8, silenceFloor = 1e-3 } = {}) {
   const { channels, sampleRate, samples } = decodeWav(buf);
   const n = samples[0].length;
   // 1. event bounds on the ORIGINAL signal, threshold relative to its own peak.
@@ -146,7 +146,10 @@ export function envelopeSfxWav(buf, { targetRms = 0.13, peak = 0.97, fadeInMs = 
   let sumsq = 0, cnt = 0;
   for (let c = 0; c < channels; c++) for (let i = 0; i < len; i++) { sumsq += out[c][i] * out[c][i]; cnt++; }
   const rms = Math.sqrt(sumsq / cnt);
-  let gain = rms > 0 ? targetRms / rms : 1;
+  // A dud generation (near-pure-silence: loudest sample below the floor) would otherwise be
+  // multiplied by a huge targetRms/rms gain, blowing faint noise up to the peak clamp — turning
+  // a silent clip into a blast. Below the floor, skip the loudness lift and leave it quiet.
+  let gain = peak0 >= silenceFloor && rms > 0 ? targetRms / rms : 1;
   let pk = 0;
   for (let c = 0; c < channels; c++) for (let i = 0; i < len; i++) pk = Math.max(pk, Math.abs(out[c][i] * gain));
   if (pk > peak) gain *= peak / pk;
