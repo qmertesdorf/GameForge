@@ -368,3 +368,78 @@ describe("templateName", () => {
     expect(templateName({ layerdiffuse: false })).toBe("sdxl");
   });
 });
+
+import { decodeWav, encodeWav, envelopeSfxWav } from "./comfy.mjs";
+
+// Build a mono 16-bit WAV: `pre` ms of near-silence, `tone` ms of a sine at
+// amplitude `amp`, `post` ms of near-silence. Returns a Buffer via encodeWav so
+// these tests don't depend on a real ComfyUI clip.
+function makeWav({ rate = 44100, pre = 100, tone = 80, post = 120, amp = 0.5, freq = 440 } = {}) {
+  const ms = (m) => Math.floor((rate * m) / 1000);
+  const n = ms(pre) + ms(tone) + ms(post);
+  const ch = new Float32Array(n);
+  const start = ms(pre), end = ms(pre) + ms(tone);
+  for (let i = 0; i < n; i++) {
+    if (i >= start && i < end) ch[i] = amp * Math.sin((2 * Math.PI * freq * (i - start)) / rate);
+    else ch[i] = 0.0002 * Math.sin(i); // sub-threshold "silence"
+  }
+  return encodeWav(1, rate, [ch]);
+}
+
+describe("encodeWav / decodeWav", () => {
+  test("round-trips channels, rate, and samples within int16 quantization", () => {
+    const rate = 22050;
+    const a = new Float32Array([0, 0.5, -0.5, 0.999, -0.999, 0.25]);
+    const buf = encodeWav(1, rate, [a]);
+    const out = decodeWav(buf);
+    expect(out.channels).toBe(1);
+    expect(out.sampleRate).toBe(rate);
+    expect(out.bitDepth).toBe(16);
+    for (let i = 0; i < a.length; i++) expect(Math.abs(out.samples[0][i] - a[i])).toBeLessThan(1 / 32000);
+  });
+
+  test("throws on a non-RIFF buffer", () => {
+    expect(() => decodeWav(Buffer.from("not a wav at all, just text......"))).toThrow(/RIFF|WAVE/);
+  });
+});
+
+describe("envelopeSfxWav", () => {
+  test("trims leading/trailing near-silence to roughly the event + pad", () => {
+    const rate = 44100;
+    const buf = makeWav({ rate, pre: 100, tone: 80, post: 120, amp: 0.5 });
+    const out = decodeWav(envelopeSfxWav(buf));
+    const inMs = (decodeWav(buf).samples[0].length / rate) * 1000;
+    const outMs = (out.samples[0].length / rate) * 1000;
+    expect(outMs).toBeLessThan(inMs);            // silence was trimmed
+    expect(outMs).toBeGreaterThan(80);           // the 80 ms event survived
+    expect(outMs).toBeLessThan(80 + 2 * 8 + 5);  // ~ event + 2*pad(8ms), small tolerance
+  });
+
+  test("loudness-normalizes a quiet clip up toward the RMS target", () => {
+    const out = decodeWav(envelopeSfxWav(makeWav({ amp: 0.03, pre: 20, post: 20 })));
+    const s = out.samples[0];
+    let sumsq = 0; for (let i = 0; i < s.length; i++) sumsq += s[i] * s[i];
+    const rms = Math.sqrt(sumsq / s.length);
+    expect(rms).toBeGreaterThan(0.08); // lifted well above the 0.03 input toward 0.13
+  });
+
+  test("never exceeds the peak clamp", () => {
+    const out = decodeWav(envelopeSfxWav(makeWav({ amp: 0.9, pre: 20, post: 20 })));
+    let pk = 0; for (const v of out.samples[0]) pk = Math.max(pk, Math.abs(v));
+    expect(pk).toBeLessThanOrEqual(0.97 + 1e-3);
+  });
+
+  test("applies fades — first and last samples are ~silent", () => {
+    const out = decodeWav(envelopeSfxWav(makeWav({ amp: 0.5 })));
+    const s = out.samples[0];
+    expect(Math.abs(s[0])).toBeLessThan(0.05);
+    expect(Math.abs(s[s.length - 1])).toBeLessThan(0.05);
+  });
+
+  test("does not mutate the input buffer", () => {
+    const buf = makeWav({ amp: 0.5 });
+    const before = Buffer.from(buf);
+    envelopeSfxWav(buf);
+    expect(buf.equals(before)).toBe(true);
+  });
+});

@@ -49,6 +49,113 @@ export function injectRecipe(template, recipe) {
   return walk(template);
 }
 
+// ---- WAV post-process seam (SFX envelope) -------------------------------
+// Stable Audio Open (via the soundfile-WAV patch on the pinned torch 2.11 stack)
+// emits 16-bit PCM WAV. These helpers decode that to per-channel float, apply the
+// SFX envelope the A/B-round-3 probe locked in, and re-encode. Pure: Buffer in,
+// Buffer out — no disk, no network, no input mutation (slice() copies). The
+// envelope (trim-to-event → loudness-normalize → fades) is what turns a raw SAO
+// clip from "explosive / too quiet" into a clean, perceptibly-loud one-shot.
+// Evidence + the validated prototype: docs/superpowers/2026-06-02-audio-art-probe-results.md.
+
+export function decodeWav(buf) {
+  if (!Buffer.isBuffer(buf) || buf.length < 12 ||
+      buf.toString("latin1", 0, 4) !== "RIFF" || buf.toString("latin1", 8, 12) !== "WAVE") {
+    throw new Error("comfy: decodeWav: not a RIFF/WAVE file");
+  }
+  if (buf.length < 44) {
+    throw new Error("comfy: decodeWav requires a WAV buffer of at least 44 bytes");
+  }
+  let off = 12, channels = 0, sampleRate = 0, bitDepth = 0, fmtCode = 0, dataOff = 0, dataLen = 0;
+  while (off + 8 <= buf.length) {
+    const id = buf.toString("latin1", off, off + 4);
+    const sz = buf.readUInt32LE(off + 4);
+    if (id === "fmt ") {
+      fmtCode = buf.readUInt16LE(off + 8);
+      channels = buf.readUInt16LE(off + 10);
+      sampleRate = buf.readUInt32LE(off + 12);
+      bitDepth = buf.readUInt16LE(off + 22);
+    } else if (id === "data") {
+      dataOff = off + 8; dataLen = sz;
+    }
+    off += 8 + sz + (sz & 1); // chunks are word-aligned
+  }
+  if (fmtCode !== 1 || bitDepth !== 16) {
+    throw new Error(`comfy: decodeWav supports 16-bit PCM only (got format ${fmtCode}, ${bitDepth}-bit) — the SFX envelope seam assumes the Stable Audio Open soundfile-WAV output`);
+  }
+  if (!dataOff || channels < 1) throw new Error("comfy: decodeWav: missing fmt/data chunk");
+  const frames = Math.floor(dataLen / 2 / channels);
+  const samples = [];
+  for (let c = 0; c < channels; c++) samples.push(new Float32Array(frames));
+  for (let i = 0; i < frames; i++) {
+    for (let c = 0; c < channels; c++) {
+      samples[c][i] = buf.readInt16LE(dataOff + (i * channels + c) * 2) / 32767;
+    }
+  }
+  return { channels, sampleRate, bitDepth, samples };
+}
+
+export function encodeWav(channels, sampleRate, samples) {
+  const frames = samples[0].length;
+  const dataBytes = frames * channels * 2;
+  const buf = Buffer.alloc(44 + dataBytes);
+  buf.write("RIFF", 0, "latin1"); buf.writeUInt32LE(36 + dataBytes, 4); buf.write("WAVE", 8, "latin1");
+  buf.write("fmt ", 12, "latin1"); buf.writeUInt32LE(16, 16); buf.writeUInt16LE(1, 20); buf.writeUInt16LE(channels, 22);
+  buf.writeUInt32LE(sampleRate, 24); buf.writeUInt32LE(sampleRate * channels * 2, 28);
+  buf.writeUInt16LE(channels * 2, 32); buf.writeUInt16LE(16, 34);
+  buf.write("data", 36, "latin1"); buf.writeUInt32LE(dataBytes, 40);
+  let p = 44;
+  for (let i = 0; i < frames; i++) {
+    for (let c = 0; c < channels; c++) {
+      const v = Math.max(-1, Math.min(1, samples[c][i]));
+      buf.writeInt16LE(Math.round(v * 32767), p); p += 2;
+    }
+  }
+  return buf;
+}
+
+// trim-to-event → loudness-normalize (RMS target + peak clamp) → fade-in/out.
+// Defaults are the round-3 locked values. Pure.
+export function envelopeSfxWav(buf, { targetRms = 0.13, peak = 0.97, fadeInMs = 6, fadeOutMs = 40, eventDb = -32, padMs = 8 } = {}) {
+  const { channels, sampleRate, samples } = decodeWav(buf);
+  const n = samples[0].length;
+  // 1. event bounds on the ORIGINAL signal, threshold relative to its own peak.
+  let peak0 = 0;
+  for (let c = 0; c < channels; c++) for (let i = 0; i < n; i++) peak0 = Math.max(peak0, Math.abs(samples[c][i]));
+  const thr = peak0 * Math.pow(10, eventDb / 20);
+  let first = -1, last = 0;
+  for (let i = 0; i < n; i++) {
+    let m = 0;
+    for (let c = 0; c < channels; c++) m = Math.max(m, Math.abs(samples[c][i]));
+    if (m > thr) { if (first < 0) first = i; last = i; }
+  }
+  if (first < 0) first = 0;
+  const pad = Math.floor((sampleRate * padMs) / 1000);
+  const start = Math.max(0, first - pad), end = Math.min(n, last + pad + 1);
+  const out = [];
+  for (let c = 0; c < channels; c++) out.push(samples[c].slice(start, end)); // slice() copies → input untouched
+  const len = out[0].length;
+  // 2. loudness-normalize to targetRms, then clamp peak.
+  let sumsq = 0, cnt = 0;
+  for (let c = 0; c < channels; c++) for (let i = 0; i < len; i++) { sumsq += out[c][i] * out[c][i]; cnt++; }
+  const rms = Math.sqrt(sumsq / cnt);
+  let gain = rms > 0 ? targetRms / rms : 1;
+  let pk = 0;
+  for (let c = 0; c < channels; c++) for (let i = 0; i < len; i++) pk = Math.max(pk, Math.abs(out[c][i] * gain));
+  if (pk > peak) gain *= peak / pk;
+  // 3. fades, applied on top of the gain.
+  const fi = Math.floor((sampleRate * fadeInMs) / 1000), fo = Math.floor((sampleRate * fadeOutMs) / 1000);
+  for (let c = 0; c < channels; c++) {
+    for (let i = 0; i < len; i++) {
+      let g = gain;
+      if (fi > 0 && i < fi) g *= i / fi;
+      if (fo > 0 && i >= len - fo) g *= (len - 1 - i) / fo;
+      out[c][i] *= g;
+    }
+  }
+  return encodeWav(channels, sampleRate, out);
+}
+
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // Ping ComfyUI and list installed checkpoints. Never throws on a down server —
