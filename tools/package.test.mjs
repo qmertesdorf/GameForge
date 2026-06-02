@@ -1,5 +1,5 @@
 import { test, expect, describe } from "vitest";
-import { iconSizeTable, sizeBudget, pngSize, exportPresetCfg, parsePresetCfg, atlasLayout, splashSize, bootSplashCfg, verify, budgetReport } from "./package.mjs";
+import { iconSizeTable, sizeBudget, pngSize, exportPresetCfg, parsePresetCfg, atlasLayout, splashSize, bootSplashCfg, verify, budgetReport, exportPresetsFile } from "./package.mjs";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -385,5 +385,58 @@ describe("budgetReport", () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+});
+
+describe("exportPresetCfg format/buildType variants", () => {
+  test("debug+apk preset names the prebuilt-template path (gradle off)", () => {
+    const parsed = parsePresetCfg(exportPresetCfg({ id: "creature-0001", name: "Glade Spirit", format: "apk", buildType: "debug" }));
+    expect(parsed["preset.0"].platform).toBe("Android");
+    expect(parsed["preset.0"].name).toBe("Glade Spirit");
+    expect(parsed["preset.0"].export_path).toBe("build/creature-0001-debug.apk");
+    expect(parsed["preset.0.options"]["gradle_build/use_gradle_build"]).toBe(false);
+  });
+
+  test("release+aab preset turns gradle build on and targets a .aab path", () => {
+    const parsed = parsePresetCfg(exportPresetCfg({ id: "creature-0001", name: "Glade Spirit", format: "aab", buildType: "release" }));
+    expect(parsed["preset.0"].export_path).toBe("build/creature-0001-release.aab");
+    expect(parsed["preset.0.options"]["gradle_build/use_gradle_build"]).toBe(true);
+  });
+
+  test("presetIndex emits a [preset.N] section with that index", () => {
+    const parsed = parsePresetCfg(exportPresetCfg({ id: "x-0001", name: "X", presetIndex: 1 }));
+    expect(parsed["preset.1"]).toBeDefined();
+    expect(parsed["preset.1"].platform).toBe("Android");
+    expect(parsed["preset.1.options"]).toBeDefined();
+  });
+
+  test("throws on an unknown format or buildType", () => {
+    expect(() => exportPresetCfg({ id: "x", name: "X", format: "ipa" })).toThrow(/format/);
+    expect(() => exportPresetCfg({ id: "x", name: "X", buildType: "beta" })).toThrow(/buildType/);
+  });
+
+  test("defaults are unchanged (debug apk, preset.0) — back-compat", () => {
+    const parsed = parsePresetCfg(exportPresetCfg({ id: "creature-0001", name: "Glade Spirit" }));
+    expect(parsed["preset.0"].export_path).toBe("build/creature-0001-debug.apk");
+    expect(parsed["preset.0.options"]["package/unique_name"]).toBe("com.gameforge.creature-0001");
+  });
+});
+
+describe("exportPresetsFile", () => {
+  test("emits BOTH a debug-APK preset.0 and a release-AAB preset.1", () => {
+    const parsed = parsePresetCfg(exportPresetsFile({ id: "creature-0001", name: "Glade Spirit" }));
+    expect(parsed["preset.0"].name).toBe("Glade Spirit");
+    expect(parsed["preset.0"].export_path).toBe("build/creature-0001-debug.apk");
+    expect(parsed["preset.0.options"]["gradle_build/use_gradle_build"]).toBe(false);
+    expect(parsed["preset.1"].name).toBe("Glade Spirit Release");
+    expect(parsed["preset.1"].export_path).toBe("build/creature-0001-release.aab");
+    expect(parsed["preset.1.options"]["gradle_build/use_gradle_build"]).toBe(true);
+    expect(parsed["preset.1.options"]["package/unique_name"]).toBe("com.gameforge.creature-0001");
+  });
+
+  test("both presets share the package unique_name", () => {
+    const parsed = parsePresetCfg(exportPresetsFile({ id: "x-0001", name: "X" }));
+    expect(parsed["preset.0.options"]["package/unique_name"]).toBe("com.gameforge.x-0001");
+    expect(parsed["preset.1.options"]["package/unique_name"]).toBe("com.gameforge.x-0001");
   });
 });

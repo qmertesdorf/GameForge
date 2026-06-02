@@ -73,16 +73,27 @@ function assertCfgSafe(value, field) {
   return value;
 }
 
-// Generate a minimal-but-valid Godot Android export_presets.cfg string. Pure.
-export function exportPresetCfg({ id, name, packageName, exportPath } = {}) {
+// Generate a minimal-but-valid Godot Android export preset block. Pure.
+// format: "apk" (prebuilt template, gradle off) | "aab" (requires gradle build on).
+// buildType: "debug" | "release". presetIndex picks the [preset.N] section so a
+// single cfg can carry both a debug-APK and a release-AAB preset.
+export function exportPresetCfg({ id, name, packageName, exportPath, format = "apk", buildType = "debug", presetIndex = 0 } = {}) {
   if (!id || !name) {
     throw new Error("package: exportPresetCfg requires both { id, name }");
   }
+  if (format !== "apk" && format !== "aab") {
+    throw new Error(`package: exportPresetCfg format must be "apk" or "aab", got ${JSON.stringify(format)}`);
+  }
+  if (buildType !== "debug" && buildType !== "release") {
+    throw new Error(`package: exportPresetCfg buildType must be "debug" or "release", got ${JSON.stringify(buildType)}`);
+  }
   assertCfgSafe(name, "exportPresetCfg name");
   const unique = assertCfgSafe(packageName || `com.gameforge.${id}`, "exportPresetCfg packageName");
-  const out = assertCfgSafe(exportPath || `build/${id}-debug.apk`, "exportPresetCfg exportPath");
+  const out = assertCfgSafe(exportPath || `build/${id}-${buildType}.${format}`, "exportPresetCfg exportPath");
+  const useGradle = format === "aab"; // AAB output requires Godot's gradle build enabled
+  const p = `preset.${presetIndex}`;
   return [
-    "[preset.0]",
+    `[${p}]`,
     "",
     `name="${name}"`,
     `platform="Android"`,
@@ -92,12 +103,25 @@ export function exportPresetCfg({ id, name, packageName, exportPath } = {}) {
     `exclude_filter=""`,
     `export_path="${out}"`,
     "",
-    "[preset.0.options]",
+    `[${p}.options]`,
     "",
+    `gradle_build/use_gradle_build=${useGradle ? "true" : "false"}`,
     `package/unique_name="${unique}"`,
     `package/name="${name}"`,
     ""
   ].join("\n");
+}
+
+// Emit a full export_presets.cfg carrying BOTH a debug-APK preset (preset.0,
+// named after the game) and a release-AAB preset (preset.1, "<name> Release").
+// One file, two presets, so a single project root builds either artifact. Pure.
+export function exportPresetsFile({ id, name, packageName } = {}) {
+  if (!id || !name) {
+    throw new Error("package: exportPresetsFile requires both { id, name }");
+  }
+  const debug = exportPresetCfg({ id, name, packageName, format: "apk", buildType: "debug", presetIndex: 0 });
+  const release = exportPresetCfg({ id, name: `${name} Release`, packageName, format: "aab", buildType: "release", presetIndex: 1 });
+  return `${debug}\n${release}`;
 }
 
 // Parse a Godot .cfg/export_presets.cfg into { section: { key: value } }.
