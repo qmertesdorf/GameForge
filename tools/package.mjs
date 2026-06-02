@@ -73,6 +73,16 @@ function assertCfgSafe(value, field) {
   return value;
 }
 
+// Derive an Android-legal package name from a game id. Android package segments
+// must be valid Java identifiers ([A-Za-z_][A-Za-z0-9_]*); our ids are hyphenated
+// (creature-0001), so map any run of non-alphanumerics to "_" and ensure the
+// segment starts with a letter. Pure.
+export function packageNameFor(id) {
+  const seg = String(id).replace(/[^A-Za-z0-9]+/g, "_");
+  const safe = /^[A-Za-z]/.test(seg) ? seg : `g_${seg}`;
+  return `com.gameforge.${safe}`;
+}
+
 // Generate a minimal-but-valid Godot Android export preset block. Pure.
 // format: "apk" (prebuilt template, gradle off) | "aab" (requires gradle build on).
 // buildType: "debug" | "release". presetIndex picks the [preset.N] section so a
@@ -88,7 +98,7 @@ export function exportPresetCfg({ id, name, packageName, exportPath, format = "a
     throw new Error(`package: exportPresetCfg buildType must be "debug" or "release", got ${JSON.stringify(buildType)}`);
   }
   assertCfgSafe(name, "exportPresetCfg name");
-  const unique = assertCfgSafe(packageName || `com.gameforge.${id}`, "exportPresetCfg packageName");
+  const unique = assertCfgSafe(packageName || packageNameFor(id), "exportPresetCfg packageName");
   const out = assertCfgSafe(exportPath || `build/${id}-${buildType}.${format}`, "exportPresetCfg exportPath");
   const useGradle = format === "aab"; // AAB output requires Godot's gradle build enabled
   const p = `preset.${presetIndex}`;
@@ -153,7 +163,7 @@ export function buildArtifactPlan({ id, name, packageName, format = "apk", build
   return {
     args: ["--headless", "--path", projectDir, flag, preset, outPath],
     outPath,
-    package: packageName || `com.gameforge.${id}`,
+    package: packageName || packageNameFor(id),
     preset,
     format,
     build_type: buildType

@@ -1,5 +1,5 @@
 import { test, expect, describe } from "vitest";
-import { iconSizeTable, sizeBudget, pngSize, exportPresetCfg, parsePresetCfg, atlasLayout, splashSize, bootSplashCfg, verify, budgetReport, exportPresetsFile, buildArtifactPlan, androidToolchainPresent, buildArtifact, verifyBuildArtifact } from "./package.mjs";
+import { iconSizeTable, sizeBudget, pngSize, exportPresetCfg, parsePresetCfg, atlasLayout, splashSize, bootSplashCfg, verify, budgetReport, exportPresetsFile, buildArtifactPlan, androidToolchainPresent, buildArtifact, verifyBuildArtifact, packageNameFor } from "./package.mjs";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -107,7 +107,7 @@ describe("exportPresetCfg + parsePresetCfg", () => {
     expect(parsed["preset.0"].name).toBe("Glade Spirit");
     expect(parsed["preset.0"].runnable).toBe(true);
     expect(parsed["preset.0"].export_path).toBe("build/creature-0001-debug.apk");
-    expect(parsed["preset.0.options"]["package/unique_name"]).toBe("com.gameforge.creature-0001");
+    expect(parsed["preset.0.options"]["package/unique_name"]).toBe("com.gameforge.creature_0001");
     expect(parsed["preset.0.options"]["package/name"]).toBe("Glade Spirit");
   });
 
@@ -434,7 +434,7 @@ describe("exportPresetCfg format/buildType variants", () => {
   test("defaults are unchanged (debug apk, preset.0) — back-compat", () => {
     const parsed = parsePresetCfg(exportPresetCfg({ id: "creature-0001", name: "Glade Spirit" }));
     expect(parsed["preset.0"].export_path).toBe("build/creature-0001-debug.apk");
-    expect(parsed["preset.0.options"]["package/unique_name"]).toBe("com.gameforge.creature-0001");
+    expect(parsed["preset.0.options"]["package/unique_name"]).toBe("com.gameforge.creature_0001");
   });
 });
 
@@ -447,13 +447,13 @@ describe("exportPresetsFile", () => {
     expect(parsed["preset.1"].name).toBe("Glade Spirit Release");
     expect(parsed["preset.1"].export_path).toBe("build/creature-0001-release.aab");
     expect(parsed["preset.1.options"]["gradle_build/use_gradle_build"]).toBe(true);
-    expect(parsed["preset.1.options"]["package/unique_name"]).toBe("com.gameforge.creature-0001");
+    expect(parsed["preset.1.options"]["package/unique_name"]).toBe("com.gameforge.creature_0001");
   });
 
   test("both presets share the package unique_name", () => {
     const parsed = parsePresetCfg(exportPresetsFile({ id: "x-0001", name: "X" }));
-    expect(parsed["preset.0.options"]["package/unique_name"]).toBe("com.gameforge.x-0001");
-    expect(parsed["preset.1.options"]["package/unique_name"]).toBe("com.gameforge.x-0001");
+    expect(parsed["preset.0.options"]["package/unique_name"]).toBe("com.gameforge.x_0001");
+    expect(parsed["preset.1.options"]["package/unique_name"]).toBe("com.gameforge.x_0001");
   });
 
   test("throws without id or name", () => {
@@ -468,7 +468,7 @@ describe("buildArtifactPlan (pure)", () => {
     expect(plan.format).toBe("apk");
     expect(plan.build_type).toBe("debug");
     expect(plan.preset).toBe("Glade Spirit");
-    expect(plan.package).toBe("com.gameforge.creature-0001");
+    expect(plan.package).toBe("com.gameforge.creature_0001");
     expect(plan.outPath).toBe(join("/g", "creature-0001", "build", "creature-0001-debug.apk"));
     expect(plan.args).toEqual([
       "--headless", "--path", join("/g", "creature-0001"),
@@ -568,5 +568,18 @@ describe("verifyBuildArtifact (guarded)", () => {
       expect(missing.ok).toBe(false);
       expect(missing.issues.join(" ")).toMatch(/absent|not found/i);
     } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
+});
+
+describe("packageNameFor", () => {
+  test("replaces hyphens with underscores so the package is Android-legal", () => {
+    expect(packageNameFor("creature-0001")).toBe("com.gameforge.creature_0001");
+    expect(packageNameFor("crosser-0001")).toBe("com.gameforge.crosser_0001");
+  });
+  test("leaves an already-legal id unchanged", () => {
+    expect(packageNameFor("runner")).toBe("com.gameforge.runner");
+  });
+  test("prefixes a letter when the sanitized id would start with a digit", () => {
+    expect(packageNameFor("0001-game")).toBe("com.gameforge.g_0001_game");
   });
 });
