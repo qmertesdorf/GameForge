@@ -9,10 +9,12 @@ export const COMFY_HOST = process.env.COMFY_HOST || "http://127.0.0.1:8188";
 export const TEMPLATES_DIR = process.env.GAMEFORGE_COMFY_TEMPLATES || join(__dirname, "comfy-templates");
 export const GAMES_DIR = process.env.GAMEFORGE_GAMES_DIR || join(REPO_ROOT, "games");
 
-// Map a %token% to the recipe field that fills it. master_resolution fills the
-// square master's width AND height. A resolver returning undefined is a hard
-// error so a missing field fails loudly (attributable to the recipe), never
-// silently leaving a literal "%prompt%" in the graph.
+// Map a %token% to the recipe field that fills it. Square sprite recipes set
+// master_resolution, which is the fallback for %width% and %height%. Non-square
+// (background) recipes set explicit width/height fields which take precedence
+// over master_resolution. A resolver returning undefined is a hard error so a
+// missing field fails loudly (attributable to the recipe), never silently
+// leaving a literal "%prompt%" in the graph.
 const TOKENS = {
   "%checkpoint%": (r) => r.checkpoint,
   "%prompt%": (r) => r.prompt,
@@ -21,8 +23,8 @@ const TOKENS = {
   "%steps%": (r) => r.steps,
   "%cfg%": (r) => r.cfg,
   "%sampler%": (r) => r.sampler,
-  "%width%": (r) => r.master_resolution,
-  "%height%": (r) => r.master_resolution,
+  "%width%": (r) => r.width ?? r.master_resolution,   // non-square (background) recipes set width/height; square sprites use master_resolution
+  "%height%": (r) => r.height ?? r.master_resolution,
   "%lora%": (r) => r.lora,
   "%duration%": (r) => r.duration_s, // audio clip length; token name ≠ field (duration_s)
   "%scheduler%": (r) => r.scheduler ?? "normal" // default "normal" (the LayerDiffuse-safe scheduler); recipes opt into "karras"

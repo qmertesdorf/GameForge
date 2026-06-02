@@ -97,6 +97,22 @@ describe("injectRecipe", () => {
     expect(injectRecipe(tpl, { ...fullRecipe(), scheduler: "karras" })["3"].inputs.scheduler).toBe("karras");
     expect(injectRecipe(tpl, fullRecipe())["3"].inputs.scheduler).toBe("normal"); // default, like %negative%
   });
+
+  test("%width%/%height% prefer explicit width/height, else fall back to master_resolution", () => {
+    const tpl = { "5": { class_type: "EmptyLatentImage", inputs: { width: "%width%", height: "%height%" } } };
+    const wide = injectRecipe(tpl, { ...fullRecipe(), width: 1280, height: 768 })["5"].inputs;
+    expect(wide.width).toBe(1280);
+    expect(wide.height).toBe(768);
+    const square = injectRecipe(tpl, fullRecipe())["5"].inputs; // only master_resolution:512
+    expect(square.width).toBe(512);
+    expect(square.height).toBe(512);
+  });
+
+  test("%width% throws when neither width nor master_resolution is set", () => {
+    const tpl = { "5": { class_type: "EmptyLatentImage", inputs: { width: "%width%" } } };
+    const r = fullRecipe(); delete r.master_resolution;
+    expect(() => injectRecipe(tpl, r)).toThrow(/%width%|width/);
+  });
 });
 
 import { check, gen } from "./comfy.mjs";
