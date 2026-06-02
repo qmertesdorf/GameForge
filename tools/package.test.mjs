@@ -439,4 +439,9 @@ describe("exportPresetsFile", () => {
     expect(parsed["preset.0.options"]["package/unique_name"]).toBe("com.gameforge.x-0001");
     expect(parsed["preset.1.options"]["package/unique_name"]).toBe("com.gameforge.x-0001");
   });
+
+  test("throws without id or name", () => {
+    expect(() => exportPresetsFile({ id: "x-0001" })).toThrow(/name|id/);
+    expect(() => exportPresetsFile({ name: "X" })).toThrow(/id|name/);
+  });
 });
