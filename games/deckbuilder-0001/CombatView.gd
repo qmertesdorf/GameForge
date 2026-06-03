@@ -938,10 +938,9 @@ func _effect_summary(effect: Dictionary, elem: String) -> Array:
 	var lines: Array = []
 	if effect.has("damage"):
 		var d: int = effect.get("damage")
-		var txt: String = "DMG %d" % d
-		if effect.has("lightning_bonus"):
-			txt += "+%d" % effect.get("lightning_bonus")
-		lines.append(txt)
+		lines.append("DMG %d" % d)
+	if effect.has("lightning_bonus"):
+		lines.append("+%d vs afflicted" % effect.get("lightning_bonus"))
 	if effect.has("block"):
 		lines.append("Block +%d" % effect.get("block"))
 	if effect.has("burn"):

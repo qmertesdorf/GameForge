@@ -103,7 +103,7 @@ const CARDS := {
 		"element": "lightning",
 		"cost": 0,
 		"type": "attack",
-		"effect": {"damage": 3}
+		"effect": {"damage": 3, "lightning_bonus": 3}
 	},
 	"chain_lightning": {
 		"id": "chain_lightning",
