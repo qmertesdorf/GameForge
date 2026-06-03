@@ -240,7 +240,7 @@ export function atlasLayout(rects, { maxWidth = 1024, padding = 0 } = {}) {
 }
 
 // Canonical boot-splash dimensions for the given orientation. Portrait is the
-// default (absent build.orientation == portrait, per the manifest schema).
+// default; the manifest schema makes build.orientation optional (absent = portrait).
 // Fresh object each call (no shared mutable singleton). Pure.
 export function splashSize(orientation = "portrait") {
   return orientation === "landscape" ? { w: 1920, h: 1080 } : { w: 1080, h: 1920 };

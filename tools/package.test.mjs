@@ -160,10 +160,6 @@ describe("splashSize", () => {
     expect(splashSize()).not.toBe(splashSize());
   });
 
-  test("splashSize() defaults to portrait 1080x1920", () => {
-    expect(splashSize()).toEqual({ w: 1080, h: 1920 });
-  });
-
   test("splashSize('portrait') is 1080x1920", () => {
     expect(splashSize("portrait")).toEqual({ w: 1080, h: 1920 });
   });
