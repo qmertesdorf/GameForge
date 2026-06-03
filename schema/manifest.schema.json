@@ -57,7 +57,8 @@
         "language": { "type": "string" },
         "project_path": { "type": "string" },
         "addons": { "type": "array" },
-        "export_presets": { "type": "array", "items": { "type": "string" } }
+        "export_presets": { "type": "array", "items": { "type": "string" } },
+        "orientation": { "enum": ["portrait", "landscape"] }
       }
     },
     "assets": {

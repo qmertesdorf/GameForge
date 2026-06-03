@@ -364,6 +364,32 @@ describe("validate", () => {
     m.store_pass = { icon_master: "art/spirit.png" };
     expect(validate(m)).toEqual({ valid: true, errors: [] });
   });
+
+  test("accepts build.orientation = landscape", () => {
+    const m = validManifest();
+    m.build.orientation = "landscape";
+    expect(validate(m)).toEqual({ valid: true, errors: [] });
+  });
+
+  test("accepts build.orientation = portrait", () => {
+    const m = validManifest();
+    m.build.orientation = "portrait";
+    expect(validate(m).valid).toBe(true);
+  });
+
+  test("accepts a manifest with no build.orientation (back-compat)", () => {
+    const m = validManifest();
+    delete m.build.orientation;
+    expect(validate(m).valid).toBe(true);
+  });
+
+  test("rejects an unknown build.orientation", () => {
+    const m = validManifest();
+    m.build.orientation = "diagonal";
+    const result = validate(m);
+    expect(result.valid).toBe(false);
+    expect(result.errors.join(" ")).toMatch(/orientation/);
+  });
 });
 
 describe("newManifest", () => {
