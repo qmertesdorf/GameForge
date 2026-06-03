@@ -159,6 +159,18 @@ describe("splashSize", () => {
   test("returns a fresh object each call (not a shared mutable singleton)", () => {
     expect(splashSize()).not.toBe(splashSize());
   });
+
+  test("splashSize() defaults to portrait 1080x1920", () => {
+    expect(splashSize()).toEqual({ w: 1080, h: 1920 });
+  });
+
+  test("splashSize('portrait') is 1080x1920", () => {
+    expect(splashSize("portrait")).toEqual({ w: 1080, h: 1920 });
+  });
+
+  test("splashSize('landscape') swaps to 1920x1080", () => {
+    expect(splashSize("landscape")).toEqual({ w: 1920, h: 1080 });
+  });
 });
 
 describe("bootSplashCfg + parsePresetCfg", () => {
