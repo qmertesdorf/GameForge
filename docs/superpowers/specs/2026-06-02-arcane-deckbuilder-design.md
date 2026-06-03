@@ -27,6 +27,7 @@ Drive it through the normal loop **exactly as designed** — `concept → builde
 - The 3-element combo system creates visibly different viable builds.
 - Visual + juice + audio land at a bar the owner judges "I'd actually play this" (not "neat demo").
 - At least the `validator` skill (turn-based Method) and likely `builder`/`asset` skills gain documented, reusable upgrades.
+- The loop becomes **orientation-aware** (`builder`/`validator` read orientation from the manifest instead of hard-coding portrait) — landscape supported, portrait still works.
 
 ### Quality axes (owner-stated, all in scope)
 
@@ -44,6 +45,18 @@ Drive it through the normal loop **exactly as designed** — `concept → builde
 
 - **Palette:** deep indigo / violet base, with element accents — fire (amber/orange), ice (cyan/white), lightning (electric yellow/violet).
 - **Motifs:** runic circles, mana crystals, glowing sigils, spell glyphs.
+
+### 2.1 Orientation — landscape (a new pipeline lever)
+
+This title is built **landscape (1280×720)** — the first non-portrait game in the project. Deckbuilders are landscape-native (Slay the Spire / Monster Train on mobile): a 5-card hand fans far more legibly across width, and card frames (where the polish budget concentrates) read much larger. Portrait would cramp the exact thing we are making excellent.
+
+Crucially, orientation is treated as a **parameterized skill upgrade, not a one-off constant flip.** The loop currently hard-codes portrait in several places:
+
+- `builder/SKILL.md` writes `viewport 720×1280` + `window/handheld/orientation="portrait"` into every `project.godot`.
+- `validator` / `packager` assume portrait splash (`1080×1920`) and screenshots (`720×1280`) via `package.mjs` helpers (`splashSize()` etc.) and the export preset.
+- **Exception:** the `asset` skill is *already* orientation-aware (honors distinct `width`/`height`; documents a `1280×768` landscape example), so the art path is ready.
+
+The work makes `builder` / `validator` / `packager` **read orientation from the manifest** (e.g. `concept.theme` or a `build` field) instead of hard-coding portrait — so the loop supports *both* orientations afterward. The durable skill win is "the pipeline is orientation-aware," not "we shipped one landscape game." Packaging-side parameterization (splash/screenshot dims, export preset orientation) lands later and is owner-gated, consistent with the rest of packaging.
 
 ---
 
@@ -101,7 +114,8 @@ Persisted state: unlocked cards, ascension level, best result. This is a **seed*
 
 ### 4.2 Visual polish (asset pass — SVG path)
 
-- **Real background** — arcane chamber: deep indigo→violet gradient, a glowing runic circle on the floor, floating motes. Explicitly **not a flat fill** (the project's #1 recurring complaint).
+- **Landscape layout (1280×720):** hand fans along the **bottom** width; the **enemy sits center/right** with its intent telegraph above it; **player stats (HP/mana/block) bottom-left**; draw/discard pile counts in the bottom corners; end-turn button bottom-right. The horizontal real estate is what makes a fanned hand + a staged enemy read cleanly.
+- **Real background** — arcane chamber: deep indigo→violet gradient, a glowing runic circle on the floor, floating motes, composed for the **wide** frame. Explicitly **not a flat fill** (the project's #1 recurring complaint).
 - **Card frames** — element-colored borders, a per-element sigil, cost gem, readable type band. Cards are ~90% of what the player looks at, so the polish budget concentrates here.
 - **Distinct enemy silhouettes** per encounter (imp / frost-wraith / golem / boss archmage), themed and properly sized.
 - Styled UI: HP/mana, intent icon above enemy, end-turn button, pile counts.
@@ -145,7 +159,7 @@ Built as a Godot 4.6.3 project under `games/<id>/` driven by a manifest, followi
 
 ## 7. Scope guardrails (YAGNI)
 
-**In:** one mage, 3 elements, ~16 cards, ~5-node run, 1 status per element, 2 relics, pick-1-of-3 rewards, full juice/art/audio, win/lose, 1-card meta unlock + ascension toggle.
+**In:** one mage, 3 elements, ~16 cards, ~5-node run, 1 status per element, 2 relics, pick-1-of-3 rewards, full juice/art/audio, win/lose, 1-card meta unlock + ascension toggle, **landscape (1280×720) + orientation-aware `builder`/`validator` (read orientation from the manifest, not hard-coded portrait).**
 
 **Explicitly out (v2):** multiple characters, branching map, 30+ card pool, full relic system, deep meta tree, daily seeds, card upgrade system. We extend a tight slice later; we do not build wide now.
 
@@ -157,3 +171,4 @@ Built as a Godot 4.6.3 project under `games/<id>/` driven by a manifest, followi
 - Determine whether `builder` can one-shot this or needs the staged decomposition (§1 risk), and codify whichever path is taken.
 - Define the turn-based validator Method concretely (§5) as a validator `SKILL.md` addition.
 - Confirm SVG asset path can carry card-frame + enemy-silhouette volume, or whether any raster is warranted.
+- Decide *where* orientation lives in the manifest (new `build.orientation` vs a `concept.theme` field) and thread it through `builder` (viewport + `window/handheld/orientation`) and `validator` (splash dims). Defer `packager` parameterization (splash/screenshot/export-preset dims in `package.mjs`) to the owner-gated packaging stage, but note it so it isn't lost.
