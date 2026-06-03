@@ -23,6 +23,18 @@ Generate a Godot 4.x project that opens and runs **without manual code fixes**, 
 - Keep one main scene runnable on launch (`run/main_scene` set in `project.godot`).
 - Ship the **Game feel & juice** and **Tuning & fairness** requirements below — they are not optional polish, they are what separates "playable" from "terrible but playable" (see `docs/superpowers/poc-run-001.md`).
 
+## Staged build for systems-heavy genres (REQUIRED when the loop is too large to one-shot)
+
+A turn-based deckbuilder, a tactics game, or any title with a rules engine + content DB + meta layer is too large to scaffold correctly in one pass — a one-shot produces a tangled `Main.gd` where rules and rendering are fused and nothing is testable. Decompose along the **rules/rendering seam** and build in dependency order, each stage gated by an assertion in `selftest.gd` before the next:
+
+1. **Rules engine first, headless, pure.** A `RefCounted` (e.g. `CombatState.gd`) holding all state and rules — no nodes, no rendering, a **seedable** `RandomNumberGenerator` so runs are deterministic. Every rule (`play_card`, `end_turn`, `enemy_act`, win/lose) is a method that mutates state and returns a list of **events** (plain dictionaries) describing what happened. This is what `selftest.gd` drives.
+2. **Content as data autoloads.** Card/enemy/item definitions live in data files (e.g. `data/CardDB.gd`, `data/EnemyDB.gd` autoloads returning typed Dictionaries) so the pool extends without touching the engine. Never inline content into the rules.
+3. **Orchestration** (run/map/progression, e.g. `RunController.gd`) on top of the engine.
+4. **Persistence** (`user://save.json` via a `MetaSave.gd`) — read at boot, write at the meta milestone.
+5. **Rendering + juice LAST** (`CombatView.gd`): reads engine state, replays the engine's returned events as animations (tweens, pop-ups, shake, particles), and **never owns a rule.** If the view computes damage, the seam is broken — move it into the engine.
+
+Build and self-test each stage before starting the next; commit per stage. The decomposition is the deliverable as much as the game — a fused build that "works" is a skill failure even if it runs.
+
 ## Deliberate primitives (no external art — that is M1)
 Derive a coherent palette and shape language from `concept.art_direction`. Use in-engine drawing only: `ColorRect`, `Polygon2D`, `_draw()`, `Line2D`, simple `GPUParticles2D`/`CPUParticles2D`. Aim for *intentional* — clean shapes and a 3–5 color palette. Record each visual as an asset entry:
 ```
@@ -65,6 +77,8 @@ Godot 4.6 enforces strict typing and treats an inferred `Variant` as an error. T
 
 ## Reference scaffold (adapt to the genre)
 
+**Orientation (read from the manifest — do NOT hard-code).** Read `build.orientation` from `manifests/<id>.json`. **Absent or `"portrait"`** → `viewport_width=720`, `viewport_height=1280`, `window/handheld/orientation="portrait"` (the values shown below). **`"landscape"`** → `viewport_width=1280`, `viewport_height=720`, `window/handheld/orientation="landscape"`. Lay out the scene for the chosen frame: a landscape game uses the **width** (e.g. a fanned card hand along the bottom, actors staged left↔right); a portrait game uses height. The `concept`/manifest is the source of truth — never assume portrait. Write the build block including the orientation you used so the `validator`/`packager` pick the matching splash/screenshot dims (`splashSize(orientation)`).
+
 `games/<id>/project.godot`:
 ```
 config_version=5
@@ -77,6 +91,8 @@ run/main_scene="res://Main.tscn"
 window/size/viewport_width=720
 window/size/viewport_height=1280
 window/handheld/orientation="portrait"
+window/stretch/mode="canvas_items"
+window/stretch/aspect="keep"
 
 [input]
 tap={
@@ -159,7 +175,19 @@ Create `Main.tscn` as a text scene referencing `Main.gd` on the root node, plus 
 ## Self-test for logic-heavy genres (REQUIRED when the loop has non-trivial state logic)
 "Runs headless without errors" does NOT prove the loop is correct — a match-3 with broken match-detection, or a hybrid whose offense match never actually damages the threat, will pass the programmatic gate and only fail a human (POC runs 002–004). For logic-heavy genres (puzzle/grid, state machines, multi-subsystem hybrids), emit `games/<id>/selftest.gd`: a headless `SceneTree` script that loads the game, drives the core action over N frames (drive state directly or synthesize `InputEvent`s — never wait on real input), ASSERTS observable state changes, then prints exactly `SELFTEST OK` and exits 0, or `SELFTEST FAIL: <reason>` and exits non-zero.
 
-**Lifecycle gotcha (POC run-005):** in a `SceneTree`/headless self-test, when you `add_child` the game node its `_ready()` is **deferred** — it has not run yet on the line after `add_child`, so the board/world is still empty if you assert immediately. Drive setup explicitly (call the game's `_start_game()`/setup method yourself, or `await` a frame) before the first assertion. Fix the *harness*, not the game, when this bites. Assert what a human would check, e.g.:
+**Lifecycle gotcha (POC run-005):** in a `SceneTree`/headless self-test, when you `add_child` the game node its `_ready()` is **deferred** — it has not run yet on the line after `add_child`, so the board/world is still empty if you assert immediately. Drive setup explicitly (call the game's `_start_game()`/setup method yourself, or `await` a frame) before the first assertion. Fix the *harness*, not the game, when this bites.
+
+**Turn-based / scripted-turn genres (deckbuilder, tactics, roguelike):** a real-time `_process` loop does not exercise a turn-based engine — drive **scripted turns** through the rules engine directly with a **fixed RNG seed**, and assert the full turn cycle. The canonical script (adapt to the game):
+- `setup(seed, deck, enemy_id)` then `start_combat()` → assert the opening hand was drawn (`hand.size() == 5`).
+- Play a known attack card → assert mana spent **and** enemy HP dropped by the card's value.
+- Play a status-setup card (e.g. Fire→Burn) → assert the status stack appears on the enemy.
+- Play a payoff card into that status (e.g. Lightning vs Burning) → assert the **bonus** branch fired (damage > base).
+- `end_turn()` → assert the enemy acted (player HP dropped or block absorbed) **and** statuses ticked (Burn dealt + decremented, Chill consumed).
+- Force the enemy to lethal, resolve → assert `is_won()`; drive a reward pick → assert the pick-1-of-3 choice resolves and the run advances.
+- Force player HP to 0 → assert `is_lost()`. Drive the meta milestone (boss kill) → assert `user://save.json` was written with the expected keys.
+Seeded RNG makes every assertion deterministic; the `validator`'s Method 1.6 runs this and `fail`s the build on `SELFTEST FAIL`.
+
+Assert what a human would check, e.g.:
 - a known swap that should clear cells actually reduces the gem count / fires the match path,
 - after a forced resolve the board has no floating gaps,
 - an offense match lowers the threat's HP and a defense match raises wall HP (the hybrid's whole point),
