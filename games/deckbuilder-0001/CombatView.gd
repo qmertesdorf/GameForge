@@ -950,5 +950,12 @@ func _effect_summary(effect: Dictionary, elem: String) -> Array:
 	if effect.has("draw"):
 		lines.append("Draw %d" % effect.get("draw"))
 	if effect.has("power"):
-		lines.append("POWER")
+		var pid: String = effect.get("power", "")
+		match pid:
+			"wildfire":
+				lines.append("Attacks Burn 1")
+			"overload":
+				lines.append("+2 vs afflicted")
+			_:
+				lines.append("POWER")
 	return lines

@@ -18,6 +18,9 @@ var enemy: Dictionary
 
 var rng: RandomNumberGenerator
 
+# Active power ids for this combat (persistent until combat ends).
+var powers: Array = []
+
 # Internal intent index tracker — single source of truth (enemy["_intent_i"] removed).
 var _intent_i: int = 0
 
@@ -32,6 +35,8 @@ func setup(seed_value: int, deck: Array, enemy_id: String) -> void:
 
 	mana_max = 3
 	mana = 0
+
+	powers = []
 
 	enemy = EnemyDB.enemy(enemy_id)
 	# Ensure block, statuses, and strength keys exist on the mutable enemy copy.
@@ -98,7 +103,7 @@ func play_card(hand_index: int) -> Array:
 	var effect: Dictionary = card.get("effect", {})
 	var events: Array = []
 
-	# Damage → enemy (with optional lightning combo bonus).
+	# Damage → enemy (with optional lightning combo bonus + Overload power bonus).
 	if effect.has("damage"):
 		var dmg: int = effect.get("damage", 0)
 
@@ -109,6 +114,13 @@ func play_card(hand_index: int) -> Array:
 			if b > 0 or c > 0:
 				var bonus: int = effect.get("lightning_bonus", 0)
 				dmg += bonus
+
+		# Overload power: global +2 vs afflicted (stacks with lightning_bonus).
+		if "overload" in powers:
+			var eb: int = enemy.statuses.get("burn", 0)
+			var ec: int = enemy.statuses.get("chill", 0)
+			if eb > 0 or ec > 0:
+				dmg += 2
 
 		enemy["hp"] -= dmg
 		events.append({"type": "damage", "target": "enemy", "amount": dmg})
@@ -136,6 +148,19 @@ func play_card(hand_index: int) -> Array:
 		var n: int = effect.get("chill", 0)
 		enemy["statuses"]["chill"] = enemy.statuses.get("chill", 0) + n
 		events.append({"type": "status", "target": "enemy", "status": "chill", "amount": n})
+
+	# Power card activation — register the power id (idempotent).
+	if effect.has("power"):
+		var power_id: String = effect.get("power", "")
+		if power_id != "" and not (power_id in powers):
+			powers.append(power_id)
+		events.append({"type": "power", "power": power_id})
+
+	# Wildfire: if active and the card just played is an attack, apply +1 Burn.
+	var card_type: String = card.get("type", "")
+	if "wildfire" in powers and card_type == "attack":
+		enemy["statuses"]["burn"] = enemy.statuses.get("burn", 0) + 1
+		events.append({"type": "status", "target": "enemy", "status": "burn", "amount": 1})
 
 	# Move card from hand to discard.
 	hand.remove_at(hand_index)

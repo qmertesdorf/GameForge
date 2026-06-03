@@ -92,7 +92,38 @@ func _init() -> void:
 	combat.player_hp = 0
 	if not combat.is_lost():
 		_fail("player_hp 0 did not register as lost"); return
-	# --- Stage 4 (Task 15) appends here ---
+	# Stage 4: power cards have real, persistent effects.
+	var CS2 := load("res://CombatState.gd")
+	var p = CS2.new()
+	p.setup(SEED, CardDB.starter_deck(), "imp")
+	p.start_combat()
+	# Overload: +2 damage to an afflicted enemy.
+	p.enemy.statuses.burn = 1                      # afflict the enemy
+	p.hand.insert(0, "arcane_bolt"); p.mana = p.mana_max
+	var oh0: int = p.enemy.hp
+	p.play_card(0)                                  # arcane_bolt = 6, no overload yet
+	var base_hit: int = oh0 - p.enemy.hp
+	p.hand.insert(0, "overload"); p.mana = p.mana_max
+	p.play_card(0)                                  # activate Overload (power)
+	p.enemy.statuses.burn = 1                       # keep afflicted
+	p.hand.insert(0, "arcane_bolt"); p.mana = p.mana_max
+	var oh1: int = p.enemy.hp
+	p.play_card(0)                                  # arcane_bolt now +2 vs afflicted
+	var boosted_hit: int = oh1 - p.enemy.hp
+	if boosted_hit != base_hit + 2:
+		_fail("Overload did not add +2 vs an afflicted enemy (base %d, boosted %d)" % [base_hit, boosted_hit]); return
+	# Wildfire: attacks also apply Burn.
+	var w = CS2.new()
+	w.setup(SEED, CardDB.starter_deck(), "imp")
+	w.start_combat()
+	w.enemy.statuses.burn = 0
+	w.hand.insert(0, "wildfire"); w.mana = w.mana_max
+	w.play_card(0)                                  # activate Wildfire (power)
+	w.hand.insert(0, "arcane_bolt"); w.mana = w.mana_max
+	w.play_card(0)                                  # attack -> should also apply 1 Burn
+	if w.enemy.statuses.burn < 1:
+		_fail("Wildfire did not make an attack apply Burn"); return
+	# --- end stages ---
 	print("SELFTEST OK")
 	quit(0)
 
