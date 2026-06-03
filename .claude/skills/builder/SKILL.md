@@ -187,6 +187,11 @@ Create `Main.tscn` as a text scene referencing `Main.gd` on the root node, plus 
 - Force player HP to 0 → assert `is_lost()`. Drive the meta milestone (boss kill) → assert `user://save.json` was written with the expected keys.
 Seeded RNG makes every assertion deterministic; the `validator`'s Method 1.6 runs this and `fail`s the build on `SELFTEST FAIL`.
 
+Three hard rules for turn-based self-tests (proven on `deckbuilder-0001`, commit `d569e7e`):
+- **Headless `--script` runs don't instantiate autoloads.** `godot --script` starts a minimal SceneTree that skips the `[autoload]` section — `Engine.has_singleton("CardDB")` returns `false`, `/root/CardDB` is absent. Reach data layers (CardDB, EnemyDB, etc.) via `const X := preload("res://data/X.gd")` + `static func` only. Drop the `[autoload]` block from `project.godot` for any data file the self-test must reach, or make those files static-accessible so the self-test can preload them directly. (This silently breaks any turn-based build that expects autoload globals in its self-test.)
+- **Seed every RNG path via a `RandomNumberGenerator` and shuffle with an explicit Fisher–Yates loop.** `Array.shuffle()` uses the global RNG and ignores any custom seed — deterministic assertions break silently. Use `rng.randi_range()` inside a manual Fisher–Yates on every shuffle that the self-test depends on.
+- **Reset persistent side-effects before asserting on them.** If the self-test writes `user://save.json` (or any other file) and then asserts its contents, delete the file immediately before the write — a stale file from a prior run will false-positive the assertion without the write actually having occurred.
+
 Assert what a human would check, e.g.:
 - a known swap that should clear cells actually reduces the gem count / fires the match path,
 - after a forced resolve the board has no floating gaps,
