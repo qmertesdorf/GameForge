@@ -3,7 +3,7 @@
   "name": "Arcane Duel",
   "created_at": "2026-06-03T00:29:19.641Z",
   "updated_at": "2026-06-03T00:29:19.641Z",
-  "status": "concept",
+  "status": "generated",
   "concept": {
     "genre": "roguelike deckbuilder",
     "core_loop": "Turn-based arcane duel: each turn draw 5 spell cards, spend 3 mana to cast fire/ice/lightning cards against a telegraphed enemy, then end turn and the enemy acts. The live decision each turn is solving the enemy's telegraphed intent — set up Burn/Chill with fire/ice, then cash it in with lightning for bonus damage, while budgeting block vs offense. Between fights, pick 1 of 3 new cards to deepen the deck. Difficulty ramps across a ~5-node run (combat, combat, rest, elite+relic, boss). One excellent run, not endless.",
@@ -31,8 +31,20 @@
       "setting": "a candle-lit arcane duelling chamber ringed with glowing runes"
     }
   },
-  "build": {},
-  "assets": [],
+  "build": {
+    "engine": "godot",
+    "engine_version": "4.6.3.stable",
+    "language": "gdscript",
+    "project_path": "games/deckbuilder-0001/",
+    "addons": [],
+    "export_presets": ["android"],
+    "orientation": "landscape"
+  },
+  "assets": [
+    {"type": "background", "name": "chamber", "source": "placeholder", "origin": "primitive"},
+    {"type": "sprite", "name": "card_frame", "source": "placeholder", "origin": "primitive"},
+    {"type": "sprite", "name": "enemy_imp", "source": "placeholder", "origin": "primitive"}
+  ],
   "validation": {
     "issues": []
   },
