@@ -1,0 +1,26 @@
+config_version=5
+
+[application]
+config/name="Arcane Duel"
+run/main_scene="res://Main.tscn"
+
+[autoload]
+CardDB="*res://data/CardDB.gd"
+EnemyDB="*res://data/EnemyDB.gd"
+
+[display]
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/handheld/orientation="landscape"
+window/stretch/mode="canvas_items"
+window/stretch/aspect="keep"
+
+[input]
+tap={
+"deadzone": 0.5,
+"events": []
+}
+
+[rendering]
+renderer/rendering_method="mobile"
+textures/vram_compression/import_etc2_astc=true
