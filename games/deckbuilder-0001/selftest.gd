@@ -24,7 +24,19 @@ func _init() -> void:
 	if cs.hand.size() != 5:
 		_fail("opening hand was %d, expected 5" % cs.hand.size())
 		return
-	# --- later stages append assertions here (Tasks 9, 11, 13, 15) ---
+	# Stage 1.5: a neutral attack spends mana and damages the enemy.
+	var ehp0: int = cs.enemy.hp
+	var mana0: int = cs.mana
+	var bolt_idx := _find_card(cs.hand, "arcane_bolt")
+	if bolt_idx < 0:
+		# guarantee a known card in hand deterministically for the test
+		cs.hand.insert(0, "arcane_bolt"); bolt_idx = 0
+	cs.play_card(bolt_idx)
+	if cs.mana >= mana0:
+		_fail("playing Arcane Bolt did not spend mana"); return
+	if cs.enemy.hp != ehp0 - 6:
+		_fail("Arcane Bolt dealt %d, expected 6" % (ehp0 - cs.enemy.hp)); return
+	# --- Stage 2 (Task 11) appends here ---
 	print("SELFTEST OK")
 	quit(0)
 
