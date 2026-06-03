@@ -51,7 +51,7 @@ const ENEMIES := {
 	},
 }
 
-func enemy(id: String) -> Dictionary:
+static func enemy(id: String) -> Dictionary:
 	var base: Dictionary = ENEMIES.get(id, {})
 	if base.is_empty():
 		return {}

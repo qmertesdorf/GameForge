@@ -131,10 +131,10 @@ const CARDS := {
 	},
 }
 
-func card(id: String) -> Dictionary:
+static func card(id: String) -> Dictionary:
 	return CARDS.get(id, {})
 
-func starter_deck() -> Array:
+static func starter_deck() -> Array:
 	return [
 		"arcane_bolt",
 		"arcane_bolt",
@@ -148,5 +148,5 @@ func starter_deck() -> Array:
 		"meditate",
 	]
 
-func all_ids() -> Array:
+static func all_ids() -> Array:
 	return CARDS.keys()

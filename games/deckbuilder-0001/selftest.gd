@@ -1,5 +1,11 @@
 extends SceneTree
 
+# Headless `--script` SceneTree runs do NOT instantiate project autoloads, so the
+# data layers are reached via preloaded script classes (static funcs), never the
+# autoload globals. The rules engine (CombatState) does the same.
+const CardDB := preload("res://data/CardDB.gd")
+const EnemyDB := preload("res://data/EnemyDB.gd")
+
 const SEED := 12345
 
 func _fail(msg: String) -> void:
