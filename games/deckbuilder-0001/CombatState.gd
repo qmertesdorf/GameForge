@@ -18,7 +18,7 @@ var enemy: Dictionary
 
 var rng: RandomNumberGenerator
 
-# Internal intent index tracker.
+# Internal intent index tracker — single source of truth (enemy["_intent_i"] removed).
 var _intent_i: int = 0
 
 
@@ -34,11 +34,13 @@ func setup(seed_value: int, deck: Array, enemy_id: String) -> void:
 	mana = 0
 
 	enemy = EnemyDB.enemy(enemy_id)
-	# Ensure block and statuses keys exist on the mutable enemy copy.
+	# Ensure block, statuses, and strength keys exist on the mutable enemy copy.
 	if not enemy.has("block"):
 		enemy["block"] = 0
 	if not enemy.has("statuses"):
 		enemy["statuses"] = {"burn": 0, "chill": 0}
+	if not enemy.has("strength"):
+		enemy["strength"] = 0
 
 	# Build draw_pile as a copy of the deck, then Fisher-Yates shuffle
 	# using the seeded rng (NOT Array.shuffle which uses the global RNG).
@@ -52,7 +54,7 @@ func setup(seed_value: int, deck: Array, enemy_id: String) -> void:
 func start_combat() -> void:
 	_intent_i = 0
 	enemy["intent"] = enemy["intents"][0]
-	enemy["_intent_i"] = 0
+	# NOTE: enemy["_intent_i"] intentionally NOT set — _intent_i is the sole tracker.
 	start_turn()
 
 
@@ -96,29 +98,132 @@ func play_card(hand_index: int) -> Array:
 	var effect: Dictionary = card.get("effect", {})
 	var events: Array = []
 
-	# Damage → enemy.
+	# Damage → enemy (with optional lightning combo bonus).
 	if effect.has("damage"):
 		var dmg: int = effect.get("damage", 0)
+
+		# Lightning combo: bonus damage if enemy is Burning or Chilled.
+		if effect.has("lightning_bonus"):
+			var b: int = enemy.statuses.get("burn", 0)
+			var c: int = enemy.statuses.get("chill", 0)
+			if b > 0 or c > 0:
+				var bonus: int = effect.get("lightning_bonus", 0)
+				dmg += bonus
+
 		enemy["hp"] -= dmg
 		events.append({"type": "damage", "target": "enemy", "amount": dmg})
 
-	# Block → player (Stage 1 wired, trivial).
+	# Block → player.
 	if effect.has("block"):
 		var blk: int = effect.get("block", 0)
 		player_block += blk
 		events.append({"type": "block", "target": "player", "amount": blk})
 
-	# Draw more cards (Stage 1 wired, trivial).
+	# Draw more cards.
 	if effect.has("draw"):
 		var draw_n: int = effect.get("draw", 0)
 		_draw(draw_n)
 		events.append({"type": "draw", "amount": draw_n})
 
-	# burn/chill/lightning_bonus/power are Stage 2/3 — no-op here.
+	# Status application — Burn.
+	if effect.has("burn"):
+		var n: int = effect.get("burn", 0)
+		enemy["statuses"]["burn"] = enemy.statuses.get("burn", 0) + n
+		events.append({"type": "status", "target": "enemy", "status": "burn", "amount": n})
+
+	# Status application — Chill.
+	if effect.has("chill"):
+		var n: int = effect.get("chill", 0)
+		enemy["statuses"]["chill"] = enemy.statuses.get("chill", 0) + n
+		events.append({"type": "status", "target": "enemy", "status": "chill", "amount": n})
 
 	# Move card from hand to discard.
 	hand.remove_at(hand_index)
 	discard_pile.append(card_id)
+
+	return events
+
+
+func enemy_act() -> Array:
+	var events: Array = []
+	var intent: Dictionary = enemy.get("intent", {})
+
+	# Chill: enemy skips its entire action this turn; chill decrements.
+	var chill_stacks: int = enemy.statuses.get("chill", 0)
+	if chill_stacks > 0:
+		enemy["statuses"]["chill"] = chill_stacks - 1
+		events.append({"type": "chilled_skip"})
+		_advance_intent()
+		return events
+
+	var intent_type: String = intent.get("type", "")
+	var iv: int = intent.get("value", 0)
+
+	if intent_type == "attack":
+		var strength: int = enemy.get("strength", 0)
+		var total_dmg: int = iv + strength
+		# Absorb with player_block first.
+		var absorbed: int = min(player_block, total_dmg)
+		player_block -= absorbed
+		var overflow: int = total_dmg - absorbed
+		player_hp -= overflow
+		events.append({"type": "enemy_attack", "amount": total_dmg, "absorbed": absorbed, "damage_dealt": overflow})
+
+	elif intent_type == "defend":
+		enemy["block"] = enemy.get("block", 0) + iv
+		events.append({"type": "enemy_defend", "amount": iv})
+
+	elif intent_type == "enrage":
+		var gain: int = 3
+		enemy["strength"] = enemy.get("strength", 0) + gain
+		events.append({"type": "enemy_enrage", "strength_gain": gain})
+
+	_advance_intent()
+	return events
+
+
+func _advance_intent() -> void:
+	var intents: Array = enemy.get("intents", [])
+	if intents.is_empty():
+		return
+	_intent_i = (_intent_i + 1) % intents.size()
+	enemy["intent"] = intents[_intent_i]
+
+
+func _tick_statuses() -> Array:
+	var events: Array = []
+
+	# Burn: deal burn stacks as damage, then decrement.
+	var burn: int = enemy.statuses.get("burn", 0)
+	if burn > 0:
+		enemy["hp"] -= burn
+		enemy["statuses"]["burn"] = burn - 1
+		events.append({"type": "burn_tick", "target": "enemy", "amount": burn})
+
+	return events
+
+
+func end_turn() -> Array:
+	var events: Array = []
+
+	# (a) Discard remaining hand.
+	for card_id in hand:
+		discard_pile.append(card_id)
+	hand = []
+
+	# (b) Enemy acts.
+	var ev_act: Array = enemy_act()
+	for e in ev_act:
+		events.append(e)
+
+	# (c) Tick statuses (Burn damage over time).
+	var ev_tick: Array = _tick_statuses()
+	for e in ev_tick:
+		events.append(e)
+
+	# (d) Begin next player turn (resets block/mana, draws 5).
+	if not is_won() and not is_lost():
+		start_turn()
 
 	return events
 
