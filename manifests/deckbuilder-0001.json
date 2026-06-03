@@ -2,8 +2,8 @@
   "id": "deckbuilder-0001",
   "name": "Arcane Duel",
   "created_at": "2026-06-03T00:29:19.641Z",
-  "updated_at": "2026-06-03T01:15:57.179Z",
-  "status": "validated",
+  "updated_at": "2026-06-03T03:00:29.988Z",
+  "status": "playable",
   "concept": {
     "genre": "roguelike deckbuilder",
     "core_loop": "Turn-based arcane duel: each turn draw 5 spell cards, spend 3 mana to cast fire/ice/lightning cards against a telegraphed enemy, then end turn and the enemy acts. The live decision each turn is solving the enemy's telegraphed intent — set up Burn/Chill with fire/ice, then cash it in with lightning for bonus damage, while budgeting block vs offense. Between fights, pick 1 of 3 new cards to deepen the deck. Difficulty ramps across a ~5-node run (combat, combat, rest, elite+relic, boss). One excellent run, not endless.",
