@@ -5,6 +5,7 @@ extends SceneTree
 # autoload globals. The rules engine (CombatState) does the same.
 const CardDB := preload("res://data/CardDB.gd")
 const EnemyDB := preload("res://data/EnemyDB.gd")
+const MetaSave := preload("res://MetaSave.gd")
 
 const SEED := 12345
 
@@ -61,7 +62,37 @@ func _init() -> void:
 		_fail("enemy did not act on end_turn"); return
 	if not (cs.enemy.statuses.burn < burn0 and cs.enemy.hp < ehp3):
 		_fail("Burn did not tick + decrement on end_turn"); return
-	# --- Stage 3 (Task 13) appends here ---
+	# Stage 3: win → reward pick-1-of-3 → run advances; boss win writes the meta save.
+	var RunController := load("res://RunController.gd")
+	var run = RunController.new()
+	run.start_run(SEED)
+	var combat = run.start_node_combat()
+	combat.enemy.hp = 1
+	combat.hand.insert(0, "arcane_bolt"); combat.mana = combat.mana_max
+	combat.play_card(0)
+	if not combat.is_won():
+		_fail("forcing enemy to 1 HP + a hit did not win the combat"); return
+	var rewards: Array = run.offer_rewards()
+	if rewards.size() != 3:
+		_fail("reward screen offered %d cards, expected 3" % rewards.size()); return
+	run.choose_reward(rewards[0])
+	var node_before: Dictionary = run.current_node()
+	run.advance()
+	if run.current_node() == node_before:
+		_fail("run did not advance after reward"); return
+	# Ensure the meta-save assertion reflects THIS run, not a stale user://save.json.
+	if FileAccess.file_exists("user://save.json"):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path("user://save.json"))
+	# Boss-win meta write (drive directly to the boss outcome).
+	run.force_boss_defeat_for_test()
+	var state: Dictionary = MetaSave.new().load_state()
+	if state.get("unlocked_cards", []).is_empty():
+		_fail("boss win did not unlock a card in user://save.json"); return
+	# Lose path.
+	combat.player_hp = 0
+	if not combat.is_lost():
+		_fail("player_hp 0 did not register as lost"); return
+	# --- Stage 4 (Task 15) appends here ---
 	print("SELFTEST OK")
 	quit(0)
 
