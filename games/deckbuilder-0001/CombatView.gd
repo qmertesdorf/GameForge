@@ -111,6 +111,10 @@ const TWEEN_SPEED: float = 6.0   # lerp speed multiplier (per second)
 var _status_pulse: Dictionary = {"burn": 0.0, "chill": 0.0}
 const PULSE_DECAY: float = 6.0
 
+# Enrage pulse: 0..1 scale-pop applied to the enemy silhouette on enrage events
+var _enrage_pulse: float = 0.0
+const ENRAGE_PULSE_DECAY: float = 5.0
+
 # Intent telegraph: 0..1 fade-in value (reset to 0 at start of each enemy turn)
 var _intent_alpha: float = 1.0   # 1 = fully visible; new telegraph animates from 0→1
 var _intent_animating: bool = false
@@ -255,6 +259,7 @@ func _reset_juice() -> void:
 	_disp_player_block = 0.0
 	_disp_enemy_hp = -1.0
 	_status_pulse = {"burn": 0.0, "chill": 0.0}
+	_enrage_pulse = 0.0
 	_intent_alpha = 1.0
 	_intent_animating = false
 	_death_active = false
@@ -306,6 +311,19 @@ func _process_events(events: Array) -> void:
 			"chilled_skip":
 				_spawn_pop_up(Vector2(ENEMY_X, ENEMY_Y - 100.0),
 					"FROZEN!", COL_ICE)
+			"enemy_enrage":
+				var gain: int = ev.get("strength_gain", 0)
+				# Bold pop-up near the enemy in aggressive orange-red
+				_spawn_pop_up(Vector2(ENEMY_X + randf_range(-15.0, 15.0), ENEMY_Y - 110.0),
+					"ENRAGE! +%d" % gain, Color(1.00, 0.35, 0.05), 22)
+				# Scale-pulse on the enemy silhouette to reinforce the buff
+				_enrage_pulse = 1.0
+				queue_redraw()
+			"draw":
+				var amt: int = ev.get("amount", 0)
+				# Subtle pop-up near the draw pile (bottom-left)
+				_spawn_pop_up(Vector2(60.0 + randf_range(-8.0, 8.0), H - 38.0),
+					"+%d" % amt, Color(0.75, 0.85, 1.00))
 
 
 func _trigger_enemy_hit(magnitude: int) -> void:
@@ -325,13 +343,13 @@ func _trigger_intent_telegraph() -> void:
 	t.tween_callback(func(): _intent_animating = false)
 
 
-func _spawn_pop_up(pos: Vector2, text: String, col: Color) -> void:
+func _spawn_pop_up(pos: Vector2, text: String, col: Color, font_size: int = 18) -> void:
 	# Pop-ups are Label nodes that tween upward + fade, then free themselves.
 	# Guard: ThemeDB.fallback_font must exist (always true in Godot 4, headless too).
 	var lbl := Label.new()
 	lbl.text = text
 	lbl.add_theme_color_override("font_color", col)
-	lbl.add_theme_font_size_override("font_size", 18)
+	lbl.add_theme_font_size_override("font_size", font_size)
 	lbl.position = pos
 	add_child(lbl)
 
@@ -423,6 +441,11 @@ func _process(delta: float) -> void:
 			_status_pulse[key] = move_toward(_status_pulse[key], 0.0,
 				_status_pulse[key] * PULSE_DECAY * delta)
 			dirty = true
+
+	# Enrage pulse decay
+	if _enrage_pulse > 0.001:
+		_enrage_pulse = move_toward(_enrage_pulse, 0.0, _enrage_pulse * ENRAGE_PULSE_DECAY * delta)
+		dirty = true
 
 	# Cast ghost arc
 	if _cast_ghost_active:
@@ -533,6 +556,8 @@ func _draw_enemy() -> void:
 
 	# Silhouette — a simple imp/demon shape using polylines
 	# Body: slightly organic blob (octagon-ish polygon)
+	# Enrage pulse: expand silhouette outward from center for a brief scale-pop
+	var enrage_scale: float = 1.0 + _enrage_pulse * 0.18
 	var body_pts: PackedVector2Array = PackedVector2Array([
 		Vector2(ENEMY_X - 30, ENEMY_Y + 80),   # bottom-left
 		Vector2(ENEMY_X - 50, ENEMY_Y + 20),
@@ -543,6 +568,10 @@ func _draw_enemy() -> void:
 		Vector2(ENEMY_X + 50, ENEMY_Y + 20),
 		Vector2(ENEMY_X + 30, ENEMY_Y + 80),
 	])
+	var center_pt := Vector2(ENEMY_X, ENEMY_Y)
+	if enrage_scale != 1.0:
+		for i in body_pts.size():
+			body_pts[i] = center_pt + (body_pts[i] - center_pt) * enrage_scale
 
 	# Hit-flash: overlay white on top of silhouette to simulate flash
 	var flash: float = _enemy_flash
