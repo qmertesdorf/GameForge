@@ -58,14 +58,14 @@ Method 1 (clean headless run) and a real-time `_process` self-test cannot exerci
 godot --headless --path games/<id>/ --script res://selftest.gd
 ```
 
-- **PASS** = exit 0 AND output contains `SELFTEST OK`. The scripted turn proved: opening hand drawn, a card spent mana + dealt its damage, a status (Burn/Chill) applied, the cross-element payoff (Lightning bonus vs an afflicted target) fired, the enemy acted and statuses ticked on `end_turn`, a win/lose transition resolved, the reward pick-1-of-3 advanced the run, and the meta save wrote `user://save.json`. Advance:
+- **PASS** = exit 0 AND output contains `SELFTEST OK`. The scripted turn proved the full turn cycle: the opening state was populated, a core action spent its resource + landed its effect, a setup action established a state, a payoff action exploited that state for its bonus branch (not the base one), the opponent acted and durational state ticked on `end_turn`, a win/lose transition resolved, the post-encounter progression advanced, and the persistence milestone wrote `user://save.json`. Advance:
   ```
   node tools/manifest.mjs merge <id> "{\"validation\": {\"core_loop_functional\": true}}"
   node tools/manifest.mjs set-status <id> validated
   ```
-- **FAIL** = `SELFTEST FAIL: <reason>` or non-zero exit. Record the reason verbatim in `issues`, set `core_loop_functional: false`, `set-status <id> failed`, and STOP — attribute it to `builder` with the precise assertion that failed (e.g. "builder: Lightning card dealt base damage to a Burning enemy — the combo-payoff branch never fired"). Catching a deckbuilder math bug headlessly is a POC success.
+- **FAIL** = `SELFTEST FAIL: <reason>` or non-zero exit. Record the reason verbatim in `issues`, set `core_loop_functional: false`, `set-status <id> failed`, and STOP — attribute it to `builder` with the precise assertion that failed (e.g. "builder: a payoff action dealt only its base effect against an established state — the bonus branch never fired"). Catching a turn-based math bug headlessly is a POC success.
 
-Determinism is mandatory: the seed is fixed in `selftest.gd`, so a flaky self-test is itself a `builder` finding (an unseeded RNG path in the engine). The human playtest (Method 2) still gates `playable` — the self-test proves the rules are correct, the human confirms it *feels* like a duel worth replaying.
+Determinism is mandatory: the seed is fixed in `selftest.gd`, so a flaky self-test is itself a `builder` finding (an unseeded RNG path in the engine). The human playtest (Method 2) still gates `playable` — the self-test proves the rules are correct, the human confirms it *feels* like a game worth replaying.
 
 ## Method 2 — Human playtest (manual now)
 
@@ -138,7 +138,7 @@ On all gates passing:
 node tools/manifest.mjs set-status <id> packaged
 node tools/manifest.mjs validate <id>
 ```
-On failure, record the specific issue in `validation.issues`, attribute it to a skill (`packager` / `package.mjs`), and do **not** advance — the game stays `scored`. The **icon/splash aesthetic A/B** (item 7's aesthetic verdict) and the **real APK build** are explicitly the owner gate and the **§8 Android-toolchain feasibility gate** — not asserted here. The end-to-end `… → packaged` proof needs a `scored` game (owner-gated) plus the APK gate; the foundation exercises the CI-checkable assertions against the current substrate without claiming `packaged` (spec §9). Note (Android-shippable POC, 2026-06-02): proving the **build toolchain** on a game — recording `build_artifact` and passing `verify-build` — does **not** by itself advance status to `packaged`. The `packaged` gate still requires both owner A/B confirmations (`styled` visual + `scored` audio) and the item-7 cross-modal cohesion A/B. A game whose build is proven but whose A/Bs are still pending (e.g. creature-0001) stays at its current status. The build seam proves shippability of the *pipeline*, not polish of the *game*.
+On failure, record the specific issue in `validation.issues`, attribute it to a skill (`packager` / `package.mjs`), and do **not** advance — the game stays `scored`. The **icon/splash aesthetic A/B** (item 7's aesthetic verdict) and the **real APK build** are explicitly the owner gate and the **§8 Android-toolchain feasibility gate** — not asserted here. The end-to-end `… → packaged` proof needs a `scored` game (owner-gated) plus the APK gate; the foundation exercises the CI-checkable assertions against the current substrate without claiming `packaged` (spec §9). **Build-toolchain proof ≠ `packaged`.** Proving the build toolchain on a game — recording `build_artifact` and passing `verify-build` — does **not** by itself advance status to `packaged`. The `packaged` gate still requires both owner A/B confirmations (`styled` visual + `scored` audio) and the item-7 cross-modal cohesion A/B; a game whose build is proven but whose A/Bs are still pending stays at its current status. The build seam proves shippability of the *pipeline*, not polish of the *game*.
 
 ## Notes
 - Some Godot CLI flags vary slightly by 4.x point release; if `--quit-after` is unavailable, fall back to `--headless --path games/<id>/ --quit` after confirming `--import` succeeds. Verify against the pinned version.

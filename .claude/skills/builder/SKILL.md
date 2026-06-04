@@ -105,7 +105,7 @@ renderer/rendering_method="mobile"
 textures/vram_compression/import_etc2_astc=true
 ```
 
-**Android export requirement (proven Phase A, 2026-06-02):** the `[rendering]` block above is mandatory for an Android build. `import_etc2_astc=true` is **required** — without it `godot --export-debug "Android"` fails the export validation with an empty/opaque "configuration errors:" message (the headless CLI does not name the cause; the editor's Export dialog does). `rendering_method="mobile"` (Vulkan) is the authored default and **runs** on real devices; note that the GL-compatibility renderer needs GLES 3 and that Android *emulators* often cannot drive either renderer (Vulkan → black, GLES3 → EGL crash), so emulators are an unreliable visual test for Godot — confirm visuals on desktop or a real device, not an AVD. (See `packager`/README "Android export" for the build seam.)
+**Android export requirement (proven on a real Android export):** the `[rendering]` block above is mandatory for an Android build. `import_etc2_astc=true` is **required** — without it `godot --export-debug "Android"` fails the export validation with an empty/opaque "configuration errors:" message (the headless CLI does not name the cause; the editor's Export dialog does). `rendering_method="mobile"` (Vulkan) is the authored default and **runs** on real devices; note that the GL-compatibility renderer needs GLES 3 and that Android *emulators* often cannot drive either renderer (Vulkan → black, GLES3 → EGL crash), so emulators are an unreliable visual test for Godot — confirm visuals on desktop or a real device, not an AVD. (See `packager`/README "Android export" for the build seam.)
 
 `games/<id>/Main.gd` (skeleton — fill the genre-specific loop):
 ```gdscript
@@ -177,17 +177,18 @@ Create `Main.tscn` as a text scene referencing `Main.gd` on the root node, plus 
 
 **Lifecycle gotcha (POC run-005):** in a `SceneTree`/headless self-test, when you `add_child` the game node its `_ready()` is **deferred** — it has not run yet on the line after `add_child`, so the board/world is still empty if you assert immediately. Drive setup explicitly (call the game's `_start_game()`/setup method yourself, or `await` a frame) before the first assertion. Fix the *harness*, not the game, when this bites.
 
-**Turn-based / scripted-turn genres (deckbuilder, tactics, roguelike):** a real-time `_process` loop does not exercise a turn-based engine — drive **scripted turns** through the rules engine directly with a **fixed RNG seed**, and assert the full turn cycle. The canonical script (adapt to the game):
-- `setup(seed, deck, enemy_id)` then `start_combat()` → assert the opening hand was drawn (`hand.size() == 5`).
-- Play a known attack card → assert mana spent **and** enemy HP dropped by the card's value.
-- Play a status-setup card (e.g. Fire→Burn) → assert the status stack appears on the enemy.
-- Play a payoff card into that status (e.g. Lightning vs Burning) → assert the **bonus** branch fired (damage > base).
-- `end_turn()` → assert the enemy acted (player HP dropped or block absorbed) **and** statuses ticked (Burn dealt + decremented, Chill consumed).
-- Force the enemy to lethal, resolve → assert `is_won()`; drive a reward pick → assert the pick-1-of-3 choice resolves and the run advances.
-- Force player HP to 0 → assert `is_lost()`. Drive the meta milestone (boss kill) → assert `user://save.json` was written with the expected keys.
+**Turn-based / scripted-turn genres (deckbuilder, tactics, roguelike):** a real-time `_process` loop does not exercise a turn-based engine — drive **scripted turns** through the rules engine directly with a **fixed RNG seed**, and assert the full turn cycle. Think in turn-cycle *primitives*, not one genre's nouns; instantiate each primitive in your genre's terms:
+- **Setup → opening state populated.** Seed the engine and start the encounter → assert the starting state exists (deckbuilder: opening hand drawn to its size; tactics: units placed on the board; roguelike: starting room/stats initialized).
+- **Spend a resource for a primary effect → assert both.** Take the core offensive action → assert the resource was deducted **and** its effect landed (deckbuilder: a card costs mana and drops enemy HP by its value; tactics: a unit spends action points and its attack lands; RPG: an ability spends MP and hits).
+- **Establish a state for later → assert it appears.** Take a setup action → assert the state it creates is present (deckbuilder: a damage-over-time or stacking status on the enemy; tactics: a buff/zone/marked target).
+- **Exploit that state for a conditional payoff → assert the bonus branch.** Take the payoff action against that state → assert the **bonus** branch fired, not the base one (effect > base) (deckbuilder: a payoff card vs an afflicted target; tactics: bonus damage vs a marked/flanked unit).
+- **End turn / opponent phase → assert the opponent acted AND time-based state advanced.** Resolve the turn → assert the opponent took its action (player state changed or was absorbed) **and** durational state ticked — applied and decremented (deckbuilder: a DoT dealt damage + decremented, a consumable status consumed; tactics: cooldowns/buff durations advanced; roguelike: a temporary effect expired).
+- **Force the win condition → assert win + progression.** Drive the encounter to a win → assert the win-state (e.g. `is_won()`), then assert the post-encounter progression resolved (a reward choice advances the run, the next mission unlocks).
+- **Force the loss condition → assert loss.** Drive the player to defeat → assert the lose-state (e.g. `is_lost()`).
+- **Persistence milestone → assert the save wrote.** Drive the save trigger → assert the persistent file (`user://save.json`) was written with the expected keys.
 Seeded RNG makes every assertion deterministic; the `validator`'s Method 1.6 runs this and `fail`s the build on `SELFTEST FAIL`.
 
-Three hard rules for turn-based self-tests (proven on `deckbuilder-0001`, commit `d569e7e`):
+Three hard rules for turn-based self-tests:
 - **Headless `--script` runs don't instantiate autoloads.** `godot --script` starts a minimal SceneTree that skips the `[autoload]` section — `Engine.has_singleton("CardDB")` returns `false`, `/root/CardDB` is absent. Reach data layers (CardDB, EnemyDB, etc.) via `const X := preload("res://data/X.gd")` + `static func` only. Drop the `[autoload]` block from `project.godot` for any data file the self-test must reach, or make those files static-accessible so the self-test can preload them directly. (This silently breaks any turn-based build that expects autoload globals in its self-test.)
 - **Seed every RNG path via a `RandomNumberGenerator` and shuffle with an explicit Fisher–Yates loop.** `Array.shuffle()` uses the global RNG and ignores any custom seed — deterministic assertions break silently. Use `rng.randi_range()` inside a manual Fisher–Yates on every shuffle that the self-test depends on.
 - **Reset persistent side-effects before asserting on them.** If the self-test writes `user://save.json` (or any other file) and then asserts its contents, delete the file immediately before the write — a stale file from a prior run will false-positive the assertion without the write actually having occurred.
