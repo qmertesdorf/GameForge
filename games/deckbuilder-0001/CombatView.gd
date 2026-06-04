@@ -707,7 +707,7 @@ func _draw_enemy() -> void:
 	var bar_h: float = 16.0
 	var bar_x: float = ENEMY_X - bar_w * 0.5
 	var bar_y: float = maxf(46.0, sprite_top - 28.0)
-	draw_rect(Rect2(ENEMY_X - 100.0, bar_y - 58.0, 200.0, 86.0),
+	draw_rect(Rect2(ENEMY_X - 100.0, bar_y - 78.0, 200.0, 106.0),
 		Color(0.05, 0.04, 0.11, 0.66 * dissolve_alpha))
 	_draw_text_alpha(Vector2(ENEMY_X, bar_y - 14.0), e_name, 15, COL_WHITE, true, dissolve_alpha)
 	var disp_hp: float = _disp_enemy_hp if _disp_enemy_hp >= 0.0 else float(e_hp)
@@ -736,7 +736,7 @@ func _draw_enemy() -> void:
 			intent_str = "?"
 	# Slide in from 6px above when animating. Intent = ICON + value, not bare text.
 	var intent_y_off: float = (1.0 - _intent_alpha) * -6.0
-	var intent_cy: float = bar_y - 42.0 + intent_y_off
+	var intent_cy: float = bar_y - 55.0 + intent_y_off
 	if intent_type != "":
 		# Bolder, larger telegraph — instant "it's going to hit me for N".
 		_draw_intent_icon(Vector2(ENEMY_X - 28.0, intent_cy), intent_type, 13.0,
@@ -832,9 +832,9 @@ func _draw_player_hud() -> void:
 		"%d / %d" % [php, phmax])
 
 	# Mana orbs — styled (base + glow + highlight + bold outline).
-	_draw_text(Vector2(px + 10, py + 52), "Mana", 12, COL_MANA)
+	_draw_text(Vector2(px + 10, py + 44), "Mana", 12, COL_MANA)
 	for i in mnmax:
-		_draw_mana_orb(Vector2(px + 16.0 + i * 24.0, py + 66.0), i < mn)
+		_draw_mana_orb(Vector2(px + 16.0 + i * 24.0, py + 72.0), i < mn)
 
 	# Block — painted shield token with the value on its boss (only when blocking).
 	var disp_blk: int = int(round(_disp_player_block))
@@ -1060,10 +1060,15 @@ func _draw_pile_stack(center: Vector2, count: int, label: String) -> void:
 		draw_rect(base, COL_CARD_BG)
 		draw_rect(base, Color(0.6, 0.5, 0.9, 0.6), false)
 	# Count badge (bottom-right of the stack) — bold + legible.
-	var badge := Vector2(base.end.x - 1.0, base.end.y - 3.0)
+	var badge := Vector2(base.end.x - 1.0, base.end.y - 11.0)
 	_draw_token_disc(badge, 13.0, Color(0.78, 0.66, 1.0))
 	_draw_text_shadow(badge + Vector2(0.0, 5.0), str(count), 15, COL_WHITE, true)
-	_draw_text_shadow(Vector2(center.x, base.end.y + 15.0), label, 12, Color(0.86, 0.80, 0.96), true)
+	# Solid backing pill so the label reads over bright chamber-floor art (not outline-only).
+	var _lf: Font = _font if _font != null else ThemeDB.fallback_font
+	var _lw: float = _lf.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x if _lf != null else 30.0
+	var _ly: float = base.end.y + 21.0
+	draw_rect(Rect2(center.x - _lw * 0.5 - 6.0, _ly - 12.0, _lw + 12.0, 16.0), Color(0.04, 0.03, 0.09, 0.80))
+	_draw_text_shadow(Vector2(center.x, _ly), label, 12, Color(0.88, 0.82, 0.98), true)
 
 
 # ─── End Turn button ──────────────────────────────────────────────────────────
@@ -1166,7 +1171,7 @@ func _draw_intent_icon(center: Vector2, kind: String, sz: float, col: Color) -> 
 	# Painted icon for attack/defend; code fallback (incl. enrage chevron) otherwise.
 	var itex: Texture2D = _tex_icon.get(kind) if (kind == "attack" or kind == "defend") else null
 	if itex != null:
-		var s := sz * 1.8
+		var s := sz * 1.4
 		draw_texture_rect(itex, Rect2(center.x - s, center.y - s, s * 2.0, s * 2.0), false,
 			Color(1, 1, 1, col.a))
 		return
@@ -1223,7 +1228,7 @@ func _draw_hp_bar(rect: Rect2, frac: float, fill_col: Color, text: String, alpha
 		var _tw: float = _f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, _fs).x if _f != null else 24.0
 		var _cx: float = rect.get_center().x
 		var _cy: float = rect.get_center().y
-		draw_rect(Rect2(_cx - _tw * 0.5 - 5.0, _cy - _fs * 0.5 - 1.0, _tw + 10.0, _fs + 4.0), Color(0.03, 0.02, 0.07, 0.58 * alpha))
+		draw_rect(Rect2(_cx - _tw * 0.5 - 5.0, _cy - _fs * 0.5 - 1.0, _tw + 10.0, _fs + 4.0), Color(0.03, 0.02, 0.07, 0.86 * alpha))
 		_draw_text_shadow(Vector2(_cx, _cy + rect.size.y * 0.30), text, _fs, Color(1, 1, 1, alpha), true)
 
 
