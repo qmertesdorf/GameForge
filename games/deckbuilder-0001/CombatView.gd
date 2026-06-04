@@ -66,9 +66,12 @@ const CARD_H: float = 160.0
 const CARD_HAND_Y: float = 630.0   # center-y of cards in hand
 const CARD_SPACING: float = 130.0
 
-# Enemy silhouette anchor
-const ENEMY_X: float = 880.0
+# Enemy silhouette anchor — centered on the runic portal so the duel's single
+# enemy owns the focal point (the portal becomes its backdrop halo).
+const ENEMY_X: float = 660.0
 const ENEMY_Y: float = 340.0
+# Base on-screen size of the enemy sprite (bottom-anchored to the floor line).
+const ENEMY_DRAW_SIZE: float = 350.0
 
 # End Turn button rect
 const END_BTN_RECT := Rect2(1080.0, 630.0, 160.0, 50.0)
@@ -98,6 +101,10 @@ var _tex_card_back: Texture2D = null
 var _tex_relic: Dictionary = {}    # relic id -> Texture2D
 var _tex_icon: Dictionary = {}     # ui icon name -> Texture2D (painted, cohesive)
 var _relics: Array = []            # relic ids held by the player (set via refresh)
+var _font: Font = null             # themed display font (Lilita One); ThemeDB fallback if missing
+var _tex_mana: Texture2D = null    # painted mana crystal token (filled bright / spent dim)
+var _tex_shield: Texture2D = null  # painted block/shield token
+var _tex_plate: Texture2D = null   # painted medallion plate (icon/value backing)
 
 # Card ids with full-bleed POV illustrations (one per CardDB id).
 const CARD_IDS := [
@@ -195,6 +202,14 @@ func _ready() -> void:
 		"defend": _try_load("res://art/icon_defend.png"),
 		"gem":    _try_load("res://art/icon_gem.png"),
 	}
+
+	# Themed display font — generic ThemeDB fallback digits read as programmer-art
+	# next to the painted set, so wire one cartoon display face project-wide.
+	if ResourceLoader.exists("res://art/ui_font.ttf"):
+		_font = load("res://art/ui_font.ttf")
+	_tex_mana = _try_load("res://art/token_mana.png")
+	_tex_shield = _try_load("res://art/token_shield.png")
+	_tex_plate = _try_load("res://art/token_plate.png")
 
 
 func _try_load(path: String) -> Texture2D:
@@ -407,6 +422,8 @@ func _spawn_pop_up(pos: Vector2, text: String, col: Color, font_size: int = 18) 
 	lbl.text = text
 	lbl.add_theme_color_override("font_color", col)
 	lbl.add_theme_font_size_override("font_size", font_size)
+	if _font != null:
+		lbl.add_theme_font_override("font", _font)
 	lbl.position = pos
 	add_child(lbl)
 
@@ -648,13 +665,16 @@ func _draw_enemy() -> void:
 	# Asset pass: draw the per-enemy silhouette SVG. Flash = an overbright additive
 	# pass (modulate >1 brightens in 2D), enrage = scale-pop, dissolve = alpha.
 	# Falls back to the primitive polygon + eyes if the texture is missing.
+	# Sprite geometry — base size anchors the chrome (stable); enrage scales only the
+	# DRAWN sprite so the HP bar/intent above it don't bounce during the pulse.
+	var floor_y: float = ENEMY_Y + 150.0
+	var sprite_top: float = floor_y - ENEMY_DRAW_SIZE
 	var en_id: String = en.get("id", "imp")
 	var etex: Texture2D = _tex_enemy.get(en_id, null)
 	if etex != null:
-		var sz: float = 300.0 * enrage_scale
+		var sz: float = ENEMY_DRAW_SIZE * enrage_scale
 		# Bottom-anchor to a floor line so the creature STANDS on the runic circle
 		# instead of floating (transparent-padded square sprites float if centered).
-		var floor_y: float = ENEMY_Y + 150.0
 		var dest := Rect2(ENEMY_X - sz * 0.5, floor_y - sz, sz, sz)
 		draw_texture_rect(etex, dest, false, Color(1.0, 1.0, 1.0, dissolve_alpha))
 		if flash > 0.01:
@@ -675,20 +695,21 @@ func _draw_enemy() -> void:
 		draw_circle(Vector2(ENEMY_X + 12, eye_y), 6.0, Color(1.0, 0.3, 0.1, 0.35 * eye_alpha))
 		draw_circle(Vector2(ENEMY_X + 12, eye_y), 4.0, Color(1.0, 0.5, 0.2, eye_alpha))
 
-	# Block badge (if any) — styled shield.
+	# Block badge (if any) — styled shield, beside the creature's right side.
 	if e_block > 0:
-		_draw_shield_badge(Vector2(ENEMY_X + 96.0, ENEMY_Y + 6.0), 14.0, COL_BLOCK,
+		_draw_shield_badge(Vector2(ENEMY_X + 128.0, ENEMY_Y + 6.0), 14.0, COL_BLOCK,
 			str(e_block), dissolve_alpha)
 
 	# Name + intent + styled HP bar above the enemy, on a legibility panel
 	# (intent row at top, name, then the bar — laid out so nothing collides).
+	# Anchored just above the sprite's top so it clears the (now larger) creature.
 	var bar_w: float = 150.0
 	var bar_h: float = 16.0
 	var bar_x: float = ENEMY_X - bar_w * 0.5
-	var bar_y: float = ENEMY_Y - 145.0
-	draw_rect(Rect2(ENEMY_X - 98.0, bar_y - 52.0, 196.0, 78.0),
-		Color(0.05, 0.04, 0.11, 0.62 * dissolve_alpha))
-	_draw_text_alpha(Vector2(ENEMY_X, bar_y - 14.0), e_name, 13, COL_WHITE, true, dissolve_alpha)
+	var bar_y: float = maxf(46.0, sprite_top - 28.0)
+	draw_rect(Rect2(ENEMY_X - 100.0, bar_y - 58.0, 200.0, 86.0),
+		Color(0.05, 0.04, 0.11, 0.66 * dissolve_alpha))
+	_draw_text_alpha(Vector2(ENEMY_X, bar_y - 14.0), e_name, 15, COL_WHITE, true, dissolve_alpha)
 	var disp_hp: float = _disp_enemy_hp if _disp_enemy_hp >= 0.0 else float(e_hp)
 	var hp_frac: float = clamp(disp_hp / float(e_max_hp), 0.0, 1.0)
 	_draw_hp_bar(Rect2(bar_x, bar_y, bar_w, bar_h), hp_frac, COL_HP_BAR,
@@ -715,16 +736,17 @@ func _draw_enemy() -> void:
 			intent_str = "?"
 	# Slide in from 6px above when animating. Intent = ICON + value, not bare text.
 	var intent_y_off: float = (1.0 - _intent_alpha) * -6.0
-	var intent_cy: float = bar_y - 40.0 + intent_y_off
+	var intent_cy: float = bar_y - 42.0 + intent_y_off
 	if intent_type != "":
-		_draw_intent_icon(Vector2(ENEMY_X - 20.0, intent_cy), intent_type, 9.0,
+		# Bolder, larger telegraph — instant "it's going to hit me for N".
+		_draw_intent_icon(Vector2(ENEMY_X - 28.0, intent_cy), intent_type, 13.0,
 			Color(intent_col.r, intent_col.g, intent_col.b, intent_a))
 		if intent_type == "attack" or intent_type == "defend":
-			_draw_text_alpha(Vector2(ENEMY_X + 14.0, intent_cy + 5.0), str(intent_val),
-				15, intent_col, true, intent_a)
+			_draw_text_alpha(Vector2(ENEMY_X + 16.0, intent_cy + 7.0), str(intent_val),
+				20, intent_col, true, intent_a)
 		elif intent_type == "enrage":
-			_draw_text_alpha(Vector2(ENEMY_X + 22.0, intent_cy + 5.0), "RAGE",
-				12, intent_col, true, intent_a)
+			_draw_text_alpha(Vector2(ENEMY_X + 20.0, intent_cy + 6.0), "RAGE",
+				14, intent_col, true, intent_a)
 
 	# Status icons (flame = burn, snowflake = chill) in a row at the enemy's feet,
 	# with the pulse scale-pop. Code-drawn so they stay crisp at small size.
@@ -744,10 +766,8 @@ func _draw_enemy() -> void:
 		var pulse_s: float = 1.0 + _status_pulse.get(kind, 0.0) * 0.5
 		var r: float = 11.0 * pulse_s
 		var ring: Color = COL_FIRE if kind == "burn" else COL_ICE
-		# Finished-badge backing: dark disc + colored ring so the icon reads as authored.
-		draw_circle(Vector2(sx, sy), r + 4.0, Color(0.06, 0.05, 0.12, 0.80 * dissolve_alpha))
-		draw_arc(Vector2(sx, sy), r + 4.0, 0.0, TAU, 22,
-			Color(ring.r, ring.g, ring.b, 0.85 * dissolve_alpha), 2.0)
+		# Soft rendered disc backing (element-coloured rim) so the icon reads seated.
+		_draw_token_disc(Vector2(sx, sy), r + 4.0, ring, dissolve_alpha)
 		var stex: Texture2D = _tex_icon.get(kind)
 		if stex != null:
 			var iz: float = r * 1.55
@@ -789,14 +809,20 @@ func _draw_player_hud() -> void:
 	var mn: int    = _combat.mana
 	var mnmax: int = _combat.mana_max
 
-	# Panel — flat-cartoon: solid fill + top accent bar + bold outline.
+	# Panel — arcane plate: gradient body, accent strip, inner bevel, bold frame,
+	# corner notches. Less flat than a plain rect next to the painted art.
 	var px: float = 20.0
 	var py: float = 555.0
 	var pw: float = 200.0
 	var ph_box: float = 100.0
-	draw_rect(Rect2(px, py, pw, ph_box), COL_PANEL)
-	draw_rect(Rect2(px, py, pw, 4.0), Color(0.70, 0.50, 1.00, 0.85))
-	draw_rect(Rect2(px, py, pw, ph_box), Color(0.10, 0.05, 0.18, 0.85), false, 2.0)
+	var panel_r := Rect2(px, py, pw, ph_box)
+	draw_rect(panel_r, COL_PANEL)
+	_draw_vscrim(panel_r, Color(0.20, 0.13, 0.30, 0.32), Color(0.04, 0.03, 0.09, 0.0))
+	draw_rect(Rect2(px, py, pw, 4.0), Color(0.78, 0.58, 1.00, 0.90))             # top accent
+	draw_rect(Rect2(px, py + 5.0, pw, 1.0), Color(1.0, 1.0, 1.0, 0.10))          # inner highlight
+	draw_rect(Rect2(px, py + ph_box - 2.0, pw, 2.0), Color(0.0, 0.0, 0.0, 0.40)) # bottom shadow
+	draw_rect(panel_r, Color(0.10, 0.05, 0.18, 0.90), false, 2.0)               # outer frame
+	_draw_corner_ticks(panel_r, 10.0, Color(0.80, 0.62, 1.0, 0.85))
 
 	# HP — styled bar with the value CENTERED on it (no overlap).
 	_draw_text(Vector2(px + 10, py + 18), "HP", 12, COL_HP_BAR)
@@ -810,10 +836,10 @@ func _draw_player_hud() -> void:
 	for i in mnmax:
 		_draw_mana_orb(Vector2(px + 16.0 + i * 24.0, py + 66.0), i < mn)
 
-	# Block — styled shield badge with the value (only when blocking).
+	# Block — painted shield token with the value on its boss (only when blocking).
 	var disp_blk: int = int(round(_disp_player_block))
 	if disp_blk > 0:
-		_draw_shield_badge(Vector2(px + pw - 26.0, py + 66.0), 13.0, COL_BLOCK, str(disp_blk))
+		_draw_shield_badge(Vector2(px + pw - 32.0, py + 64.0), 15.0, COL_BLOCK, str(disp_blk))
 
 
 # ─── Relics ───────────────────────────────────────────────────────────────────
@@ -826,14 +852,16 @@ func _draw_relics() -> void:
 	var sz: float = 42.0
 	for rid in _relics:
 		var box := Rect2(x, y, sz, sz)
-		# Round slot behind the icon for a HUD-anchored feel.
-		draw_circle(box.get_center(), sz * 0.5 + 2.0, Color(0.06, 0.05, 0.12, 0.62))
-		draw_arc(box.get_center(), sz * 0.5 + 2.0, 0.0, TAU, 24, Color(0.7, 0.55, 1.0, 0.7), 1.5)
+		# The Ember Heart art carries its own pendant ring, so NO medallion plate behind
+		# it (ring-on-ring shrinks the heart). Soft seating glow + a larger pendant.
+		var c := box.get_center()
+		draw_circle(c, sz * 0.54, Color(0.70, 0.55, 1.0, 0.22))
 		var rtex: Texture2D = _tex_relic.get(rid, null)
 		if rtex != null:
-			draw_texture_rect(rtex, box, false)
+			var iz: float = sz * 0.64
+			draw_texture_rect(rtex, Rect2(c.x - iz, c.y - iz, iz * 2.0, iz * 2.0), false)
 		else:
-			draw_circle(box.get_center(), sz * 0.36, Color(1.0, 0.5, 0.2, 0.9))
+			draw_circle(c, sz * 0.36, Color(1.0, 0.5, 0.2, 0.9))
 		x += sz + 10.0
 
 
@@ -957,7 +985,7 @@ func _draw_card_face(rect: Rect2, card_data: Dictionary, affordable: bool, selec
 	var pip_r: float = 8.0 * s
 	var gem: Texture2D = _tex_icon.get("gem")
 	if gem != null:
-		draw_arc(pip_c, pip_r + 1.0, 0.0, TAU, 20, Color(elem_col.r, elem_col.g, elem_col.b, 0.9), 2.0)
+		_draw_token_disc(pip_c, pip_r + 1.5, elem_col)
 		draw_texture_rect(gem, Rect2(pip_c.x - pip_r, pip_c.y - pip_r, pip_r * 2.0, pip_r * 2.0), false)
 	else:
 		draw_circle(pip_c, pip_r * 0.7 + 1.5, Color(0.05, 0.04, 0.11, 0.9))
@@ -1033,8 +1061,7 @@ func _draw_pile_stack(center: Vector2, count: int, label: String) -> void:
 		draw_rect(base, Color(0.6, 0.5, 0.9, 0.6), false)
 	# Count badge (bottom-right of the stack) — bold + legible.
 	var badge := Vector2(base.end.x - 1.0, base.end.y - 3.0)
-	draw_circle(badge, 13.0, Color(0.07, 0.05, 0.14, 0.97))
-	draw_arc(badge, 13.0, 0.0, TAU, 22, Color(0.78, 0.66, 1.0), 2.5)
+	_draw_token_disc(badge, 13.0, Color(0.78, 0.66, 1.0))
 	_draw_text_shadow(badge + Vector2(0.0, 5.0), str(count), 15, COL_WHITE, true)
 	_draw_text_shadow(Vector2(center.x, base.end.y + 15.0), label, 12, Color(0.86, 0.80, 0.96), true)
 
@@ -1042,12 +1069,13 @@ func _draw_pile_stack(center: Vector2, count: int, label: String) -> void:
 # ─── End Turn button ──────────────────────────────────────────────────────────
 
 func _draw_end_turn_button() -> void:
-	# Styled flat-cartoon button: drop shadow, solid fill, top cel highlight, bold outline.
+	# Rendered button: drop shadow, vertical-gradient body, top gloss, bevel frame.
 	var r := END_BTN_RECT
-	draw_rect(Rect2(r.position + Vector2(0.0, 3.0), r.size), Color(0.0, 0.0, 0.0, 0.35))
-	draw_rect(r, COL_END_BTN)
-	draw_rect(Rect2(r.position, Vector2(r.size.x, r.size.y * 0.45)), Color(1.0, 1.0, 1.0, 0.16))
-	draw_rect(r, Color(0.14, 0.02, 0.20, 0.95), false, 2.5)
+	draw_rect(Rect2(r.position + Vector2(0.0, 3.0), r.size), Color(0, 0, 0, 0.40))
+	_draw_vscrim(r, COL_END_BTN.lerp(Color(1, 1, 1), 0.22), COL_END_BTN.darkened(0.32))
+	draw_rect(Rect2(r.position + Vector2(2.0, 2.0), Vector2(r.size.x - 4.0, r.size.y * 0.40)), Color(1, 1, 1, 0.18))
+	draw_rect(r, COL_END_BTN.darkened(0.55), false, 2.5)
+	draw_rect(Rect2(r.position + Vector2(2.0, 1.0), Vector2(r.size.x - 4.0, 1.0)), Color(1, 1, 1, 0.22))
 	_draw_text_shadow(r.get_center() + Vector2(0.0, 5.0), "End Turn", 15, COL_WHITE, true)
 
 
@@ -1172,24 +1200,49 @@ func _draw_intent_icon(center: Vector2, kind: String, sz: float, col: Color) -> 
 
 
 func _draw_hp_bar(rect: Rect2, frac: float, fill_col: Color, text: String, alpha: float = 1.0) -> void:
-	# Flat-cartoon styled bar: dark base, flat fill + cel highlight, bold outline,
-	# value CENTERED on the bar with a shadow (legible, not overlapping awkwardly).
+	# Rendered gauge: dark inset trough + top inner shadow, a vertical-gradient fill
+	# with a gloss strip and a bright leading edge, bevel frame + top highlight.
 	frac = clampf(frac, 0.0, 1.0)
-	draw_rect(rect, Color(0.08, 0.06, 0.13, 0.92 * alpha))
+	draw_rect(rect, Color(0.05, 0.04, 0.09, 0.95 * alpha))
+	_draw_vscrim(Rect2(rect.position, Vector2(rect.size.x, rect.size.y * 0.5)), Color(0, 0, 0, 0.40 * alpha), Color(0, 0, 0, 0.0))
 	if frac > 0.0:
-		var fill := Rect2(rect.position, Vector2(rect.size.x * frac, rect.size.y))
-		draw_rect(fill, Color(fill_col.r, fill_col.g, fill_col.b, alpha))
-		draw_rect(Rect2(fill.position, Vector2(fill.size.x, maxf(2.0, fill.size.y * 0.38))),
-			Color(1, 1, 1, 0.22 * alpha))
-	draw_rect(rect, Color(0.0, 0.0, 0.0, 0.8 * alpha), false, 2.0)
+		var fw: float = rect.size.x * frac
+		var fill := Rect2(rect.position, Vector2(fw, rect.size.y))
+		var top := fill_col.lerp(Color(1, 1, 1), 0.30)
+		top.a = alpha
+		var bot := fill_col.darkened(0.45)
+		bot.a = alpha
+		_draw_vscrim(fill, top, bot)
+		draw_rect(Rect2(fill.position + Vector2(0.0, 1.0), Vector2(fw, maxf(2.0, rect.size.y * 0.30))), Color(1, 1, 1, 0.22 * alpha))
+		draw_rect(Rect2(rect.position.x + fw - 2.0, rect.position.y, 2.0, rect.size.y), Color(1, 1, 1, 0.32 * alpha))
+	draw_rect(rect, Color(0.02, 0.02, 0.05, 0.92 * alpha), false, 2.0)
+	draw_rect(Rect2(rect.position + Vector2(2.0, 1.0), Vector2(rect.size.x - 4.0, 1.0)), Color(1, 1, 1, 0.10 * alpha))
 	if text != "":
-		_draw_text_shadow(Vector2(rect.get_center().x, rect.get_center().y + rect.size.y * 0.30),
-			text, int(rect.size.y * 0.78), Color(1, 1, 1, alpha), true)
+		var _fs: int = int(rect.size.y * 0.78)
+		var _f: Font = _font if _font != null else ThemeDB.fallback_font
+		var _tw: float = _f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, _fs).x if _f != null else 24.0
+		var _cx: float = rect.get_center().x
+		var _cy: float = rect.get_center().y
+		draw_rect(Rect2(_cx - _tw * 0.5 - 5.0, _cy - _fs * 0.5 - 1.0, _tw + 10.0, _fs + 4.0), Color(0.03, 0.02, 0.07, 0.58 * alpha))
+		_draw_text_shadow(Vector2(_cx, _cy + rect.size.y * 0.30), text, _fs, Color(1, 1, 1, alpha), true)
 
 
 func _draw_mana_orb(center: Vector2, filled: bool, r: float = 11.0) -> void:
-	# Richly-rendered code orb: glow + radial body (rim→mid→core) + highlight + bold
-	# outline. Reliable bright-blue mana that small-icon generation kept rendering dark.
+	# Painted mana-crystal token (generated, same checkpoint as the cards) so the
+	# resource reads as part of the painted set, not a flat vector orb. Filled =
+	# bright crystal + glow; spent = the same crystal dimmed/desaturated so the slot
+	# still reads. Falls back to the code orb if the token is missing.
+	if _tex_mana != null:
+		var sz: float = r * 2.6
+		var dest := Rect2(center.x - sz * 0.5, center.y - sz * 0.5, sz, sz)
+		if filled:
+			draw_circle(center, r * 1.15, Color(0.25, 0.75, 1.0, 0.30))
+			draw_texture_rect(_tex_mana, dest, false)
+		else:
+			draw_texture_rect(_tex_mana, dest, false, Color(0.32, 0.36, 0.48, 0.80))
+		return
+
+	# ── Fallback: richly-rendered code orb (glow + radial body + highlight) ──
 	var ow: float = maxf(1.5, r * 0.16)
 	if filled:
 		draw_circle(center, r + 2.0, Color(0.30, 0.65, 1.0, 0.35))
@@ -1205,6 +1258,18 @@ func _draw_mana_orb(center: Vector2, filled: bool, r: float = 11.0) -> void:
 
 
 func _draw_shield_badge(center: Vector2, sz: float, col: Color, text: String, alpha: float = 1.0) -> void:
+	# Painted shield token (same checkpoint as the cards) with the block value on its
+	# boss. Falls back to the code polygon shield if the token is missing.
+	if _tex_shield != null:
+		var w: float = sz * 2.9
+		var h: float = sz * 2.9
+		draw_texture_rect(_tex_shield, Rect2(center.x - w * 0.5, center.y - h * 0.5, w, h),
+			false, Color(1, 1, 1, alpha))
+		if text != "":
+			_draw_text_shadow(center + Vector2(0.0, sz * 0.5), text, int(sz * 1.15),
+				Color(0.10, 0.12, 0.22, alpha), true)
+		return
+
 	var pts := PackedVector2Array([
 		center + Vector2(-sz, -sz * 0.9),
 		center + Vector2(sz, -sz * 0.9),
@@ -1220,9 +1285,42 @@ func _draw_shield_badge(center: Vector2, sz: float, col: Color, text: String, al
 		_draw_text_shadow(center + Vector2(0.0, sz * 0.4), text, int(sz * 1.1), Color(1, 1, 1, alpha), true)
 
 
+func _draw_corner_ticks(r: Rect2, n: float, col: Color) -> void:
+	# Small L-shaped accents at each corner for a framed "plate" feel.
+	var pts := [r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)]
+	var dirs := [
+		[Vector2(1, 0), Vector2(0, 1)], [Vector2(-1, 0), Vector2(0, 1)],
+		[Vector2(-1, 0), Vector2(0, -1)], [Vector2(1, 0), Vector2(0, -1)],
+	]
+	for i in 4:
+		var p: Vector2 = pts[i]
+		draw_line(p, p + dirs[i][0] * n, col, 2.0)
+		draw_line(p, p + dirs[i][1] * n, col, 2.0)
+
+
+func _draw_token_disc(center: Vector2, r: float, rim: Color, alpha: float = 1.0) -> void:
+	# Painted medallion plate (generated, same checkpoint) behind an icon/value, with a
+	# soft element-coloured glow (no hard vector ring). The plate is drawn larger than
+	# r so the icon (drawn after, at ~1.55*r) seats inside its dark center. Falls back
+	# to a code disc only if the plate token is missing.
+	if _tex_plate != null:
+		draw_circle(center, r * 1.25, Color(rim.r, rim.g, rim.b, 0.22 * alpha))
+		var s: float = r * 1.95
+		draw_texture_rect(_tex_plate, Rect2(center.x - s, center.y - s, s * 2.0, s * 2.0),
+			false, Color(1, 1, 1, alpha))
+		return
+	draw_circle(center, r + 4.0, Color(rim.r, rim.g, rim.b, 0.16 * alpha))
+	draw_circle(center, r + 2.0, Color(rim.r, rim.g, rim.b, 0.22 * alpha))
+	draw_circle(center, r, Color(0.07, 0.05, 0.13, 0.94 * alpha))
+	draw_circle(center, r * 0.74, Color(0.12, 0.09, 0.19, 0.94 * alpha))
+	draw_circle(center - Vector2(0.0, r * 0.32), r * 0.34, Color(0.20, 0.16, 0.30, 0.55 * alpha))
+	draw_arc(center, r, 0.0, TAU, 32, Color(rim.r, rim.g, rim.b, 0.90 * alpha), 2.5)
+	draw_arc(center - Vector2(0.0, 0.5), r - 1.6, PI * 1.05, TAU * 0.98, 24, Color(1, 1, 1, 0.16 * alpha), 1.2)
+
+
 func _draw_text(pos: Vector2, text: String, size: int, col: Color, centered: bool = false) -> void:
-	# Use the default ThemeDB font (works in headless + desktop)
-	var font: Font = ThemeDB.fallback_font
+	# Themed display font when present; ThemeDB fallback otherwise (headless-safe).
+	var font: Font = _font if _font != null else ThemeDB.fallback_font
 	if font == null:
 		return
 	var off := Vector2(0.0, 0.0)

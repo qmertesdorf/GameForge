@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://c8kmd11nmoy1f"
-path="res://.godot/imported/card_ice.svg-b7fa61208a8d98f1309fb0dfa1eb5219.ctex"
+uid="uid://cujc1sl46cojk"
+path="res://.godot/imported/token_plate.png-0bf464c9dcd171fb85e237e256ff13d4.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://art/card_ice.svg"
-dest_files=["res://.godot/imported/card_ice.svg-b7fa61208a8d98f1309fb0dfa1eb5219.ctex"]
+source_file="res://art/token_plate.png"
+dest_files=["res://.godot/imported/token_plate.png-0bf464c9dcd171fb85e237e256ff13d4.ctex"]
 
 [params]
 
@@ -23,7 +23,7 @@ compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
 compress/normal_map=0
 compress/channel_pack=0
-mipmaps/generate=false
+mipmaps/generate=true
 mipmaps/limit=-1
 roughness/mode=0
 roughness/src_normal=""
@@ -38,6 +38,3 @@ process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
 detect_3d/compress_to=1
-svg/scale=1.0
-editor/scale_with_editor_scale=false
-editor/convert_colors_with_editor_theme=false

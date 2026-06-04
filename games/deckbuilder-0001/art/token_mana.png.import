@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://def2itdfwm1df"
-path="res://.godot/imported/card_neutral.svg-f9332f342f1c7071947771c1349a948f.ctex"
+uid="uid://tao2lmikvlok"
+path="res://.godot/imported/token_mana.png-babca017216f9596c54bd1a1cd43cb99.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://art/card_neutral.svg"
-dest_files=["res://.godot/imported/card_neutral.svg-f9332f342f1c7071947771c1349a948f.ctex"]
+source_file="res://art/token_mana.png"
+dest_files=["res://.godot/imported/token_mana.png-babca017216f9596c54bd1a1cd43cb99.ctex"]
 
 [params]
 
@@ -23,7 +23,7 @@ compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
 compress/normal_map=0
 compress/channel_pack=0
-mipmaps/generate=false
+mipmaps/generate=true
 mipmaps/limit=-1
 roughness/mode=0
 roughness/src_normal=""
@@ -38,6 +38,3 @@ process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
 detect_3d/compress_to=1
-svg/scale=1.0
-editor/scale_with_editor_scale=false
-editor/convert_colors_with_editor_theme=false
