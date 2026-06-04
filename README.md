@@ -8,7 +8,7 @@ An AI pipeline that turns a one-line prompt into a playable mobile game, built a
 
 ## Layout
 
-- `.claude/skills/` — the `concept`, `builder`, `validator`, `asset` (re-skin/art), and `audio` (SFX+music) skills.
+- `.claude/skills/` — the `concept`, `builder`, `validator`, `asset` (re-skin/art), `visual-audit` (composited-screen audit), and `audio` (SFX+music) skills.
 - `manifests/<id>.json` — one manifest per title (the spine; §5).
 - `games/<id>/` — generated Godot projects.
 - `tools/manifest.mjs` — the manifest CLI (`create` / `set-status` / `merge` / `validate`).

@@ -14,7 +14,7 @@ Project overview, the manifest spine, the skill loop, and the `comfy.mjs` raster
 
 ## Skill loop (from README)
 
-prompt → `concept` → `builder` → `validator` → human playtest → edit the responsible `SKILL.md` → repeat across ≥3 genres. The deliverable is **better skills**, not the games. The `asset`/`audio` skills own the art/audio judgment; `comfy.mjs` owns the deterministic, network-mocked HTTP plumbing (no GPU in CI).
+prompt → `concept` → `builder` → `validator` → human playtest → edit the responsible `SKILL.md` → repeat across ≥3 genres. The deliverable is **better skills**, not the games. The `asset`/`audio` skills own art/audio production and `visual-audit` owns judging the composited screen; `comfy.mjs` owns the deterministic, network-mocked HTTP plumbing (no GPU in CI).
 
 ## Pins that must stay in sync
 
