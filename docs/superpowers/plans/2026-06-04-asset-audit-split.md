@@ -18,8 +18,8 @@
 
 - **Create** `.claude/skills/visual-audit/SKILL.md` — process spine (frontmatter + workflow + fan-out + loop + mipmap fix + report). New content (Task 1).
 - **Create** `.claude/skills/visual-audit/references/inventory-completeness.md` — lens 1 setup (Task 2; source: asset 149–150).
-- **Create** `.claude/skills/visual-audit/references/fidelity-cohesion.md` — lens 2 (Task 3; source: asset 151–166).
-- **Create** `.claude/skills/visual-audit/references/composition-collision.md` — lens 3 (Task 4; source: asset 167–170 + 172–175).
+- **Create** `.claude/skills/visual-audit/references/fidelity-cohesion.md` — lens 2 (Task 3; source: asset 151–165 Move 2 + 169 Token-framing). NOTE: Token-framing (line 169) sits AFTER Move 3 in the source, not inside Move 2.
+- **Create** `.claude/skills/visual-audit/references/composition-collision.md` — lens 3 (Task 4; source: asset 167 Move 3 "Scan for visual bugs" + 172–175 overlap/text-over-element; do NOT include 169 Token-framing — that went to fidelity).
 - **Create** `.claude/skills/visual-audit/references/legibility.md` — lens 4 (Task 5; source: asset 176).
 - **Create** `.claude/skills/visual-audit/references/colour-accessibility.md` — lens 5 (Task 6; source: asset 177–181).
 - **Modify** `.claude/skills/asset/SKILL.md` — delete the composited-audit block (146–186), fix description + handoff + loop diagram + cross-refs (Task 7).
@@ -182,7 +182,7 @@ Used by the `visual-audit` skill (parallel). How elements sit together in space,
 ```
 
 Then append, in this order:
-1. **Verbatim from `asset/SKILL.md` lines 167–170** — the `**3. Scan for visual bugs:**` paragraph. Rewrite lead `**3. Scan for visual bugs:**` → `**Scan for visual bugs:**`. It contains `a mis-cut token (see below)` → rewrite to `a mis-cut token (see the fidelity-cohesion lens)` and `grain from missing mipmaps (below)` → `grain from missing mipmaps (see the visual-audit spine's "Mipmaps" section)`.
+1. **Verbatim from `asset/SKILL.md` line 167** — the `**3. Scan for visual bugs:**` paragraph (ONE line; do NOT extend to line 169 Token-framing, which went to the fidelity lens). Rewrite lead `**3. Scan for visual bugs:**` → `**Scan for visual bugs:**`. It contains `a mis-cut token (see below)` → rewrite to `a mis-cut token (see the fidelity-cohesion lens)` and `grain from missing mipmaps (below)` → `grain from missing mipmaps (see the visual-audit spine's "Mipmaps" section)`.
 2. **Verbatim from `asset/SKILL.md` line 172** — the `**Overlap / collision pass…**` bullet.
 3. **Verbatim from `asset/SKILL.md` line 173** — the `**A painted icon's footprint is its ART…**` sub-bullet.
 4. **Verbatim from `asset/SKILL.md` line 174** — the `**There is NO "minor" tier when a non-text element contacts TEXT.**` sub-bullet.
