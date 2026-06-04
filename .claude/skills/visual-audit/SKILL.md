@@ -26,7 +26,7 @@ Also invocable standalone: point it at any running game to grade its screen.
 
 **3. Inventory setup pass (lens 1, runs first).** Walk the renderer top-to-bottom and produce the element + state map per `references/inventory-completeness.md`. This map is the input the four parallel lenses consume.
 
-**4. Fan out — one FRESH auditor subagent per parallel lens.** Dispatch four subagents concurrently (Agent tool), each handed ONLY its reference + the rendered frames + the inventory map, each told to return a structured finding list and to default to FINDING when unsure:
+**4. Fan out — one FRESH auditor subagent per parallel lens.** After the inventory setup pass (step 3), dispatch the **four** parallel-lens subagents concurrently — one per lens (Agent tool), each handed ONLY its reference + the rendered frames + the inventory map, each told to return a structured finding list and to default to FINDING when unsure:
 - `references/fidelity-cohesion.md`
 - `references/composition-collision.md`
 - `references/legibility.md`

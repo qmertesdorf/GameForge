@@ -16,7 +16,7 @@ An AI pipeline that turns a one-line prompt into a playable mobile game, built a
 
 ## The loop
 
-prompt → `concept` → `builder` → `validator` → human playtest → edit the responsible `SKILL.md` → repeat across ≥3 genres. The deliverable is **better skills**, not the games.
+prompt → `concept` → `builder` → `validator` → human playtest → edit the responsible `SKILL.md` → repeat across ≥3 genres. The deliverable is **better skills**, not the games. A `playable` title's art re-skin runs the sub-chain `asset` → `visual-audit` → `validator`(re-run) → `[styled]`.
 
 ## Manifest CLI
 
