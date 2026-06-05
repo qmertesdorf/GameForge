@@ -30,6 +30,7 @@ const RUN_SEED: int = 42
 @onready var _map_view: Node2D = $MapView
 @onready var _shop_view: Node2D = $ShopView
 @onready var _event_view: Node2D = $EventView
+@onready var _campfire_view: Node2D = $CampfireView
 
 var _run: RunController
 var _combat     # CombatState
@@ -66,6 +67,8 @@ func _show_map() -> void:
 		_shop_view.visible = false
 	if _event_view:
 		_event_view.visible = false
+	if _campfire_view:
+		_campfire_view.visible = false
 	_map_view.visible = true
 	_map_view.refresh(_run.map, _run.current_node_id(), _run.available_next())
 
@@ -84,6 +87,8 @@ func _enter_node() -> void:
 				_shop_view.visible = false
 			if _event_view:
 				_event_view.visible = false
+			if _campfire_view:
+				_campfire_view.visible = false
 			_view.visible = true
 			_combat = _run.start_node_combat()
 			_view.capture_enemy_max_hp(_combat.enemy.get("hp", 1))
@@ -102,9 +107,10 @@ func _enter_node() -> void:
 			_state = State.SHOP
 			_shop_view.refresh(_active_shop, _run.gold, _run.deck)
 		"campfire":
-			# Placeholder until Task 13: auto-heal a little, then back to the map.
-			_run.take_rest("heal")
-			_advance_to_map()
+			_view.visible = false; _map_view.visible = false
+			_campfire_view.visible = true
+			_state = State.CAMPFIRE
+			_campfire_view.refresh(_run.run_hp, _run.run_max_hp)
 		_:
 			# event / treasure placeholders until their tasks: auto-skip.
 			_advance_to_map()
@@ -158,6 +164,8 @@ func _input(event: InputEvent) -> void:
 			_handle_shop_tap(pos)
 		State.EVENT:
 			_handle_event_tap(pos)
+		State.CAMPFIRE:
+			_handle_campfire_tap(pos)
 		State.WIN, State.LOSE:
 			# Tap anywhere to restart
 			_start_run()
@@ -304,3 +312,10 @@ func _handle_event_tap(pos: Vector2) -> void:
 			_run.resolve_event_choice(_active_event, i)
 			_show_map()
 			return
+
+
+func _handle_campfire_tap(pos: Vector2) -> void:
+	if _campfire_view.get_rest_rect().has_point(pos):
+		_run.campfire_rest(); _show_map(); return
+	if _campfire_view.get_upgrade_rect().has_point(pos):
+		_run.campfire_upgrade(); _show_map(); return

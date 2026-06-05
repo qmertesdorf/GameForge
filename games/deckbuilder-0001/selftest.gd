@@ -291,6 +291,22 @@ func _init() -> void:
 		_fail("an upgraded card should not upgrade further"); return
 	if not CardDB.is_upgraded(up_id):
 		_fail("is_upgraded should be true for the upgraded id"); return
+	# Stage 13: campfire — rest heals (capped); upgrade swaps a deck card for its + version.
+	var RC13 := load("res://RunController.gd")
+	var rc13 = RC13.new()
+	rc13.start_run(SEED)
+	rc13.run_max_hp = 70
+	rc13.run_hp = 40
+	rc13.campfire_rest()
+	if rc13.run_hp <= 40 or rc13.run_hp > rc13.run_max_hp:
+		_fail("campfire_rest did not heal within cap"); return
+	# Upgrade: deck has arcane_bolt; after upgrade an arcane_bolt+ should appear.
+	var had_base13: bool = "arcane_bolt" in rc13.deck
+	if not had_base13:
+		_fail("starter deck unexpectedly lacks arcane_bolt"); return
+	rc13.campfire_upgrade()
+	if not ("arcane_bolt+" in rc13.deck):
+		_fail("campfire_upgrade did not produce an upgraded card"); return
 	# --- end stages ---
 	print("SELFTEST OK")
 	quit(0)

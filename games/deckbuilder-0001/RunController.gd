@@ -202,6 +202,21 @@ func choose_reward(card_id: String) -> void:
 	deck.append(card_id)
 
 
+func campfire_rest() -> void:
+	var heal: int = int(round(run_max_hp * 0.30))
+	run_hp = min(run_max_hp, run_hp + heal)
+
+
+func campfire_upgrade() -> void:
+	# Upgrade the first deck card that has an upgrade and isn't already upgraded.
+	for i in deck.size():
+		var id: String = deck[i]
+		var up: String = CardDB.upgrade_id(id)
+		if up != id:
+			deck[i] = up
+			return
+
+
 func take_rest(action: String) -> void:
 	if action == "heal":
 		# No persistent player HP across combats in this slice — recorded no-op.
