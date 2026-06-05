@@ -143,6 +143,37 @@ func _init() -> void:
 	var c6b = r6.start_node_combat() # next combat should START at 40, not full 70
 	if c6b.player_hp != 40:
 		_fail("run HP did not persist: next combat started at %d, expected 40" % c6b.player_hp); return
+	# Stage 7: the seeded map generator produces a valid, traversable branching graph.
+	var MapGen := load("res://MapGen.gd")
+	var rng7 := RandomNumberGenerator.new(); rng7.seed = SEED
+	var map = MapGen.generate(rng7)
+	# (a) boss is a single terminal node on the last floor.
+	var boss_ids: Array = map.nodes_on_floor(map.floor_count() - 1)
+	if boss_ids.size() != 1 or map.node(boss_ids[0]).type != "boss":
+		_fail("map last floor is not a single boss node"); return
+	# (b) every node has a path to the boss (full traversability).
+	if not map.all_nodes_reach(boss_ids[0]):
+		_fail("not every map node reaches the boss"); return
+	# (c) at least one entry node on floor 0, all of type combat.
+	var entries: Array = map.nodes_on_floor(0)
+	if entries.is_empty():
+		_fail("map has no entry nodes on floor 0"); return
+	for e in entries:
+		if map.node(e).type != "combat":
+			_fail("floor-0 entry node was not combat"); return
+	# (d) guarantees: at least one shop and one event somewhere.
+	if map.count_type("shop") < 1 or map.count_type("event") < 1:
+		_fail("map missing guaranteed shop/event node"); return
+	# (e) no elite before floor 3.
+	for fl in range(0, 3):
+		for nid in map.nodes_on_floor(fl):
+			if map.node(nid).type == "elite":
+				_fail("elite placed before floor 3"); return
+	# (f) determinism: same seed → identical structure.
+	var rng7b := RandomNumberGenerator.new(); rng7b.seed = SEED
+	var map2 = MapGen.generate(rng7b)
+	if map.fingerprint() != map2.fingerprint():
+		_fail("map generation is not deterministic for a fixed seed"); return
 	# --- end stages ---
 	print("SELFTEST OK")
 	quit(0)
