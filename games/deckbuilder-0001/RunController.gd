@@ -7,6 +7,7 @@ extends RefCounted
 
 const CardDB := preload("res://data/CardDB.gd")
 const CombatState := preload("res://CombatState.gd")
+const EnemyDB := preload("res://data/EnemyDB.gd")
 const MetaSave := preload("res://MetaSave.gd")
 const RelicDB := preload("res://data/RelicDB.gd")
 const MapGen := preload("res://MapGen.gd")
@@ -20,6 +21,7 @@ var current_enemy_id: String
 var relics: Array
 var run_hp: int
 var run_max_hp: int
+var gold: int
 var _complete: bool
 var _lost: bool
 
@@ -45,6 +47,7 @@ func start_run(seed_value: int) -> void:
 
 	run_max_hp = 70
 	run_hp = run_max_hp
+	gold = 0
 
 
 func current_node() -> Dictionary:
@@ -95,6 +98,20 @@ func _enemy_for_node(node: Dictionary) -> String:
 func sync_hp_from_combat(cs) -> void:
 	# Pull the player's surviving HP back to the run after a combat ends.
 	run_hp = cs.player_hp
+
+
+func grant_combat_gold(enemy_id: String) -> void:
+	var e: Dictionary = EnemyDB.enemy(enemy_id)
+	var lo: int = e.get("gold_min", 5)
+	var hi: int = e.get("gold_max", 10)
+	gold += rng.randi_range(lo, hi)
+
+
+func spend_gold(amount: int) -> bool:
+	if amount < 0 or amount > gold:
+		return false
+	gold -= amount
+	return true
 
 
 func offer_rewards() -> Array:

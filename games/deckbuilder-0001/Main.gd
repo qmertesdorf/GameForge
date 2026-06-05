@@ -216,6 +216,7 @@ func _check_combat_outcome() -> void:
 		_view.animate_enemy_death(func():
 			_animating = false
 			_run.sync_hp_from_combat(_combat)
+			_run.grant_combat_gold(_run.current_enemy_id)
 			_rewards = _run.offer_rewards()
 			_state = State.REWARD
 			_refresh()

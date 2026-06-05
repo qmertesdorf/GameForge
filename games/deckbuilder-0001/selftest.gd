@@ -202,6 +202,26 @@ func _init() -> void:
 		guard += 1
 	if not r8.is_on_boss():
 		_fail("greedy walk did not reach the boss node"); return
+	# Stage 9: gold accrues from combat victories and never goes negative on spend.
+	var RC9 := load("res://RunController.gd")
+	var r9 = RC9.new()
+	r9.start_run(SEED)
+	if r9.gold != 0:
+		_fail("run did not start with 0 gold"); return
+	r9.grant_combat_gold("imp")
+	if r9.gold <= 0:
+		_fail("defeating imp granted no gold"); return
+	var g0: int = r9.gold
+	# Spend within budget succeeds and debits.
+	if not r9.spend_gold(g0):
+		_fail("spending exactly the current gold should succeed"); return
+	if r9.gold != 0:
+		_fail("gold not debited correctly after spend"); return
+	# Overspend is rejected and leaves gold unchanged.
+	if r9.spend_gold(1):
+		_fail("overspend should be rejected"); return
+	if r9.gold != 0:
+		_fail("rejected spend must not change gold"); return
 	# --- end stages ---
 	print("SELFTEST OK")
 	quit(0)

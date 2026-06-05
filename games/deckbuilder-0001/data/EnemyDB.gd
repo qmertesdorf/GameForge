@@ -5,6 +5,8 @@ const ENEMIES := {
 		"id": "imp",
 		"name": "Imp",
 		"hp": 30,
+		"gold_min": 10,
+		"gold_max": 15,
 		"intents": [
 			{"type": "attack", "value": 7},
 			{"type": "attack", "value": 9},
@@ -15,6 +17,8 @@ const ENEMIES := {
 		"id": "frost_wraith",
 		"name": "Frost Wraith",
 		"hp": 40,
+		"gold_min": 12,
+		"gold_max": 18,
 		"intents": [
 			{"type": "attack", "value": 8},
 			{"type": "defend", "value": 7},
@@ -26,6 +30,8 @@ const ENEMIES := {
 		"id": "golem",
 		"name": "Stone Golem",
 		"hp": 70,
+		"gold_min": 25,
+		"gold_max": 35,
 		"intents": [
 			{"type": "attack", "value": 12},
 			{"type": "enrage", "value": 0},
@@ -38,6 +44,8 @@ const ENEMIES := {
 		"id": "archmage",
 		"name": "Archmage",
 		"hp": 110,
+		"gold_min": 45,
+		"gold_max": 55,
 		"intents": [
 			{"type": "attack", "value": 10},
 			{"type": "attack", "value": 14},
