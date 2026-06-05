@@ -1,6 +1,6 @@
 ---
 name: visual-audit
-description: Use when judging the composited, assembled screen of a running Godot game — "does it look designed and read clearly?" — typically after the asset re-skin (before validator's styled gate) or standalone on any running game. Renders every game state, fans out one fresh auditor subagent per lens (inventory/completeness, fidelity/cohesion, composition/collision, legibility, colour-accessibility, polish/design-quality), dedupes + attributes findings, and drives the fix → re-render → re-audit loop. Records NOTHING to the manifest — outputs are code fixes (git) + a findings report.
+description: Use when judging the composited, assembled screen of a running Godot game — "does it look designed and read clearly?" — typically after the asset re-skin (before validator's styled gate) or standalone on any running game. Renders every game state, fans out one fresh auditor subagent per lens (inventory/completeness, fidelity/cohesion, composition/collision, legibility, colour-accessibility, structural-fidelity, polish/design-quality), dedupes + attributes findings, and drives the fix → re-render → re-audit loop. Records NOTHING to the manifest — outputs are code fixes (git) + a findings report.
 ---
 
 # visual-audit
@@ -24,18 +24,21 @@ Also invocable standalone: point it at any running game to grade its screen.
 
 **2. Magnify — never judge from the downscaled frame.** Two elements 6px apart and two overlapping by 6px look identical at 1×/2×; the verdict only exists at the boundary. Crop + upscale tight regions to 3×+ with PowerShell `System.Drawing` (NearestNeighbor) before calling any pairing.
 
-**3. Inventory setup pass (lens 1, runs first).** Walk the renderer top-to-bottom and produce the element + state map per `references/inventory-completeness.md`. This map is the input the five parallel lenses consume.
+**3. Inventory setup pass (lens 1, runs first).** Walk the renderer top-to-bottom and produce the element + state map per `references/inventory-completeness.md`. This map is the input the six parallel lenses consume.
 
-**4. Fan out — one FRESH auditor subagent per parallel lens.** After the inventory setup pass (step 3), dispatch the **five** parallel-lens subagents concurrently — one per lens (Agent tool), each handed ONLY its reference + the rendered frames + the inventory map, each told to return a structured finding list and to default to FINDING when unsure:
+**3a. Structure brief (setup pass, for relational screens only).** If a captured screen has **relational / topological structure** (a map / tree / board with meaningful adjacency / ordered list), the orchestrator (you, here — NOT the lens subagent) reads the **model + generator + layout source** and emits a **structure brief** for that screen: the structure kind; the intended spatial grammar (what a row/column/edge *means*); the ground-truth instance (node list with floor/col/type, edge list, current node, reachable set); and the player's task. This is the ONLY place source/model is read — it keeps the Structural Fidelity lens pixel-only and its eyes fresh. A screen with no relational structure gets **no brief**, and the lens returns **N/A** for it.
+
+**4. Fan out — one FRESH auditor subagent per parallel lens.** After the inventory setup pass (step 3), dispatch the **six** parallel-lens subagents concurrently — one per lens (Agent tool), each handed ONLY its reference + the rendered frames + the inventory map, each told to return a structured finding list and to default to FINDING when unsure:
 - `references/fidelity-cohesion.md`
 - `references/composition-collision.md`
 - `references/legibility.md`
 - `references/colour-accessibility.md`
+- `references/structural-fidelity.md` *(hard gate; consumes the structure brief; N/A when none)*
 - `references/polish-quality.md`
 
 Independent fresh eyes per lens is the whole point: the intent-dagger-over-name and the dark-on-dark-numeral bugs both slipped past passes that *had the rules*, because one self-reviewing reviewer rationalises "minor." Do not collapse the lenses into one self-read.
 
-**The first four lenses catch DEFECTS (binary: is it broken?); polish-quality grades DESIGN (is it good?).** A screen can pass all four defect lenses and still be flat/generic/default-positioned — polish-quality is the only lens that sees that gap. But it is **advisory, cost-triaged — NOT a hard gate**: its findings carry a `cheap/medium/expensive` cost tag; fix the cheap ones in the pass, and **surface medium/expensive composition changes for the owner to decide** rather than treating them as blockers. Don't let "redesign the whole layout" stall a defect pass.
+**Five lenses catch DEFECTS (hard gates — fidelity, composition, legibility, colour-accessibility, and structural-fidelity); polish-quality grades DESIGN (is it good?).** A screen can pass every defect lens and still be flat/generic/default-positioned — polish-quality is the only lens that sees that gap. But it is **advisory, cost-triaged — NOT a hard gate**: its findings carry a `cheap/medium/expensive` cost tag; fix the cheap ones in the pass, and **surface medium/expensive composition changes for the owner to decide** rather than treating them as blockers. Don't let "redesign the whole layout" stall a defect pass.
 
 **5. Collect, dedupe, attribute.** Merge the lens findings; dedupe (the same collision may surface from composition AND legibility); attribute each to a cause — `asset-production` (weak/missing/mis-styled art → regen request back to asset), `chrome-code` (a `_draw()`/styling fix), or `chrome-code-layout` (placement/grouping/anchoring/sizing — the polish lens's usual cause). A bad screen is always attributable; an unattributable "looks off" is not a finished finding. Keep the polish lens's cost tags through the merge so the owner can triage what to fix now vs. defer.
 
@@ -54,4 +57,5 @@ An asset authored ornate at high res and drawn into a small UI slot (a 768×1024
 | Composition & collision | `references/composition-collision.md` | parallel |
 | Legibility | `references/legibility.md` | parallel |
 | Colour-accessibility | `references/colour-accessibility.md` | parallel |
+| Structural fidelity | `references/structural-fidelity.md` | parallel (hard gate; relational screens only) |
 | Polish & design-quality | `references/polish-quality.md` | parallel (advisory, cost-triaged) |
