@@ -5,20 +5,29 @@ extends Node2D
 # This script ONLY reads state and calls engine methods — zero damage math here.
 #
 # States:
-#   COMBAT  — active fight
-#   REWARD  — pick-1-of-3 card reward after winning a fight
-#   REST    — rest node (auto-handled, no player input needed)
-#   WIN     — run complete
-#   LOSE    — player HP reached 0
+#   COMBAT   — active fight
+#   REWARD   — pick-1-of-3 card reward after winning a fight
+#   REST     — rest node (auto-handled, no player input needed)
+#   WIN      — run complete
+#   LOSE     — player HP reached 0
+#   MAP      — branching run map; player taps an available next node
+#   EVENT    — event node (routed in a later task; auto-skipped for now)
+#   SHOP     — shop node (routed in a later task; auto-skipped for now)
+#   CAMPFIRE — campfire node (routed in a later task; auto-heals for now)
+#
+# Flow: map → (combat → reward) | (auto-resolve placeholder) → map → … → boss → WIN.
+# Main is a ROUTER: after each node resolves it shows the map; when a node is chosen
+# it dispatches to the right screen.
 
 const RunController := preload("res://RunController.gd")
 
-enum State { COMBAT, REWARD, REST, WIN, LOSE }
+enum State { COMBAT, REWARD, REST, WIN, LOSE, MAP, EVENT, SHOP, CAMPFIRE }
 
 # Run seed — change to vary the run
 const RUN_SEED: int = 42
 
 @onready var _view: Node2D = $CombatView
+@onready var _map_view: Node2D = $MapView
 
 var _run: RunController
 var _combat     # CombatState
@@ -39,36 +48,48 @@ func _start_run() -> void:
 	_combat = null
 	_rewards = []
 	_animating = false
-	_begin_current_node()
+	# The floor-0 entry is a combat — enter it directly.
+	_enter_node()
 
 
-func _begin_current_node() -> void:
+# ─── Node-type router ─────────────────────────────────────────────────────────
+
+func _show_map() -> void:
+	_state = State.MAP
+	_combat = null
+	_view.visible = false
+	_map_view.visible = true
+	_map_view.refresh(_run.map, _run.current_node_id(), _run.available_next())
+
+
+func _enter_node() -> void:
+	# Dispatch on the CURRENT node's type (already chosen on the map).
 	if _run.is_run_complete():
-		_state = State.WIN
-		_refresh()
-		return
+		_state = State.WIN; _map_view.visible = false; _view.visible = true; _refresh(); return
 	if _run.is_run_lost():
-		_state = State.LOSE
-		_refresh()
-		return
+		_state = State.LOSE; _map_view.visible = false; _view.visible = true; _refresh(); return
+	var ntype: String = _run.current_node().get("type", "")
+	match ntype:
+		"combat", "elite", "boss":
+			_map_view.visible = false
+			_view.visible = true
+			_combat = _run.start_node_combat()
+			_view.capture_enemy_max_hp(_combat.enemy.get("hp", 1))
+			_state = State.COMBAT
+			_refresh()
+		"campfire":
+			# Placeholder until Task 13: auto-heal a little, then back to the map.
+			_run.take_rest("heal")
+			_advance_to_map()
+		_:
+			# event / shop / treasure placeholders until their tasks: auto-skip.
+			_advance_to_map()
 
-	var node: Dictionary = _run.current_node()
-	var ntype: String = node.get("type", "")
 
-	if ntype in ["combat", "elite", "boss"]:
-		_combat = _run.start_node_combat()
-		_view.capture_enemy_max_hp(_combat.enemy.get("hp", 1))
-		_state = State.COMBAT
-		_refresh()
-	elif ntype == "rest":
-		# Auto: heal (no UI for this minimal slice), then advance
-		_run.take_rest("heal")
-		_run.advance()
-		_begin_current_node()
-	else:
-		# Unknown node type — advance to avoid infinite loop
-		_run.advance()
-		_begin_current_node()
+func _advance_to_map() -> void:
+	if _run.is_on_boss() and _run.is_run_complete():
+		_state = State.WIN; _map_view.visible = false; _view.visible = true; _refresh(); return
+	_show_map()
 
 
 func _refresh() -> void:
@@ -107,11 +128,21 @@ func _input(event: InputEvent) -> void:
 			_handle_combat_tap(pos)
 		State.REWARD:
 			_handle_reward_tap(pos)
+		State.MAP:
+			_handle_map_tap(pos)
 		State.WIN, State.LOSE:
 			# Tap anywhere to restart
 			_start_run()
 		_:
 			pass
+
+
+func _handle_map_tap(pos: Vector2) -> void:
+	for nid in _run.available_next():
+		if _map_view.get_node_rect(nid).has_point(pos):
+			_run.choose_next(nid)
+			_enter_node()
+			return
 
 
 func _handle_combat_tap(pos: Vector2) -> void:
@@ -204,9 +235,9 @@ func _handle_reward_tap(pos: Vector2) -> void:
 	# Skip button?
 	if _view.get_skip_rect().has_point(pos):
 		_run.choose_reward("")   # empty = skip
-		_run.advance()
 		_rewards = []
-		_begin_current_node()
+		# Reward done → back to the map to pick the next node.
+		_show_map()
 		return
 
 	# One of the 3 reward cards?
@@ -216,7 +247,7 @@ func _handle_reward_tap(pos: Vector2) -> void:
 		var rect: Rect2 = _view.get_reward_card_rect(i)
 		if rect.has_point(pos):
 			_run.choose_reward(_rewards[i])
-			_run.advance()
 			_rewards = []
-			_begin_current_node()
+			# Reward done → back to the map to pick the next node.
+			_show_map()
 			return
