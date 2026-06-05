@@ -25,12 +25,12 @@ var powers: Array = []
 var _intent_i: int = 0
 
 
-func setup(seed_value: int, deck: Array, enemy_id: String) -> void:
+func setup(seed_value: int, deck: Array, enemy_id: String, start_hp: int = -1) -> void:
 	rng = RandomNumberGenerator.new()
 	rng.seed = seed_value
 
 	player_max_hp = 70
-	player_hp = 70
+	player_hp = player_max_hp if start_hp < 0 else start_hp
 	player_block = 0
 
 	mana_max = 3

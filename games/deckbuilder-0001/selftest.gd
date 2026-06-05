@@ -130,6 +130,19 @@ func _init() -> void:
 	var c5 = r5.start_node_combat()
 	if c5.enemy.statuses.get("burn", 0) < 1:
 		_fail("ember_heart did not apply 1 Burn at combat start"); return
+	# Stage 6: player HP persists across combats (run-level HP).
+	# (Deliberately starts combat twice on the same run WITHOUT advancing, so this
+	# stage stays valid after Task 5 swaps the linear node model for map traversal —
+	# it proves HP threading, not navigation.)
+	var RC6 := load("res://RunController.gd")
+	var r6 = RC6.new()
+	r6.start_run(SEED)
+	var c6a = r6.start_node_combat()
+	c6a.player_hp = 40              # simulate taking damage in combat 1
+	r6.sync_hp_from_combat(c6a)     # write run HP back from the finished combat
+	var c6b = r6.start_node_combat() # next combat should START at 40, not full 70
+	if c6b.player_hp != 40:
+		_fail("run HP did not persist: next combat started at %d, expected 40" % c6b.player_hp); return
 	# --- end stages ---
 	print("SELFTEST OK")
 	quit(0)

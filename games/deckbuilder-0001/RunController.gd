@@ -15,6 +15,8 @@ var deck: Array
 var nodes: Array
 var node_i: int
 var relics: Array
+var run_hp: int
+var run_max_hp: int
 var _complete: bool
 var _lost: bool
 
@@ -41,6 +43,9 @@ func start_run(seed_value: int) -> void:
 	# Starting relic: ember_heart — at start of combat, apply 1 Burn to the enemy.
 	relics.append("ember_heart")
 
+	run_max_hp = 70
+	run_hp = run_max_hp
+
 
 func current_node() -> Dictionary:
 	if node_i < 0 or node_i >= nodes.size():
@@ -53,13 +58,18 @@ func start_node_combat() -> CombatState:
 	var enemy_id: String = node.get("enemy", "")
 
 	var cs: CombatState = CombatState.new()
-	cs.setup(rng.randi(), deck, enemy_id)
+	cs.setup(rng.randi(), deck, enemy_id, run_hp)
 	cs.start_combat()
 
 	# Apply relics via the data-driven hook table.
 	RelicDB.apply_combat_start(relics, cs)
 
 	return cs
+
+
+func sync_hp_from_combat(cs) -> void:
+	# Pull the player's surviving HP back to the run after a combat ends.
+	run_hp = cs.player_hp
 
 
 func offer_rewards() -> Array:
