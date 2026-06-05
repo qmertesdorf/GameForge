@@ -708,7 +708,7 @@ func _draw_enemy() -> void:
 	var bar_x: float = ENEMY_X - bar_w * 0.5
 	var bar_y: float = maxf(46.0, sprite_top - 28.0)
 	draw_rect(Rect2(ENEMY_X - 100.0, bar_y - 78.0, 200.0, 106.0),
-		Color(0.05, 0.04, 0.11, 0.66 * dissolve_alpha))
+		Color(0.05, 0.04, 0.11, 0.82 * dissolve_alpha))
 	_draw_text_alpha(Vector2(ENEMY_X, bar_y - 14.0), e_name, 15, COL_WHITE, true, dissolve_alpha)
 	var disp_hp: float = _disp_enemy_hp if _disp_enemy_hp >= 0.0 else float(e_hp)
 	var hp_frac: float = clamp(disp_hp / float(e_max_hp), 0.0, 1.0)
@@ -759,7 +759,7 @@ func _draw_enemy() -> void:
 	if chill_n > 0:
 		active.append(["chill", chill_n])
 	var sy: float = ENEMY_Y + 150.0
-	var sx: float = ENEMY_X - (active.size() - 1) * 22.0
+	var sx: float = ENEMY_X - (active.size() - 1) * 28.0
 	for entry in active:
 		var kind: String = entry[0]
 		var n: int = entry[1]
@@ -777,8 +777,10 @@ func _draw_enemy() -> void:
 			_draw_flame_icon(Vector2(sx, sy), r, dissolve_alpha)
 		else:
 			_draw_snowflake_icon(Vector2(sx, sy), r, dissolve_alpha)
-		_draw_text_shadow(Vector2(sx + r + 9.0, sy + 5.0), str(n), 13, COL_WHITE, true)
-		sx += 46.0
+		var _cnx: float = sx + r + 16.0
+		draw_rect(Rect2(_cnx - 8.0, sy - 3.0, 16.0, 18.0), Color(0.04, 0.03, 0.09, 0.78))
+		_draw_text_shadow(Vector2(_cnx, sy + 5.0), str(n), 13, COL_WHITE, true)
+		sx += 56.0
 
 
 # ─── Death particles (drawn separately so they outlast the dissolving body) ───
@@ -949,6 +951,10 @@ func _draw_card_face(rect: Rect2, card_data: Dictionary, affordable: bool, selec
 		draw_texture_rect(art, rect, false)
 	else:
 		draw_rect(rect, COL_CARD_BG)
+	# Unaffordable: dim the ILLUSTRATION only (here, BEFORE the legibility panels +
+	# text + chrome) so name / cost / type / effect stay fully readable for planning.
+	if not affordable:
+		draw_rect(rect, Color(0.0, 0.0, 0.0, 0.42))
 
 	# 2. Legibility — DEFINED semi-transparent solid panels behind text (read over
 	#    ANY art), each feathered with a short gradient so it doesn't hard-cut.
@@ -973,7 +979,16 @@ func _draw_card_face(rect: Rect2, card_data: Dictionary, affordable: bool, selec
 	var badge_r: float = 12.0 * s
 	var badge_c := Vector2(rect.position.x + badge_r + 3.0, rect.position.y + badge_r + 4.0)
 	_draw_mana_orb(badge_c, affordable, badge_r)
-	_draw_text_shadow(badge_c + Vector2(0.0, fs_cost * 0.42), str(cost), int(fs_cost * 1.05), COL_WHITE, true)
+	# The bright faceted mana crystal washes out a plain white numeral (white-on-light-
+	# cyan); seat the digit on a small dark center + a thick dark outline so it reads on
+	# any facet while the crystal rim still says 'mana gem'.
+	draw_circle(badge_c, badge_r * 0.56, Color(0.05, 0.04, 0.12, 0.82))
+	var _cstr := str(cost)
+	var _csz := int(fs_cost * 1.1)
+	var _cpos := badge_c + Vector2(0.0, fs_cost * 0.45)
+	for _co in [Vector2(-1.4, -1.4), Vector2(1.4, -1.4), Vector2(-1.4, 1.4), Vector2(1.4, 1.4), Vector2(0.0, -1.8), Vector2(0.0, 1.8), Vector2(-1.8, 0.0), Vector2(1.8, 0.0)]:
+		_draw_text(_cpos + _co, _cstr, _csz, Color(0.02, 0.02, 0.06, 0.95), true)
+	_draw_text(_cpos, _cstr, _csz, COL_WHITE, true)
 
 	# 5. Name (top panel) — centered in the space RIGHT of the badge (no overlap).
 	var name_cx: float = (badge_c.x + badge_r + 4.0 + rect.end.x) * 0.5
@@ -998,11 +1013,6 @@ func _draw_card_face(rect: Rect2, card_data: Dictionary, affordable: bool, selec
 	for line in eff_lines:
 		_draw_text_shadow(Vector2(rect.get_center().x, ey), line, fs_eff, COL_WHITE, true)
 		ey += 15.0 * s
-
-	# 8. Unaffordable dim overlay.
-	if not affordable:
-		draw_rect(rect, Color(0.0, 0.0, 0.0, 0.45))
-
 
 # ─── Cast ghost (card arc) ─────────────────────────────────────────────────────
 
@@ -1090,9 +1100,14 @@ func _draw_reward_overlay() -> void:
 	# Dim scrim
 	draw_rect(Rect2(0, 0, W, H), Color(0.0, 0.0, 0.0, 0.55))
 
-	# Title
-	_draw_text(Vector2(W * 0.5, H * 0.5 - 140.0), "Choose a Card Reward", 20,
-		Color(0.95, 0.85, 0.40), true)
+	# Title — on a solid backing pill (overlay text needs guaranteed contrast, not
+	# just the scrim) so the gold reads even where it crosses bright art behind it.
+	var _rt := "Choose a Card Reward"
+	var _rtf: Font = _font if _font != null else ThemeDB.fallback_font
+	var _rtw: float = _rtf.get_string_size(_rt, HORIZONTAL_ALIGNMENT_LEFT, -1, 20).x if _rtf != null else 240.0
+	var _rtc := Vector2(W * 0.5, H * 0.5 - 140.0)
+	draw_rect(Rect2(_rtc.x - _rtw * 0.5 - 16.0, _rtc.y - 22.0, _rtw + 32.0, 33.0), Color(0.05, 0.04, 0.11, 0.85))
+	_draw_text_shadow(_rtc, _rt, 20, Color(0.95, 0.85, 0.40), true)
 
 	# 3 card faces
 	for i in 3:
@@ -1272,7 +1287,7 @@ func _draw_shield_badge(center: Vector2, sz: float, col: Color, text: String, al
 			false, Color(1, 1, 1, alpha))
 		if text != "":
 			_draw_text_shadow(center + Vector2(0.0, sz * 0.5), text, int(sz * 1.15),
-				Color(0.10, 0.12, 0.22, alpha), true)
+				Color(0.97, 0.98, 1.0, alpha), true)
 		return
 
 	var pts := PackedVector2Array([
