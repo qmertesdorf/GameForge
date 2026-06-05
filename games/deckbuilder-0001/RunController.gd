@@ -218,20 +218,6 @@ func campfire_upgrade() -> void:
 			return
 
 
-func take_rest(action: String) -> void:
-	if action == "heal":
-		# No persistent player HP across combats in this slice — recorded no-op.
-		pass
-	elif action == "remove":
-		# Remove the first card from the deck (card removal).
-		if not deck.is_empty():
-			deck.remove_at(0)
-
-
-func grant_elite_relic() -> void:
-	relics.append("storm_core")
-
-
 func grant_treasure_relic() -> void:
 	# Grant the first un-owned relic (deterministic; seeded pick among un-owned).
 	var pool: Array = []
@@ -245,15 +231,6 @@ func grant_treasure_relic() -> void:
 
 func apply_combat_win_relics() -> void:
 	RelicDB.apply_combat_win(relics, self)
-
-
-func advance() -> void:
-	# With map traversal, advancing = choosing the next node (done via choose_next
-	# in the UI). This shim remains for non-combat auto-resolve paths that pick the
-	# first available next node when there is exactly one.
-	var nx: Array = available_next()
-	if nx.size() == 1:
-		choose_next(nx[0])
 
 
 func is_run_complete() -> bool:

@@ -7,15 +7,16 @@ extends Node2D
 # States:
 #   COMBAT   — active fight
 #   REWARD   — pick-1-of-3 card reward after winning a fight
-#   REST     — rest node (auto-handled, no player input needed)
+#   REST     — legacy enum slot (unused; campfire replaced it)
 #   WIN      — run complete
 #   LOSE     — player HP reached 0
 #   MAP      — branching run map; player taps an available next node
-#   EVENT    — event node (routed in a later task; auto-skipped for now)
-#   SHOP     — shop node (routed in a later task; auto-skipped for now)
-#   CAMPFIRE — campfire node (routed in a later task; auto-heals for now)
+#   EVENT    — narrative event; player picks a choice
+#   SHOP     — merchant; buy cards/relic, purge a card, leave
+#   CAMPFIRE — rest site; heal 30% or upgrade a card
 #
-# Flow: map → (combat → reward) | (auto-resolve placeholder) → map → … → boss → WIN.
+# Flow: map → (combat → reward) | event | shop | campfire | (treasure auto-grant)
+#       → map → … → boss → WIN.
 # Main is a ROUTER: after each node resolves it shows the map; when a node is chosen
 # it dispatches to the right screen.
 
@@ -115,7 +116,7 @@ func _enter_node() -> void:
 			_run.grant_treasure_relic()
 			_advance_to_map()
 		_:
-			# event / treasure placeholders until their tasks: auto-skip.
+			# Defensive fallback: an unknown node type (MapGen emits none) → skip to map.
 			_advance_to_map()
 
 
