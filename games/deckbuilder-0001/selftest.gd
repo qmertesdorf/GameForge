@@ -123,6 +123,13 @@ func _init() -> void:
 	w.play_card(0)                                  # attack -> should also apply 1 Burn
 	if w.enemy.statuses.burn < 1:
 		_fail("Wildfire did not make an attack apply Burn"); return
+	# Stage 5 (characterization): the starting relic ember_heart applies 1 Burn at combat start.
+	var RC5 := load("res://RunController.gd")
+	var r5 = RC5.new()
+	r5.start_run(SEED)
+	var c5 = r5.start_node_combat()
+	if c5.enemy.statuses.get("burn", 0) < 1:
+		_fail("ember_heart did not apply 1 Burn at combat start"); return
 	# --- end stages ---
 	print("SELFTEST OK")
 	quit(0)

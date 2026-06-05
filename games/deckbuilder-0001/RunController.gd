@@ -7,6 +7,7 @@ extends RefCounted
 const CardDB := preload("res://data/CardDB.gd")
 const CombatState := preload("res://CombatState.gd")
 const MetaSave := preload("res://MetaSave.gd")
+const RelicDB := preload("res://data/RelicDB.gd")
 
 # Run state.
 var rng: RandomNumberGenerator
@@ -55,9 +56,8 @@ func start_node_combat() -> CombatState:
 	cs.setup(rng.randi(), deck, enemy_id)
 	cs.start_combat()
 
-	# Apply relics.
-	if "ember_heart" in relics:
-		cs.enemy.statuses["burn"] = cs.enemy.statuses.get("burn", 0) + 1
+	# Apply relics via the data-driven hook table.
+	RelicDB.apply_combat_start(relics, cs)
 
 	return cs
 
