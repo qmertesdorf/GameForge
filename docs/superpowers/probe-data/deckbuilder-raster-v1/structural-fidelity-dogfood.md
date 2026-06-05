@@ -40,5 +40,22 @@ guard works.
 ## Conclusion
 The lens fires precisely on the relational screen, catches the structural defect the other six lenses
 miss, stays in scope (excludes paint/text), and returns N/A on non-relational screens. Shipped
-without revision. The map *fix* itself (global lattice + backdrop scrim + reveal the journey) is a
-separate, owner-deferred track.
+without revision.
+
+## MAP FIX APPLIED (same session) — `structural-fidelity-map-FIXED.png`
+Drove the lens's own fix → re-render → re-audit loop on `MapView.gd` (pure view; logic FROZEN,
+`SELFTEST OK` throughout):
+- **Global column lattice** in `_node_center()` — model `col` → a fixed lane slot shared by all
+  floors, each floor centered; replaces the per-floor `col/(width-1)` normalization. **Round-1
+  re-audit caught a real follow-on bug:** a full-width lattice (520px pitch) vs the ~63px vertical
+  floor pitch made cross-column edges run nearly horizontal (choices beside, not above, the current
+  node). Fixed by narrowing to a **central ribbon** (`LANE_PITCH = 105`, close to the floor pitch) so
+  every edge is a short near-vertical up-hop and the whole map ascends like Slay the Spire.
+- **Backdrop scrim** (flat veil + vscrim) so the graph reads above the busy painted chamber.
+- **Reveal the journey** — locked-node value raised 42%→66%, edges made opaque/outlined, so the whole
+  route is legible (current/available still pop via rings/halos).
+
+**Final fresh re-audit verdict: PASS — faithful + traceable.** All three prior blockers resolved
+(grammar reads as rows, edges walk 1:1 to model edges, no false adjacency, all 10 floors plannable);
+only two **minor** Axis-3 polish items left (edges as fuller ribbons — addressed by the thickness
+bump; brighten the current node's outgoing edges — already gold via `COL_EDGE_HOT`).

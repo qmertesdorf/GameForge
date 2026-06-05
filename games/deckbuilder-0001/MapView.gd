@@ -27,8 +27,9 @@ const COL_PANEL     := Color(0.08, 0.06, 0.14, 0.88)
 
 # Edge line colour
 const COL_EDGE      := Color(0.62, 0.50, 0.90, 0.70)
-const COL_EDGE_DIM  := Color(0.52, 0.44, 0.78, 0.42)   # off-path edge — recedes
-const COL_EDGE_HOT  := Color(0.95, 0.85, 0.40, 0.85)   # edge toward an available node
+const COL_EDGE_DIM  := Color(0.74, 0.66, 0.95, 0.78)   # off-path edge — recedes, but still
+                                                        # reads ABOVE the painted backdrop
+const COL_EDGE_HOT  := Color(0.98, 0.88, 0.42, 0.95)   # edge toward an available node
 
 # Node marker geometry
 const NODE_R: float = 20.0
@@ -38,6 +39,11 @@ const NODE_R_AVAIL: float = 27.0   # larger hit target for available-next nodes
 const MARGIN_X: float = 120.0
 const MARGIN_TOP: float = 70.0
 const MARGIN_BOT: float = 80.0
+
+# Horizontal distance between adjacent global lane slots. Deliberately close to the
+# ~63px vertical floor pitch (10 floors over ~570px) so cross-column edges read as short
+# near-vertical up-hops, not screen-spanning horizontal runs.
+const LANE_PITCH: float = 105.0
 
 # Per-type marker colours (each distinct).
 const TYPE_COLORS := {
@@ -117,7 +123,8 @@ func _draw() -> void:
 				var to_c: Vector2 = _center_of(to_id)
 				var hot: bool = (nid == _cur_id) and (to_id in _available)
 				var col: Color = COL_EDGE_HOT if hot else COL_EDGE_DIM
-				var wdt: float = 5.0 if hot else 3.0
+				var wdt: float = 6.5 if hot else 4.0   # thick enough to read as a continuous
+				                                        # ribbon landing ring-to-ring, not a hint
 				# Inset both ends to the marker radius so the path connects ring-to-ring
 				# and never runs under an icon's transparent interior or its label pill.
 				var dir: Vector2 = to_c - from_c
@@ -131,7 +138,7 @@ func _draw() -> void:
 				var a: Vector2 = from_c + dir * inset
 				var b: Vector2 = to_c - dir * inset
 				var pts: PackedVector2Array = _curve_points(a, b)
-				draw_polyline(pts, Color(0.04, 0.03, 0.08, 0.5), wdt + 2.5)
+				draw_polyline(pts, Color(0.03, 0.02, 0.06, 0.80), wdt + 3.0)
 				draw_polyline(pts, col, wdt)
 
 	# 2) Node markers, coloured by type.
@@ -152,6 +159,12 @@ func _draw_background() -> void:
 	# Painted opaque background when present; gradient bands as a fallback.
 	if _tex_bg != null:
 		draw_texture_rect(_tex_bg, Rect2(0.0, 0.0, W, H), false)
+		# Darkening scrim — the painted chamber is high-detail/high-contrast and the map
+		# graph is the figure that must read ABOVE it. A flat veil + a slightly stronger
+		# top/bottom gradient pushes the wallpaper back so nodes and edges win.
+		draw_rect(Rect2(0.0, 0.0, W, H), Color(0.05, 0.04, 0.10, 0.52))
+		Chrome.vscrim(self, Rect2(0.0, 0.0, W, H),
+			Color(0.04, 0.03, 0.09, 0.30), Color(0.04, 0.03, 0.09, 0.0))
 		return
 	var bands: int = 16
 	for i in bands:
@@ -200,7 +213,10 @@ func _draw_node(nid: int) -> void:
 	var lit: bool = is_current or is_available
 	if tex != null:
 		var half: float = r + 4.0
-		var mod: Color = COL_WHITE if lit else Color(0.42, 0.42, 0.52, 0.82)
+		# Locked nodes drop in VALUE so the choosable set is unmistakable — but NOT into
+		# invisibility: the whole journey must stay legible so the player can plan a route,
+		# so locked markers keep ~65% value (was 42%) and read clearly over the scrimmed bg.
+		var mod: Color = COL_WHITE if lit else Color(0.66, 0.64, 0.74, 0.95)
 		draw_texture_rect(tex, Rect2(center.x - half, center.y - half, half * 2.0, half * 2.0),
 			false, mod)
 	else:
@@ -208,7 +224,7 @@ func _draw_node(nid: int) -> void:
 		if is_available:
 			disc_col = base_col.lerp(COL_WHITE, 0.25)
 		elif not is_current:
-			disc_col = base_col.darkened(0.45)
+			disc_col = base_col.darkened(0.25)
 		draw_circle(center, r, disc_col)
 		draw_arc(center, r, 0.0, TAU, 40, Color(0.05, 0.04, 0.10, 0.85), 2.0)
 
@@ -263,14 +279,27 @@ func _center_of(node_id: int) -> Vector2:
 	var node: Dictionary = _map.node(node_id)
 	if node.is_empty():
 		return Vector2(W * 0.5, H * 0.5)
-	return _node_center(node.get("floor", 0), node.get("col", 0),
-		_map.nodes_on_floor(node.get("floor", 0)).size())
+	return _node_center(node.get("floor", 0), node.get("col", 0))
 
 
-func _node_center(floor: int, col: int, width: int) -> Vector2:
-	# (floor,col) → screen position. floor 0 at BOTTOM, last floor at TOP; columns
-	# spread horizontally and centered. _draw and get_node_rect share this so they
-	# always agree.
+func _max_width() -> int:
+	# The widest floor sets the GLOBAL lane lattice every floor shares.
+	if _map == null:
+		return 1
+	var mw: int = 1
+	for fl in range(_map.floor_count()):
+		mw = maxi(mw, _map.nodes_on_floor(fl).size())
+	return mw
+
+
+func _node_center(floor: int, col: int) -> Vector2:
+	# (floor,col) → screen position. floor 0 at BOTTOM, last floor at TOP.
+	#
+	# X uses ONE GLOBAL column lattice (not per-floor-width normalization): a node's
+	# model `col` maps to a FIXED lane slot shared by every floor, and each floor is
+	# centred on those slots. So columns line up into followable lanes top-to-bottom and
+	# an edge (MapGen connects within col-distance ≤1) is always a short adjacent-lane hop
+	# instead of shooting across the screen. _draw and get_node_rect share this so they agree.
 	var fcount: int = _map.floor_count() if _map != null else 1
 	var usable_h: float = H - MARGIN_TOP - MARGIN_BOT
 	var y: float
@@ -281,13 +310,25 @@ func _node_center(floor: int, col: int, width: int) -> Vector2:
 		var fy: float = float(floor) / float(fcount - 1)
 		y = (H - MARGIN_BOT) - fy * usable_h
 
-	var usable_w: float = W - 2.0 * MARGIN_X
+	var maxw: int = _max_width()
 	var x: float
-	if width <= 1:
+	if maxw <= 1:
 		x = W * 0.5
 	else:
-		var fx: float = float(col) / float(width - 1)
-		x = MARGIN_X + fx * usable_w
+		# NARROW central ribbon, not the full screen width. With 10 floors the vertical
+		# pitch is only ~63px; if lanes spanned the whole 1040px usable width an edge
+		# between adjacent columns would run nearly HORIZONTAL (choices beside the current
+		# node instead of above it). Keeping the lane pitch close to the floor pitch makes
+		# every edge a short, near-vertical up-hop and the whole map an ascending column —
+		# the Slay-the-Spire read.
+		var span: float = float(maxw - 1) * LANE_PITCH
+		var x0: float = W * 0.5 - span * 0.5
+		# Centre this floor's used columns on the global lattice: a width-w floor leaves
+		# (maxw-w)/2 empty slots on each side, so the boss (w=1) and 2-wide floors sit
+		# centred under the 3-wide floors instead of being pinned to the screen edges.
+		var width: int = _map.nodes_on_floor(floor).size()
+		var slot: float = float(col) + float(maxw - width) * 0.5
+		x = x0 + slot * LANE_PITCH
 	return Vector2(x, y)
 
 
