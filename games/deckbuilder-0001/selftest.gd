@@ -307,6 +307,44 @@ func _init() -> void:
 	rc13.campfire_upgrade()
 	if not ("arcane_bolt+" in rc13.deck):
 		_fail("campfire_upgrade did not produce an upgraded card"); return
+	# Stage 14: relic pool — each hook fires; storm_core now adds max mana; treasure grants.
+	var RC14 := load("res://RunController.gd")
+	# storm_core: +1 max mana at combat start.
+	var rd = RC14.new()
+	rd.start_run(SEED)
+	rd.relics.append("storm_core")
+	var cd = rd.start_node_combat()
+	if cd.mana_max < 4:
+		_fail("storm_core did not raise max mana"); return
+	# iron_ward: start combat with >=5 block.
+	var rw = RC14.new()
+	rw.start_run(SEED)
+	rw.relics.append("iron_ward")
+	var cw = rw.start_node_combat()
+	if cw.player_block < 5:
+		_fail("iron_ward did not grant starting block"); return
+	# vitality_charm: the on_run_start hook adds +10 max HP.
+	var rv = RC14.new()
+	rv.start_run(SEED)
+	var RelicDB14 := load("res://data/RelicDB.gd")
+	RelicDB14.apply_run_start(["vitality_charm"], rv)
+	if rv.run_max_hp < 80:
+		_fail("vitality_charm did not raise run max HP"); return
+	# gold_idol: on combat win, +5 gold.
+	var rg = RC14.new()
+	rg.start_run(SEED)
+	rg.relics.append("gold_idol")
+	var g14: int = rg.gold
+	RelicDB14.apply_combat_win(rg.relics, rg)
+	if rg.gold < g14 + 5:
+		_fail("gold_idol did not grant combat-win gold"); return
+	# treasure: grants an un-owned relic.
+	var rt = RC14.new()
+	rt.start_run(SEED)
+	var owned0: int = rt.relics.size()
+	rt.grant_treasure_relic()
+	if rt.relics.size() != owned0 + 1:
+		_fail("treasure did not grant a relic"); return
 	# --- end stages ---
 	print("SELFTEST OK")
 	quit(0)

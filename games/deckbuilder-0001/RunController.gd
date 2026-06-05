@@ -49,6 +49,7 @@ func start_run(seed_value: int) -> void:
 	run_max_hp = 70
 	run_hp = run_max_hp
 	gold = 0
+	RelicDB.apply_run_start(relics, self)
 
 
 func current_node() -> Dictionary:
@@ -229,6 +230,21 @@ func take_rest(action: String) -> void:
 
 func grant_elite_relic() -> void:
 	relics.append("storm_core")
+
+
+func grant_treasure_relic() -> void:
+	# Grant the first un-owned relic (deterministic; seeded pick among un-owned).
+	var pool: Array = []
+	for rid in RelicDB.all_ids():
+		if not (rid in relics):
+			pool.append(rid)
+	if pool.is_empty():
+		return
+	relics.append(pool[rng.randi_range(0, pool.size() - 1)])
+
+
+func apply_combat_win_relics() -> void:
+	RelicDB.apply_combat_win(relics, self)
 
 
 func advance() -> void:

@@ -111,6 +111,9 @@ func _enter_node() -> void:
 			_campfire_view.visible = true
 			_state = State.CAMPFIRE
 			_campfire_view.refresh(_run.run_hp, _run.run_max_hp)
+		"treasure":
+			_run.grant_treasure_relic()
+			_advance_to_map()
 		_:
 			# event / treasure placeholders until their tasks: auto-skip.
 			_advance_to_map()
@@ -253,6 +256,7 @@ func _check_combat_outcome() -> void:
 			_animating = false
 			_run.sync_hp_from_combat(_combat)
 			_run.grant_combat_gold(_run.current_enemy_id)
+			_run.apply_combat_win_relics()
 			_rewards = _run.offer_rewards()
 			_state = State.REWARD
 			_refresh()
