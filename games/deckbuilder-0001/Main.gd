@@ -28,11 +28,13 @@ const RUN_SEED: int = 42
 
 @onready var _view: Node2D = $CombatView
 @onready var _map_view: Node2D = $MapView
+@onready var _shop_view: Node2D = $ShopView
 
 var _run: RunController
 var _combat     # CombatState
 var _state: State = State.COMBAT
 var _rewards: Array = []
+var _active_shop: Dictionary = {}
 
 # Juice: block input while animations are running so fast taps don't desync
 var _animating: bool = false
@@ -58,6 +60,8 @@ func _show_map() -> void:
 	_state = State.MAP
 	_combat = null
 	_view.visible = false
+	if _shop_view:
+		_shop_view.visible = false
 	_map_view.visible = true
 	_map_view.refresh(_run.map, _run.current_node_id(), _run.available_next())
 
@@ -72,17 +76,25 @@ func _enter_node() -> void:
 	match ntype:
 		"combat", "elite", "boss":
 			_map_view.visible = false
+			if _shop_view:
+				_shop_view.visible = false
 			_view.visible = true
 			_combat = _run.start_node_combat()
 			_view.capture_enemy_max_hp(_combat.enemy.get("hp", 1))
 			_state = State.COMBAT
 			_refresh()
+		"shop":
+			_view.visible = false; _map_view.visible = false
+			_shop_view.visible = true
+			_active_shop = _run.roll_shop()
+			_state = State.SHOP
+			_shop_view.refresh(_active_shop, _run.gold, _run.deck)
 		"campfire":
 			# Placeholder until Task 13: auto-heal a little, then back to the map.
 			_run.take_rest("heal")
 			_advance_to_map()
 		_:
-			# event / shop / treasure placeholders until their tasks: auto-skip.
+			# event / treasure placeholders until their tasks: auto-skip.
 			_advance_to_map()
 
 
@@ -130,6 +142,8 @@ func _input(event: InputEvent) -> void:
 			_handle_reward_tap(pos)
 		State.MAP:
 			_handle_map_tap(pos)
+		State.SHOP:
+			_handle_shop_tap(pos)
 		State.WIN, State.LOSE:
 			# Tap anywhere to restart
 			_start_run()
@@ -252,3 +266,18 @@ func _handle_reward_tap(pos: Vector2) -> void:
 			# Reward done → back to the map to pick the next node.
 			_show_map()
 			return
+
+
+func _handle_shop_tap(pos: Vector2) -> void:
+	if _shop_view.get_leave_rect().has_point(pos):
+		_show_map(); return
+	for i in 3:
+		if _shop_view.get_card_rect(i).has_point(pos):
+			_run.buy_card(_active_shop, i)
+			_shop_view.refresh(_active_shop, _run.gold, _run.deck); return
+	if _shop_view.get_relic_rect().has_point(pos):
+		_run.buy_relic(_active_shop)
+		_shop_view.refresh(_active_shop, _run.gold, _run.deck); return
+	if _shop_view.get_removal_rect().has_point(pos):
+		_run.buy_removal(_active_shop, 0)
+		_shop_view.refresh(_active_shop, _run.gold, _run.deck); return
