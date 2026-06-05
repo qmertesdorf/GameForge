@@ -222,6 +222,36 @@ func _init() -> void:
 		_fail("overspend should be rejected"); return
 	if r9.gold != 0:
 		_fail("rejected spend must not change gold"); return
+	# Stage 10: shop — seeded inventory, buying debits gold + grants, blocked when poor.
+	var RCa := load("res://RunController.gd")
+	var ra = RCa.new()
+	ra.start_run(SEED)
+	ra.gold = 500
+	var shop: Dictionary = ra.roll_shop()
+	if shop.get("cards", []).size() != 3:
+		_fail("shop did not offer 3 cards"); return
+	if not shop.has("relic") or not shop.has("removal_cost"):
+		_fail("shop missing relic/removal entries"); return
+	var deck_n: int = ra.deck.size()
+	var first_card: String = shop["cards"][0]["id"]
+	var price: int = shop["cards"][0]["cost"]
+	var g_before: int = ra.gold
+	if not ra.buy_card(shop, 0):
+		_fail("buying an affordable card failed"); return
+	if ra.gold != g_before - price:
+		_fail("buy_card did not debit the price"); return
+	if ra.deck.size() != deck_n + 1 or ra.deck[ra.deck.size() - 1] != first_card:
+		_fail("buy_card did not add the card to the deck"); return
+	# Removal shrinks the deck and costs gold.
+	var dn2: int = ra.deck.size()
+	if not ra.buy_removal(shop, 0):
+		_fail("affordable removal failed"); return
+	if ra.deck.size() != dn2 - 1:
+		_fail("removal did not remove a card"); return
+	# Too poor is rejected.
+	ra.gold = 0
+	if ra.buy_card(shop, 1):
+		_fail("buying with 0 gold should be rejected"); return
 	# --- end stages ---
 	print("SELFTEST OK")
 	quit(0)

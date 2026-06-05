@@ -118,20 +118,80 @@ func offer_rewards() -> Array:
 	# Return exactly 3 DISTINCT card ids drawn from CardDB.all_ids() using the seeded rng.
 	# Deterministic given the seed: shuffle a copy of all_ids() and take the first 3.
 	var all_ids: Array = CardDB.all_ids().duplicate()
-
-	# Fisher-Yates shuffle using our seeded rng.
-	var n: int = all_ids.size()
-	for i in range(n - 1, 0, -1):
-		var j: int = rng.randi_range(0, i)
-		var tmp: Variant = all_ids[i]
-		all_ids[i] = all_ids[j]
-		all_ids[j] = tmp
+	_shuffle_run(all_ids)
 
 	# Return the first 3 distinct ids (already distinct since all_ids has no duplicates).
 	var result: Array = []
 	for k in range(3):
 		result.append(all_ids[k])
 	return result
+
+
+# Fisher-Yates over the run's seeded rng (member helper).
+func _shuffle_run(arr: Array) -> void:
+	for i in range(arr.size() - 1, 0, -1):
+		var j: int = rng.randi_range(0, i)
+		var tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp
+
+
+func roll_shop() -> Dictionary:
+	# Seeded inventory. Cards drawn from CardDB, relic from un-owned RelicDB ids.
+	var ids: Array = CardDB.all_ids().duplicate()
+	_shuffle_run(ids)
+	var cards: Array = []
+	for i in range(3):
+		var cid: String = ids[i]
+		cards.append({"id": cid, "cost": rng.randi_range(50, 75)})
+	# Relic: first un-owned relic id (or "" if none left).
+	var relic_id: String = ""
+	for rid in RelicDB.all_ids():
+		if not (rid in relics):
+			relic_id = rid
+			break
+	return {
+		"cards": cards,
+		"relic": {"id": relic_id, "cost": rng.randi_range(120, 150)},
+		"removal_cost": 75,
+		"removed": false,
+	}
+
+
+func buy_card(shop: Dictionary, index: int) -> bool:
+	var cards: Array = shop.get("cards", [])
+	if index < 0 or index >= cards.size():
+		return false
+	var entry: Dictionary = cards[index]
+	if entry.get("bought", false):
+		return false
+	if not spend_gold(entry.get("cost", 999999)):
+		return false
+	deck.append(entry["id"])
+	entry["bought"] = true
+	return true
+
+
+func buy_relic(shop: Dictionary) -> bool:
+	var entry: Dictionary = shop.get("relic", {})
+	var rid: String = entry.get("id", "")
+	if rid == "" or entry.get("bought", false):
+		return false
+	if not spend_gold(entry.get("cost", 999999)):
+		return false
+	relics.append(rid)
+	entry["bought"] = true
+	return true
+
+
+func buy_removal(shop: Dictionary, deck_index: int) -> bool:
+	if shop.get("removed", false):
+		return false
+	if deck_index < 0 or deck_index >= deck.size():
+		return false
+	if not spend_gold(shop.get("removal_cost", 999999)):
+		return false
+	deck.remove_at(deck_index)
+	shop["removed"] = true
+	return true
 
 
 func choose_reward(card_id: String) -> void:
