@@ -13,6 +13,8 @@ extends Node2D
 # by type, then a ring/glow on the CURRENT node and a brighter highlight + larger hit
 # target on each AVAILABLE-next node. Canvas is 1280×720 landscape.
 
+const Chrome := preload("res://Chrome.gd")
+
 # Viewport
 const W: float = 1280.0
 const H: float = 720.0
@@ -24,7 +26,7 @@ const COL_WHITE     := Color(1, 1, 1)
 const COL_PANEL     := Color(0.08, 0.06, 0.14, 0.88)
 
 # Edge line colour
-const COL_EDGE      := Color(0.55, 0.42, 0.85, 0.45)
+const COL_EDGE      := Color(0.62, 0.50, 0.90, 0.70)
 const COL_EDGE_HOT  := Color(0.95, 0.85, 0.40, 0.85)   # edge toward an available node
 
 # Node marker geometry
@@ -65,11 +67,25 @@ var _cur_id: int = -1
 var _available: Array = []
 
 var _font: Font = null
+var _tex_bg: Texture2D = null
+var _tex_node: Dictionary = {}   # node type -> Texture2D
 
 
 func _ready() -> void:
+	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	if ResourceLoader.exists("res://art/ui_font.ttf"):
 		_font = load("res://art/ui_font.ttf")
+	_tex_bg = _try_load("res://art/bg_map.png")
+	for t in ["combat", "elite", "boss", "event", "shop", "campfire", "treasure"]:
+		_tex_node[t] = _try_load("res://art/node_%s.png" % t)
+	# Legacy "rest" nodes reuse the campfire marker.
+	_tex_node["rest"] = _tex_node.get("campfire")
+
+
+func _try_load(path: String) -> Texture2D:
+	if ResourceLoader.exists(path):
+		return load(path)
+	return null
 
 
 func refresh(map, cur_id: int, available: Array) -> void:
@@ -97,18 +113,44 @@ func _draw() -> void:
 			for to_id in _map.next_of(nid):
 				var to_c: Vector2 = _center_of(to_id)
 				var hot: bool = (nid == _cur_id) and (to_id in _available)
-				draw_line(from_c, to_c, COL_EDGE_HOT if hot else COL_EDGE, 3.0 if hot else 2.0)
+				# Dark under-stroke + brighter top stroke reads as a designed path,
+				# not a hairline debug line, over the painted vista.
+				var col: Color = COL_EDGE_HOT if hot else COL_EDGE
+				var wdt: float = 5.0 if hot else 3.5
+				# Inset both ends to the marker radius so the path connects ring-to-ring
+				# and never runs under an icon's transparent interior or its label pill.
+				var dir: Vector2 = to_c - from_c
+				var dist: float = dir.length()
+				if dist < 1.0:
+					continue
+				dir /= dist
+				var inset: float = NODE_R_AVAIL + 8.0
+				if dist <= inset * 2.0 + 6.0:
+					inset = maxf(0.0, dist * 0.5 - 6.0)
+				var a: Vector2 = from_c + dir * inset
+				var b: Vector2 = to_c - dir * inset
+				draw_line(a, b, Color(0.04, 0.03, 0.08, 0.55), wdt + 2.5)
+				draw_line(a, b, col, wdt)
 
 	# 2) Node markers, coloured by type.
 	for fl in range(fcount):
 		for nid in _map.nodes_on_floor(fl):
 			_draw_node(nid)
 
+	# 2b) Labels in a top-most pass — opaque pills always above any neighbour's ring.
+	for fl in range(fcount):
+		for nid in _map.nodes_on_floor(fl):
+			_draw_node_label(nid)
+
 	# 3) Title / legend strip.
 	_draw_header()
 
 
 func _draw_background() -> void:
+	# Painted opaque background when present; gradient bands as a fallback.
+	if _tex_bg != null:
+		draw_texture_rect(_tex_bg, Rect2(0.0, 0.0, W, H), false)
+		return
 	var bands: int = 16
 	for i in bands:
 		var t0: float = float(i) / float(bands)
@@ -134,23 +176,48 @@ func _draw_node(nid: int) -> void:
 		draw_circle(center, r + 14.0, Color(0.95, 0.90, 0.40, 0.18))
 		draw_arc(center, r + 9.0, 0.0, TAU, 40, Color(0.98, 0.92, 0.45, 0.95), 3.0)
 
-	# Available node: brighter glow halo to draw the eye.
+	# Available node: bright double halo to draw the eye (the primary "you can pick this"
+	# signal, so it must read without relying on the icon's colour).
 	if is_available:
-		draw_circle(center, r + 10.0, Color(base_col.r, base_col.g, base_col.b, 0.30))
-		draw_arc(center, r + 6.0, 0.0, TAU, 40, Color(1, 1, 1, 0.85), 2.0)
+		draw_circle(center, r + 11.0, Color(base_col.r, base_col.g, base_col.b, 0.38))
+		draw_arc(center, r + 8.0, 0.0, TAU, 44, Color(1, 1, 1, 0.95), 3.5)
+		draw_arc(center, r + 4.0, 0.0, TAU, 44, Color(0.05, 0.04, 0.10, 0.6), 1.5)
 
-	# Marker disc — brighten if it's a choosable node.
-	var disc_col: Color = base_col
-	if is_available:
-		disc_col = base_col.lerp(COL_WHITE, 0.25)
-	elif not is_current:
-		disc_col = base_col.darkened(0.15)
-	draw_circle(center, r, disc_col)
-	draw_arc(center, r, 0.0, TAU, 40, Color(0.05, 0.04, 0.10, 0.85), 2.0)
+	# Marker — painted node icon when present, else the coloured disc fallback.
+	# Reachable nodes (current/available) render full-bright; locked-out ones drop in
+	# VALUE (genuinely darker, not just hue) so the choosable set is unmistakable even
+	# in greyscale.
+	var tex: Texture2D = _tex_node.get(ntype)
+	var lit: bool = is_current or is_available
+	if tex != null:
+		var half: float = r + 4.0
+		var mod: Color = COL_WHITE if lit else Color(0.42, 0.42, 0.52, 0.82)
+		draw_texture_rect(tex, Rect2(center.x - half, center.y - half, half * 2.0, half * 2.0),
+			false, mod)
+	else:
+		var disc_col: Color = base_col
+		if is_available:
+			disc_col = base_col.lerp(COL_WHITE, 0.25)
+		elif not is_current:
+			disc_col = base_col.darkened(0.45)
+		draw_circle(center, r, disc_col)
+		draw_arc(center, r, 0.0, TAU, 40, Color(0.05, 0.04, 0.10, 0.85), 2.0)
 
-	# Type label centered on the marker (short text).
+
+func _draw_node_label(nid: int) -> void:
+	# Drawn in a separate top-most pass so the opaque pill is never covered by a
+	# neighbouring node's ring/icon. Dim locked-node labels to match their markers.
+	var node: Dictionary = _map.node(nid)
+	if node.is_empty():
+		return
+	var ntype: String = node.get("type", "")
+	var center: Vector2 = _center_of(nid)
+	var r: float = NODE_R_AVAIL if (nid in _available) else NODE_R
+	var lit: bool = (nid == _cur_id) or (nid in _available)
 	var label: String = TYPE_LABELS.get(ntype, ntype.to_upper())
-	_draw_text(center + Vector2(0.0, r + 16.0), label, 12, COL_WHITE, true)
+	var col: Color = COL_WHITE if lit else Color(0.72, 0.72, 0.80, 0.85)
+	var font: Font = _font if _font != null else ThemeDB.fallback_font
+	Chrome.label_pill(self, font, center + Vector2(0.0, r + 15.0), label, 13, col)
 
 
 func _draw_header() -> void:

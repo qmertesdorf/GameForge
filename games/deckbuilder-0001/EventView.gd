@@ -8,6 +8,8 @@ extends Node2D
 # button per choice showing that choice's "label". Reuse the ShopView/MapView palette
 # + ui_font. get_choice_rect(i) MUST match the button positions in _draw.
 
+const Chrome := preload("res://Chrome.gd")
+
 # Viewport
 const W: float = 1280.0
 const H: float = 720.0
@@ -33,11 +35,22 @@ const BTN_GAP: float = 18.0
 
 var _event: Dictionary = {}
 var _font: Font = null
+var _tex_bg: Texture2D = null
 
 
 func _ready() -> void:
+	# Mipmapped linear filtering — keeps the painted background crisp when scaled
+	# (mirrors CombatView; raster-asset-pass convention).
+	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	if ResourceLoader.exists("res://art/ui_font.ttf"):
 		_font = load("res://art/ui_font.ttf")
+	_tex_bg = _try_load("res://art/bg_event.png")
+
+
+func _try_load(path: String) -> Texture2D:
+	if ResourceLoader.exists(path):
+		return load(path)
+	return null
 
 
 func refresh(event: Dictionary) -> void:
@@ -63,6 +76,10 @@ func _draw() -> void:
 
 
 func _draw_background() -> void:
+	# Painted opaque background when present; gradient bands as a fallback.
+	if _tex_bg != null:
+		draw_texture_rect(_tex_bg, Rect2(0.0, 0.0, W, H), false)
+		return
 	var bands: int = 16
 	for i in bands:
 		var t0: float = float(i) / float(bands)
@@ -81,11 +98,11 @@ func _draw_title() -> void:
 	var title: String = _event.get("title", "")
 	if title.is_empty():
 		return
-	# Subtle title panel
+	# Title panel — solid backing so the bright painted archway can't bleed through.
 	draw_rect(Rect2(PANEL_X - 16.0, TITLE_Y - 28.0, PANEL_W + 32.0, 44.0),
-		Color(0.06, 0.05, 0.14, 0.70))
+		Color(0.05, 0.04, 0.11, 0.92))
 	draw_rect(Rect2(PANEL_X - 16.0, TITLE_Y - 28.0, PANEL_W + 32.0, 44.0),
-		Color(0.78, 0.58, 1.00, 0.45), false, 1.5)
+		Color(0.78, 0.58, 1.00, 0.55), false, 1.5)
 	_draw_text(Vector2(W * 0.5, TITLE_Y), title, 24, Color(0.95, 0.85, 1.00), true)
 
 
@@ -93,10 +110,11 @@ func _draw_body() -> void:
 	var body: String = _event.get("body", "")
 	if body.is_empty():
 		return
-	# Body panel
-	draw_rect(Rect2(PANEL_X, BODY_Y, PANEL_W, BODY_H), COL_PANEL)
+	# Body panel — DEFINED solid backing (a translucent band lets the bright archway
+	# bleed through behind the centre words; a solid panel guarantees contrast).
+	draw_rect(Rect2(PANEL_X, BODY_Y, PANEL_W, BODY_H), Color(0.05, 0.04, 0.11, 0.92))
 	draw_rect(Rect2(PANEL_X, BODY_Y, PANEL_W, BODY_H),
-		Color(0.50, 0.40, 0.70, 0.45), false, 1.5)
+		Color(0.50, 0.40, 0.70, 0.50), false, 1.5)
 
 	# Wrap body text manually — split on spaces, accumulate until too wide.
 	var font: Font = _font if _font != null else ThemeDB.fallback_font
@@ -127,14 +145,11 @@ func _draw_body() -> void:
 
 func _draw_choices() -> void:
 	var choices: Array = _event.get("choices", [])
+	var font: Font = _font if _font != null else ThemeDB.fallback_font
 	for i in choices.size():
 		var rect: Rect2 = get_choice_rect(i)
-		# Button background
-		draw_rect(rect, COL_BTN)
-		draw_rect(rect, COL_BTN_BORDER, false, 2.0)
-		# Label
 		var label: String = choices[i].get("label", "")
-		_draw_text(rect.get_center() + Vector2(0.0, 7.0), label, 18, COL_WHITE, true)
+		Chrome.button(self, font, rect, label, COL_BTN, 18)
 
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────

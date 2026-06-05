@@ -13,6 +13,7 @@ extends Node2D
 
 const CardDB := preload("res://data/CardDB.gd")
 const RelicDB := preload("res://data/RelicDB.gd")
+const Chrome := preload("res://Chrome.gd")
 
 # Viewport
 const W: float = 1280.0
@@ -52,11 +53,33 @@ var _gold: int = 0
 var _deck: Array = []
 
 var _font: Font = null
+var _tex_bg: Texture2D = null
+var _tex_merchant: Texture2D = null
+var _tex_relic: Dictionary = {}     # relic id -> Texture2D
+var _tex_cardart: Dictionary = {}   # card id -> Texture2D (cached on demand)
 
 
 func _ready() -> void:
+	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	if ResourceLoader.exists("res://art/ui_font.ttf"):
 		_font = load("res://art/ui_font.ttf")
+	_tex_bg = _try_load("res://art/bg_shop.png")
+	_tex_merchant = _try_load("res://art/merchant.png")
+	for rid in RelicDB.all_ids():
+		_tex_relic[rid] = _try_load("res://art/relic_%s.png" % rid)
+
+
+func _try_load(path: String) -> Texture2D:
+	if ResourceLoader.exists(path):
+		return load(path)
+	return null
+
+
+# Card-face art, loaded + cached on first use (shop contents vary per visit).
+func _card_tex(cid: String) -> Texture2D:
+	if not _tex_cardart.has(cid):
+		_tex_cardart[cid] = _try_load("res://art/card_%s.png" % cid)
+	return _tex_cardart[cid]
 
 
 func refresh(shop: Dictionary, gold: int, deck: Array) -> void:
@@ -89,6 +112,7 @@ func get_leave_rect() -> Rect2:
 
 func _draw() -> void:
 	_draw_background()
+	_draw_merchant()
 	_draw_header()
 	_draw_cards()
 	_draw_relic_panel()
@@ -97,6 +121,10 @@ func _draw() -> void:
 
 
 func _draw_background() -> void:
+	# Painted opaque background when present; gradient bands as a fallback.
+	if _tex_bg != null:
+		draw_texture_rect(_tex_bg, Rect2(0.0, 0.0, W, H), false)
+		return
 	var bands: int = 16
 	for i in bands:
 		var t0: float = float(i) / float(bands)
@@ -105,13 +133,28 @@ func _draw_background() -> void:
 		draw_rect(Rect2(0.0, t0 * H, W, (t1 - t0) * H), c)
 
 
+func _draw_merchant() -> void:
+	# Shopkeeper greeting on the left margin (clear of the cards at x≈400+).
+	if _tex_merchant == null:
+		return
+	var mh: float = 380.0
+	var aspect: float = float(_tex_merchant.get_width()) / float(max(_tex_merchant.get_height(), 1))
+	var mw: float = mh * aspect
+	var cx: float = 190.0
+	var cy: float = 400.0
+	draw_texture_rect(_tex_merchant,
+		Rect2(cx - mw * 0.5, cy - mh * 0.5, mw, mh), false)
+
+
 func _draw_header() -> void:
 	# Header panel
 	draw_rect(Rect2(0.0, 0.0, W, HEADER_H), Color(0.05, 0.04, 0.11, 0.88))
 	draw_rect(Rect2(0.0, HEADER_H - 2.0, W, 2.0), Color(0.78, 0.58, 1.00, 0.75))
 	_draw_text(Vector2(W * 0.5, 30.0), "Merchant", 22, Color(0.92, 0.80, 0.55), true)
 
-	# Gold counter (top-right)
+	# Gold counter (top-right). NOTE: the generated token_gold.png reads as two stray
+	# figures rather than a coin, so the counter uses the clean ⬡ coin glyph; token_gold
+	# is a regen candidate (see asset_pass.notes).
 	var gold_str: String = "⬡ %d Gold" % _gold
 	_draw_text(Vector2(W - 24.0, 30.0), gold_str, 18, COL_GOLD, false, true)
 
@@ -139,40 +182,31 @@ func _draw_card_slot_empty(rect: Rect2) -> void:
 
 
 func _draw_card_slot(rect: Rect2, cid: String, cost: int, bought: bool, dim: bool) -> void:
-	# Card background
-	var bg_col: Color = COL_CARD_BG if not dim else Color(0.07, 0.06, 0.12, 0.75)
-	draw_rect(rect, bg_col)
-
-	var border_col: Color = Color(0.60, 0.45, 0.90, 0.85) if not dim else Color(0.30, 0.28, 0.40, 0.60)
-	draw_rect(rect, border_col, false, 2.0)
-
 	var text_col: Color = COL_WHITE if not dim else COL_DIM
 
-	# Card name
 	var card_data: Dictionary = CardDB.card(cid)
 	var c_name: String = card_data.get("name", cid)
-	var c_type: String = card_data.get("type", "")
 	var c_elem: String = card_data.get("element", "neutral")
 	var elem_col: Color = _element_color(c_elem)
 
-	# Name panel (top strip)
-	var top_h: float = rect.size.y * 0.22
+	# Full-bleed card face — the same painted art the player sees in combat.
+	var art: Texture2D = _card_tex(cid)
+	if art != null:
+		var mod: Color = COL_WHITE if not dim else Color(0.46, 0.43, 0.52, 1.0)
+		draw_texture_rect(art, rect, false, mod)
+	else:
+		draw_rect(rect, COL_CARD_BG if not dim else Color(0.07, 0.06, 0.12, 0.75))
+
+	# Element-coloured border over the art.
+	var border_col: Color = elem_col if not dim else Color(0.30, 0.28, 0.40, 0.60)
+	draw_rect(rect, border_col, false, 2.5)
+
+	# Name panel (top strip) — solid scrim for legibility over the painting.
+	var top_h: float = rect.size.y * 0.20
 	draw_rect(Rect2(rect.position.x, rect.position.y, rect.size.x, top_h),
 		Color(0.05, 0.04, 0.12, 0.82))
-	_draw_text(Vector2(rect.get_center().x, rect.position.y + top_h * 0.55),
+	_draw_text(Vector2(rect.get_center().x, rect.position.y + top_h * 0.62),
 		c_name, 13, text_col if not dim else Color(text_col.r, text_col.g, text_col.b, 0.65), true)
-
-	# Art area center: element gem pip
-	var art_cy: float = rect.position.y + top_h + (rect.size.y - top_h) * 0.38
-	var gem_r: float = 24.0
-	if not dim:
-		draw_circle(Vector2(rect.get_center().x, art_cy), gem_r + 6.0,
-			Color(elem_col.r, elem_col.g, elem_col.b, 0.18))
-	draw_circle(Vector2(rect.get_center().x, art_cy), gem_r,
-		elem_col if not dim else elem_col.darkened(0.55))
-	_draw_text(Vector2(rect.get_center().x, art_cy + 6.0),
-		c_type.substr(0, 3).to_upper(), 10,
-		Color(1.0, 1.0, 1.0, 0.70 if dim else 0.90), true)
 
 	# Bottom cost badge
 	var bot_h: float = rect.size.y * 0.24
@@ -214,13 +248,23 @@ func _draw_relic_panel() -> void:
 	_draw_text(Vector2(rect.get_center().x, rect.position.y + strip_h * 0.60),
 		"RELIC", 13, Color(0.80, 0.65, 0.20, 0.90 if not dim else 0.45), true)
 
-	# Relic circle + name
-	var circ_c: Vector2 = Vector2(rect.get_center().x, rect.position.y + strip_h + 50.0)
-	draw_circle(circ_c, 26.0, Color(0.70, 0.55, 1.0, 0.30 if not dim else 0.12))
-	draw_circle(circ_c, 20.0, Color(1.0, 0.5, 0.2, 0.80 if not dim else 0.30))
+	# Painted relic icon, then the name in reserved air BELOW it (never floated over the
+	# illustration). Fallback to the glow disc if art is missing.
+	var circ_c: Vector2 = Vector2(rect.get_center().x, rect.position.y + strip_h + 42.0)
+	var rtex: Texture2D = _tex_relic.get(rid) if has_relic else null
+	if rtex != null:
+		if not dim:
+			draw_circle(circ_c, 26.0, Color(0.70, 0.55, 1.0, 0.20))
+		var isz: float = 44.0
+		var mod2: Color = COL_WHITE if not dim else Color(0.50, 0.47, 0.55, 1.0)
+		draw_texture_rect(rtex,
+			Rect2(circ_c.x - isz * 0.5, circ_c.y - isz * 0.5, isz, isz), false, mod2)
+	else:
+		draw_circle(circ_c, 24.0, Color(0.70, 0.55, 1.0, 0.30 if not dim else 0.12))
+		draw_circle(circ_c, 18.0, Color(1.0, 0.5, 0.2, 0.80 if not dim else 0.30))
 
 	var r_name: String = "None" if not has_relic else RelicDB.relic(rid).get("name", rid)
-	_draw_text(Vector2(rect.get_center().x, circ_c.y + 34.0),
+	_draw_text(Vector2(rect.get_center().x, circ_c.y + 46.0),
 		r_name, 12, label_col if not dim else Color(label_col.r, label_col.g, label_col.b, 0.55), true)
 
 	# Cost or SOLD/NONE
@@ -241,25 +285,25 @@ func _draw_removal_button() -> void:
 	var dim: bool = removed or (not affordable)
 
 	var rect: Rect2 = get_removal_rect()
-	var bg_col: Color = Color(0.40, 0.20, 0.60, 0.88) if not dim else Color(0.15, 0.13, 0.22, 0.75)
-	draw_rect(rect, bg_col)
-	draw_rect(rect, Color(0.70, 0.50, 0.90, 0.80) if not dim else Color(0.30, 0.28, 0.40, 0.55), false, 2.0)
+	var font: Font = _font if _font != null else ThemeDB.fallback_font
+	# Styled body (matches the other buttons), two-line label drawn over it.
+	var base: Color = Color(0.50, 0.25, 0.72) if not dim else Color(0.20, 0.18, 0.28)
+	Chrome.button(self, font, rect, "", base, 13)
 
 	if removed:
-		_draw_text(rect.get_center() + Vector2(0.0, 7.0), "PURGE USED", 13, COL_DIM, true)
+		_draw_text(rect.get_center() + Vector2(0.0, 5.0), "PURGE USED", 13, COL_DIM, true)
 	else:
 		var cost_col: Color = COL_GOLD if affordable else Color(COL_GOLD.r, COL_GOLD.g, COL_GOLD.b, 0.45)
-		_draw_text(rect.get_center() + Vector2(0.0, -8.0), "PURGE CARD", 13,
+		_draw_text(rect.get_center() + Vector2(0.0, -6.0), "PURGE CARD", 13,
 			COL_WHITE if not dim else COL_DIM, true)
-		_draw_text(rect.get_center() + Vector2(0.0, 10.0),
+		_draw_text(rect.get_center() + Vector2(0.0, 13.0),
 			"⬡ %d" % removal_cost, 13, cost_col, true)
 
 
 func _draw_leave_button() -> void:
 	var rect: Rect2 = get_leave_rect()
-	draw_rect(rect, COL_BTN_LEAVE)
-	draw_rect(rect, Color(0.55, 0.90, 0.60, 0.80), false, 2.0)
-	_draw_text(rect.get_center() + Vector2(0.0, 7.0), "Leave Shop", 16, COL_WHITE, true)
+	var font: Font = _font if _font != null else ThemeDB.fallback_font
+	Chrome.button(self, font, rect, "Leave Shop", COL_BTN_LEAVE, 16)
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────

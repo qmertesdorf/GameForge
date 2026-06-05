@@ -190,8 +190,13 @@ func _ready() -> void:
 	}
 	_tex_card_back = _try_load("res://art/card_back.png")
 	_tex_relic = {
-		"ember_heart": _try_load("res://art/relic_ember_heart.png"),
-		"storm_core":  _try_load("res://art/relic_storm_core.png"),
+		"ember_heart":    _try_load("res://art/relic_ember_heart.png"),
+		"storm_core":     _try_load("res://art/relic_storm_core.png"),
+		"iron_ward":      _try_load("res://art/relic_iron_ward.png"),
+		"arcane_battery": _try_load("res://art/relic_arcane_battery.png"),
+		"vitality_charm": _try_load("res://art/relic_vitality_charm.png"),
+		"gold_idol":      _try_load("res://art/relic_gold_idol.png"),
+		"lucky_coin":     _try_load("res://art/relic_lucky_coin.png"),
 	}
 	_tex_icon = {
 		"mana":   _try_load("res://art/icon_mana.png"),

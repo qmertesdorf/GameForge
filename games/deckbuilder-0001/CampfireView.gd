@@ -8,6 +8,8 @@ extends Node2D
 # Draw: a campfire-scene header, current HP (e.g. "HP 40/70"), and two big buttons:
 # "Rest (heal 30%)" and "Upgrade a Card". Reuse the EventView/ShopView palette + ui_font.
 
+const Chrome := preload("res://Chrome.gd")
+
 # Viewport
 const W: float = 1280.0
 const H: float = 720.0
@@ -35,11 +37,22 @@ const BTN_H: float    = 80.0
 var _hp: int  = 0
 var _max: int = 0
 var _font: Font = null
+var _tex_bg: Texture2D = null
+var _tex_fire: Texture2D = null
 
 
 func _ready() -> void:
+	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	if ResourceLoader.exists("res://art/ui_font.ttf"):
 		_font = load("res://art/ui_font.ttf")
+	_tex_bg = _try_load("res://art/bg_campfire.png")
+	_tex_fire = _try_load("res://art/prop_campfire.png")
+
+
+func _try_load(path: String) -> Texture2D:
+	if ResourceLoader.exists(path):
+		return load(path)
+	return null
 
 
 func refresh(run_hp: int, run_max_hp: int) -> void:
@@ -70,6 +83,10 @@ func _draw() -> void:
 
 
 func _draw_background() -> void:
+	# Painted opaque background when present; gradient bands as a fallback.
+	if _tex_bg != null:
+		draw_texture_rect(_tex_bg, Rect2(0.0, 0.0, W, H), false)
+		return
 	var bands: int = 16
 	for i in bands:
 		var t0: float = float(i) / float(bands)
@@ -85,8 +102,18 @@ func _draw_header() -> void:
 
 
 func _draw_campfire_art() -> void:
-	# Stylised campfire scene: ground log + flame layers + embers glow
 	var cx: float = W * 0.5
+	# Painted bonfire prop centred above the HP panel. The PNG carries its own
+	# transparent background + glow, so it draws straight over the scene.
+	if _tex_fire != null:
+		var fire_h: float = 200.0
+		var aspect: float = float(_tex_fire.get_width()) / float(max(_tex_fire.get_height(), 1))
+		var fire_w: float = fire_h * aspect
+		draw_texture_rect(_tex_fire,
+			Rect2(cx - fire_w * 0.5, 230.0 - fire_h * 0.5, fire_w, fire_h), false)
+		return
+
+	# ── Fallback: stylised procedural campfire (logs + flames + embers) ──
 	var base_y: float = 258.0
 
 	# Log pair
@@ -129,15 +156,13 @@ func _draw_hp_info() -> void:
 	draw_rect(panel_rect, COL_PANEL)
 	draw_rect(panel_rect, Color(0.50, 0.40, 0.70, 0.45), false, 1.5)
 
-	# HP bar background
+	# Styled HP gauge (matches combat) instead of a flat fill.
 	var bar_x: float = PANEL_X + 16.0
 	var bar_y: float = INFO_Y + 28.0
 	var bar_w: float = PANEL_W - 32.0
-	var bar_h: float = 12.0
-	draw_rect(Rect2(bar_x, bar_y, bar_w, bar_h), Color(0.15, 0.12, 0.25))
-	# HP bar fill
-	var fill: float = bar_w * (float(_hp) / float(max(_max, 1)))
-	draw_rect(Rect2(bar_x, bar_y, fill, bar_h), COL_HP_BAR)
+	var bar_h: float = 14.0
+	var frac: float = float(_hp) / float(max(_max, 1))
+	Chrome.bar(self, Rect2(bar_x, bar_y, bar_w, bar_h), frac, COL_HP_BAR)
 
 	# HP text
 	var hp_text: String = "HP  %d / %d" % [_hp, _max]
@@ -145,9 +170,8 @@ func _draw_hp_info() -> void:
 
 
 func _draw_button(rect: Rect2, label: String) -> void:
-	draw_rect(rect, COL_BTN)
-	draw_rect(rect, COL_BTN_BORDER, false, 2.0)
-	_draw_text(rect.get_center() + Vector2(0.0, 9.0), label, 22, COL_WHITE, true)
+	var font: Font = _font if _font != null else ThemeDB.fallback_font
+	Chrome.button(self, font, rect, label, COL_BTN, 22)
 
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────

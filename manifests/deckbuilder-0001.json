@@ -253,6 +253,120 @@
       "name": "icon_lightning",
       "source": "art/icon_lightning.png",
       "origin": "raster"
+    },
+    {
+      "type": "background",
+      "name": "bg_map",
+      "source": "art/bg_map.png",
+      "origin": "raster"
+    },
+    {
+      "type": "background",
+      "name": "bg_shop",
+      "source": "art/bg_shop.png",
+      "origin": "raster"
+    },
+    {
+      "type": "background",
+      "name": "bg_event",
+      "source": "art/bg_event.png",
+      "origin": "raster"
+    },
+    {
+      "type": "background",
+      "name": "bg_campfire",
+      "source": "art/bg_campfire.png",
+      "origin": "raster"
+    },
+    {
+      "type": "sprite",
+      "name": "merchant",
+      "source": "art/merchant.png",
+      "origin": "raster"
+    },
+    {
+      "type": "sprite",
+      "name": "prop_campfire",
+      "source": "art/prop_campfire.png",
+      "origin": "raster"
+    },
+    {
+      "type": "sprite",
+      "name": "relic_storm_core",
+      "source": "art/relic_storm_core.png",
+      "origin": "raster"
+    },
+    {
+      "type": "sprite",
+      "name": "relic_iron_ward",
+      "source": "art/relic_iron_ward.png",
+      "origin": "raster"
+    },
+    {
+      "type": "sprite",
+      "name": "relic_arcane_battery",
+      "source": "art/relic_arcane_battery.png",
+      "origin": "raster"
+    },
+    {
+      "type": "sprite",
+      "name": "relic_vitality_charm",
+      "source": "art/relic_vitality_charm.png",
+      "origin": "raster"
+    },
+    {
+      "type": "sprite",
+      "name": "relic_gold_idol",
+      "source": "art/relic_gold_idol.png",
+      "origin": "raster"
+    },
+    {
+      "type": "sprite",
+      "name": "relic_lucky_coin",
+      "source": "art/relic_lucky_coin.png",
+      "origin": "raster"
+    },
+    {
+      "type": "icon",
+      "name": "node_combat",
+      "source": "art/node_combat.png",
+      "origin": "raster"
+    },
+    {
+      "type": "icon",
+      "name": "node_elite",
+      "source": "art/node_elite.png",
+      "origin": "raster"
+    },
+    {
+      "type": "icon",
+      "name": "node_boss",
+      "source": "art/node_boss.png",
+      "origin": "raster"
+    },
+    {
+      "type": "icon",
+      "name": "node_event",
+      "source": "art/node_event.png",
+      "origin": "raster"
+    },
+    {
+      "type": "icon",
+      "name": "node_shop",
+      "source": "art/node_shop.png",
+      "origin": "raster"
+    },
+    {
+      "type": "icon",
+      "name": "node_campfire",
+      "source": "art/node_campfire.png",
+      "origin": "raster"
+    },
+    {
+      "type": "icon",
+      "name": "node_treasure",
+      "source": "art/node_treasure.png",
+      "origin": "raster"
     }
   ],
   "validation": {
@@ -301,15 +415,24 @@
       "painted UI icons: icon_mana/burn/chill/attack/defend/gem",
       "themed display font ui_font.ttf (Lilita One) wired project-wide (draw_string + Label overrides) so digits aren't ThemeDB-fallback programmer-art",
       "element pips: per-element painted glyph on the card medallion (fire=flame, ice=shard, lightning=icon_lightning bolt, neutral=gem) replacing the single iridescent gem on every card — the pip now signals element by shape+colour (accessibility + fidelity)",
-      "warm/cool status discs: amber halo+tint for Burn, cyan for Chill, so the two shared-plate medallions read warm-vs-cool at a glance (was the same violet disc)"
+      "warm/cool status discs: amber halo+tint for Burn, cyan for Chill, so the two shared-plate medallions read warm-vs-cool at a glance (was the same violet disc)",
+      "RUN-LAYER backgrounds: bg_map / bg_shop / bg_event / bg_campfire (raster, opaque full-frame 1280x720, no LayerDiffuse) drawn under each new deepen-pass screen, replacing the gradient-band primitive",
+      "merchant (hooded shopkeeper-mage sprite, ShopView left margin)",
+      "prop_campfire (painted bonfire, CampfireView — replaces the procedural flame/log/ember primitive)",
+      "6 relic icons (storm_core/iron_ward/arcane_battery/vitality_charm/gold_idol/lucky_coin) in the ShopView relic panel + CombatView HUD; with the existing ember_heart this completes the 7-relic painted set",
+      "7 map node-type emblems (node_combat/elite/boss/event/shop/campfire/treasure) as MapView markers, replacing the coloured-disc primitives",
+      "ShopView card sale tiles reuse the 16 full-bleed first-person caster-POV card_<id> illustrations as full-bleed faces (code name-strip + cost-badge scrims over them)"
     ],
     "left_primitive": [
       "all juice/motion (screen shake, card-cast arc ghost, number pop-ups, death dissolve+particles, HP/mana tweens, status pulses, intent telegraph) — motion not art",
       "ALL HUD/overlay chrome is DELIBERATE styled code, composited over the painted art so one renderer serves every card/state: the HUD plate (gradient body + accent strip + bevel + corner ticks), End Turn/Skip buttons (gradient + gloss + bevel), win/lose/reward banner panels, HP bars (player+enemy), the per-card legibility panels + name/type/effect text + element border + cost badge, and the MANA ORBS (bright radial code orb — the generated mana token rendered too dark/muddy). A painted 9-slice gold frame over these was tried this pass and owner-rejected in live play as lumpy/janky (generation will not yield a clean symmetric tileable frame) — clean styled code is the right call for wide dynamic UI chrome.",
-      "pile-count + status-count numerals, intent value, reward/win/lose overlay text — runtime values drawn on solid backing pills / tight outlines over the painted assets"
+      "pile-count + status-count numerals, intent value, reward/win/lose overlay text — runtime values drawn on solid backing pills / tight outlines over the painted assets",
+      "RUN-LAYER UI chrome is DELIBERATE styled CODE via the new Chrome.gd shared helper (vscrim vertical-gradient button + top gloss + bevel, HP-gauge fill, solid label pills) mirroring CombatView's chrome so every run-layer screen reads as one designed hand: event/campfire/shop buttons, campfire HP gauge, map connector edges + current/available rings, map node-label pills, and the shop gold counter (⬡ glyph). Wide dynamic chrome is a genuine medium-fight for raster gen — styled-code is the right tool (mixed-method honesty).",
+      "treasure_chest.png GENERATED but UNWIRED: the treasure node auto-grants a relic with no reveal screen, and adding one is a new game State (a logic change) — out of scope for a frozen-logic asset pass; left for a future deepen pass.",
+      "token_gold.png GENERATED but REJECTED: rendered as two stray figures rather than a coin; the ShopView gold counter uses the clean ⬡ coin glyph instead. token_gold is a regen candidate."
     ],
     "art_path": "games/deckbuilder-0001/art/",
-    "notes": "METHOD CHANGED svg->raster: the earlier SVG sigil-vector pass was owner-rejected as not-shippable ('rudimentary, fine for POC'); raster is the project default and the right call for representational creature/spell art, so this asset_pass record was reconciled to the shipped raster reality. KEY STYLE FINDING: Juggernaut XL (photoreal base) fought the flat-cartoon target through ~9 imp + ~9 card regens (whack-a-mole; the chain_lightning abstract effect kept collapsing to scenes) — swapping the CHECKPOINT to cartoonArcadiaXL_v2 did what prompt-tuning couldn't and solved cross-asset cohesion for free (every asset inherits one hand). Cards reframed first-person caster-POV to stop abstract-effect collapse and tie each spell to the world. SWAP MECHANISM: draw_texture*-in-place in the builder's single-_draw immediate-mode renderer (textures load once in _ready, replace primitives in _draw_background/_draw_enemy/_draw_card_face/etc., preserving z-order+shake+juice); every helper guards on a null texture and falls back to the primitive. Grain fixed via mipmaps/generate=true on every downscaled .import + TEXTURE_FILTER_LINEAR_WITH_MIPMAPS. Painted UI-token pass (mana/shield/plate + 6 icons + card-back + relic) holds code-drawn chrome to the painted-art bar. COMPOSITED + COLOUR-ACCESSIBILITY AUDIT (this pass, busy-state + reward-overlay screenshots, 3-4x magnified pairing crops): fixed block-value numeral contrast (was near-black on the shield's dark boss -> bright), added a solid backing pill behind the reward-overlay title (was gold-on-busy), pushed Burn/Chill count numerals clear of their medallion plates onto small backing pills (+ wider status spacing), and solidified the enemy name/intent/HP panel (0.66->0.82) over the bright runic portal; re-render re-audit clean. selftest still SELFTEST OK (rules untouched). RECIPE PROVENANCE: comfy.mjs takes the recipe JSON as a CLI arg and does not persist it, and the final Cartoon Arcadia recipes were not logged during the iterative probe, so exact per-asset seeds/negatives are unrecoverable; the committed PNGs are canonical (GPU gen is non-deterministic anyway). The recipes[] below record the locked checkpoint + proven params + per-asset subject as honest partial provenance (seed omitted where uncaptured); the full locked style profile lives in visual_system.style/prompt_scaffold. || VISUAL-AUDIT + TARGETED RASTER REGEN PASS (2026-06-04): the visual-audit skill graded the composited screen across all 5 states (busy combat / boss / reward / win / lose) via fresh per-lens auditors. CHROME-CODE fixes (logic frozen, SELFTEST OK): HP-bar value is now an OUTLINED numeral (no opaque pill punching a gap into the green fill — the segmented-bar bug, worst at boss 88/110); block-shield numerals white+heavy-outline (were grey-on-silver after the shield-token swap); status counts on solid pills + wider disc spacing (were touching the neighbour); reward screen draws ONLY bg+modal (the live combat header was bleeding through the scrim). ASSET-PRODUCTION fixes (owner chose full painted 9-slice): per-element card pips (icon_lightning bolt + reused flame/shard/gem) so the pip signals element by shape+colour instead of one rainbow gem; warm/cool element halo+tint on the Burn/Chill medallions; and a painted GOLD 9-SLICE FRAME (token_frame_gold) drawn via a manual nine-patch (_draw_nine_patch) over code fills, wrapping the HUD panel, win/lose banners, and End/Skip buttons. MIXED-METHOD HONESTY: wide dynamic UI chrome (HP-bar gauge, per-card legibility panels) fights LayerDiffuse generation (probes: black-box alpha button, emblem-in-center panel, 2-line hollow gauge) so they stay styled-code by design. Re-rendered + re-audited with fresh eyes after each fix; final sweep clean (mana orbs lifted to clear the new gold bottom rail). New PNGs: icon_lightning, token_frame_gold. || FRAME REVERT (2026-06-04, owner live-playtest feedback): the full painted 9-slice gold frame (token_frame_gold over code fills on HUD/buttons/banners) looked lumpy/janky in-game — asymmetric corners, uneven rails, stuck-on studs — because LayerDiffuse/SDXL will not yield a clean symmetric tileable UI frame. Owner chose to REVERT all panels/buttons/banners to the prior clean styled-code chrome (which sits cleanly); token_frame_gold deleted. ALSO this pass: mana orbs reverted from the painted token_mana (rendered dark/muddy on the dark panel) to a bright radial CODE orb (per the project gen-renders-mana-dark finding), and the HP-bar value outline tightened (spread 0.6) so it is not chunky. RETAINED wins from the regen attempt: per-element card pips (icon_lightning bolt + reused flame/shard/gem so the pip signals element by shape+colour) and the warm/cool Burn/Chill status medallions. LESSON: wide dynamic UI chrome (panels, buttons, bars) is a genuine medium-fight for raster gen — keep it styled-code (mixed-method honesty); reserve raster tokens for centered-subject art (cards, enemies, small element glyphs). selftest still SELFTEST OK.",
+    "notes": "METHOD CHANGED svg->raster: the earlier SVG sigil-vector pass was owner-rejected as not-shippable ('rudimentary, fine for POC'); raster is the project default and the right call for representational creature/spell art, so this asset_pass record was reconciled to the shipped raster reality. KEY STYLE FINDING: Juggernaut XL (photoreal base) fought the flat-cartoon target through ~9 imp + ~9 card regens (whack-a-mole; the chain_lightning abstract effect kept collapsing to scenes) — swapping the CHECKPOINT to cartoonArcadiaXL_v2 did what prompt-tuning couldn't and solved cross-asset cohesion for free (every asset inherits one hand). Cards reframed first-person caster-POV to stop abstract-effect collapse and tie each spell to the world. SWAP MECHANISM: draw_texture*-in-place in the builder's single-_draw immediate-mode renderer (textures load once in _ready, replace primitives in _draw_background/_draw_enemy/_draw_card_face/etc., preserving z-order+shake+juice); every helper guards on a null texture and falls back to the primitive. Grain fixed via mipmaps/generate=true on every downscaled .import + TEXTURE_FILTER_LINEAR_WITH_MIPMAPS. Painted UI-token pass (mana/shield/plate + 6 icons + card-back + relic) holds code-drawn chrome to the painted-art bar. COMPOSITED + COLOUR-ACCESSIBILITY AUDIT (this pass, busy-state + reward-overlay screenshots, 3-4x magnified pairing crops): fixed block-value numeral contrast (was near-black on the shield's dark boss -> bright), added a solid backing pill behind the reward-overlay title (was gold-on-busy), pushed Burn/Chill count numerals clear of their medallion plates onto small backing pills (+ wider status spacing), and solidified the enemy name/intent/HP panel (0.66->0.82) over the bright runic portal; re-render re-audit clean. selftest still SELFTEST OK (rules untouched). RECIPE PROVENANCE: comfy.mjs takes the recipe JSON as a CLI arg and does not persist it, and the final Cartoon Arcadia recipes were not logged during the iterative probe, so exact per-asset seeds/negatives are unrecoverable; the committed PNGs are canonical (GPU gen is non-deterministic anyway). The recipes[] below record the locked checkpoint + proven params + per-asset subject as honest partial provenance (seed omitted where uncaptured); the full locked style profile lives in visual_system.style/prompt_scaffold. || VISUAL-AUDIT + TARGETED RASTER REGEN PASS (2026-06-04): the visual-audit skill graded the composited screen across all 5 states (busy combat / boss / reward / win / lose) via fresh per-lens auditors. CHROME-CODE fixes (logic frozen, SELFTEST OK): HP-bar value is now an OUTLINED numeral (no opaque pill punching a gap into the green fill — the segmented-bar bug, worst at boss 88/110); block-shield numerals white+heavy-outline (were grey-on-silver after the shield-token swap); status counts on solid pills + wider disc spacing (were touching the neighbour); reward screen draws ONLY bg+modal (the live combat header was bleeding through the scrim). ASSET-PRODUCTION fixes (owner chose full painted 9-slice): per-element card pips (icon_lightning bolt + reused flame/shard/gem) so the pip signals element by shape+colour instead of one rainbow gem; warm/cool element halo+tint on the Burn/Chill medallions; and a painted GOLD 9-SLICE FRAME (token_frame_gold) drawn via a manual nine-patch (_draw_nine_patch) over code fills, wrapping the HUD panel, win/lose banners, and End/Skip buttons. MIXED-METHOD HONESTY: wide dynamic UI chrome (HP-bar gauge, per-card legibility panels) fights LayerDiffuse generation (probes: black-box alpha button, emblem-in-center panel, 2-line hollow gauge) so they stay styled-code by design. Re-rendered + re-audited with fresh eyes after each fix; final sweep clean (mana orbs lifted to clear the new gold bottom rail). New PNGs: icon_lightning, token_frame_gold. || FRAME REVERT (2026-06-04, owner live-playtest feedback): the full painted 9-slice gold frame (token_frame_gold over code fills on HUD/buttons/banners) looked lumpy/janky in-game — asymmetric corners, uneven rails, stuck-on studs — because LayerDiffuse/SDXL will not yield a clean symmetric tileable UI frame. Owner chose to REVERT all panels/buttons/banners to the prior clean styled-code chrome (which sits cleanly); token_frame_gold deleted. ALSO this pass: mana orbs reverted from the painted token_mana (rendered dark/muddy on the dark panel) to a bright radial CODE orb (per the project gen-renders-mana-dark finding), and the HP-bar value outline tightened (spread 0.6) so it is not chunky. RETAINED wins from the regen attempt: per-element card pips (icon_lightning bolt + reused flame/shard/gem so the pip signals element by shape+colour) and the warm/cool Burn/Chill status medallions. LESSON: wide dynamic UI chrome (panels, buttons, bars) is a genuine medium-fight for raster gen — keep it styled-code (mixed-method honesty); reserve raster tokens for centered-subject art (cards, enemies, small element glyphs). selftest still SELFTEST OK. || RUN-LAYER ART PASS (2026-06-05): extended the locked Cartoon Arcadia XL system to the deepen-pass run layer (4 new screens: Map/Shop/Event/Campfire). 21 PNGs generated (BATCH 21/21) on the same checkpoint + euler/24/cfg7 scaffold (LayerDiffuse for sprites/icons, opaque sdxl for the 4 backgrounds): 4 backgrounds, merchant + bonfire props, 7 node emblems, 6 relics (completing the 7-relic set with the existing ember_heart). Wired draw_texture*-in-place into MapView/ShopView/EventView/CampfireView (backgrounds + node icons + merchant + relic panel + bonfire); shop sale tiles reuse the full-bleed card_<id> POV art; CombatView._tex_relic extended to all 7. mipmaps/generate=true + LINEAR_WITH_MIPMAPS on all 21. NEW Chrome.gd shared styled-chrome helper (vscrim gradient button + gloss + bevel + HP gauge + solid label pills) mirrors CombatView so run-layer chrome is one hand (CombatView untouched). COMPOSITED VISUAL-AUDIT (4 fresh per-lens auditors -> fix -> re-render -> fresh re-audit): chrome-code fixes — event/campfire/shop buttons flat-slab->styled; campfire HP bar->styled gauge; map node labels->solid pills in a top-most pass (were shadow-only, washing out over the bright archway); event title/body panels->solid (were translucent, bright bg bled through); map edges thickened + inset to connect ring-to-ring (were hairlines, briefly overdrew icons after thickening); locked map nodes value-dropped + available nodes brighter double-halo (colour-accessibility: was hue-only). Re-audit: all prior findings RESOLVED, no regressions; legibility + colour lenses fully clean. DEFERRED (need GPU, ComfyUI offline): node_event regen (reads as a literal '?') + node_combat regen (crossed-blades reads thin) — minor polish, not blockers. REJECTED: token_gold (two stray figures) -> counter uses the glyph. UNWIRED: treasure_chest (no reveal screen exists; adding one is a logic change). selftest still SELFTEST OK (rules untouched). Status held playable (owner A/B playtest pending).",
     "recipes": [
       {
         "name": "bg_chamber",
@@ -441,6 +564,333 @@
           "compression": "lossless"
         },
         "note": "element pip + card-area glyph for the lightning element (reused as the lightning status/pip). Took 3 regens: an abstract bolt symbol collapsed to a glowing mound, then a black-filled bolt, before a bright white-core violet-glow bolt landed (micro-asset quality bar)."
+      },
+      {
+        "name": "bg_map",
+        "checkpoint": "cartoonArcadiaXL_v2.safetensors",
+        "prompt": "flat bold cartoon, clean thick outlines, vibrant cel shading, stylized modern arcane, a winding mystical journey through an arcane dungeon, glowing rune-marked stone platforms linked by floating walkways ascending into violet mist, candle-lit indigo-violet stone, deep depth, storybook vista",
+        "negative": "logo, watermark, text, signature, trademarked character, brand, celebrity likeness, photorealistic, hyperrealistic, 3d render, octane render, anime, manga, people, person, character, creature, figure, monster, blurry, lowres",
+        "seed": 2001,
+        "sampler": "euler",
+        "steps": 24,
+        "cfg": 7,
+        "width": 1280,
+        "height": 720,
+        "layerdiffuse": false,
+        "import_settings": {
+          "mipmaps": true,
+          "filter": "linear",
+          "compression": "lossless"
+        }
+      },
+      {
+        "name": "bg_shop",
+        "checkpoint": "cartoonArcadiaXL_v2.safetensors",
+        "prompt": "flat bold cartoon, clean thick outlines, vibrant cel shading, stylized modern arcane, a cozy arcane merchant's alcove inside an indigo-violet stone chamber, shelves of glowing potions and trinkets, hanging lanterns, a wooden counter, warm candle light, inviting",
+        "negative": "logo, watermark, text, signature, trademarked character, brand, celebrity likeness, photorealistic, hyperrealistic, 3d render, octane render, anime, manga, people, person, character, creature, figure, monster, blurry, lowres",
+        "seed": 2002,
+        "sampler": "euler",
+        "steps": 24,
+        "cfg": 7,
+        "width": 1280,
+        "height": 720,
+        "layerdiffuse": false,
+        "import_settings": {
+          "mipmaps": true,
+          "filter": "linear",
+          "compression": "lossless"
+        }
+      },
+      {
+        "name": "bg_event",
+        "checkpoint": "cartoonArcadiaXL_v2.safetensors",
+        "prompt": "flat bold cartoon, clean thick outlines, vibrant cel shading, stylized modern arcane, a mysterious arcane hall of indigo-violet stone, a glowing magical font and ancient pillars wreathed in floating runes, eerie violet light, sense of mystery and choice",
+        "negative": "logo, watermark, text, signature, trademarked character, brand, celebrity likeness, photorealistic, hyperrealistic, 3d render, octane render, anime, manga, people, person, character, creature, figure, monster, blurry, lowres",
+        "seed": 2003,
+        "sampler": "euler",
+        "steps": 24,
+        "cfg": 7,
+        "width": 1280,
+        "height": 720,
+        "layerdiffuse": false,
+        "import_settings": {
+          "mipmaps": true,
+          "filter": "linear",
+          "compression": "lossless"
+        }
+      },
+      {
+        "name": "bg_campfire",
+        "checkpoint": "cartoonArcadiaXL_v2.safetensors",
+        "prompt": "flat bold cartoon, clean thick outlines, vibrant cel shading, stylized modern arcane, a quiet resting nook inside an indigo-violet stone chamber, a cold empty stone fire-ring, bedrolls and a worn travel pack, soft dim candle light, peaceful",
+        "negative": "logo, watermark, text, signature, trademarked character, brand, celebrity likeness, photorealistic, hyperrealistic, 3d render, octane render, anime, manga, people, person, character, creature, figure, monster, blurry, lowres",
+        "seed": 2004,
+        "sampler": "euler",
+        "steps": 24,
+        "cfg": 7,
+        "width": 1280,
+        "height": 720,
+        "layerdiffuse": false,
+        "import_settings": {
+          "mipmaps": true,
+          "filter": "linear",
+          "compression": "lossless"
+        }
+      },
+      {
+        "name": "merchant",
+        "checkpoint": "cartoonArcadiaXL_v2.safetensors",
+        "prompt": "flat bold cartoon, clean thick outlines, vibrant cel shading, stylized modern arcane, single centered subject, full body, clean transparent background, a friendly hooded arcane merchant, a robed shopkeeper mage with a warm welcoming smile, pointed hood, violet and gold robes, holding up a glowing trinket, satchel of wares",
+        "negative": "logo, watermark, text, signature, trademarked character, brand, celebrity likeness, photorealistic, hyperrealistic, realistic, 3d render, octane render, scene, multiple objects, frame, border, ring, wreath, ground, floor, shadow, anime, manga",
+        "seed": 2005,
+        "sampler": "euler",
+        "steps": 24,
+        "cfg": 7,
+        "master_resolution": 1024,
+        "layerdiffuse": true,
+        "import_settings": {
+          "mipmaps": true,
+          "filter": "linear",
+          "compression": "lossless"
+        }
+      },
+      {
+        "name": "prop_campfire",
+        "checkpoint": "cartoonArcadiaXL_v2.safetensors",
+        "prompt": "flat bold cartoon, clean thick outlines, vibrant cel shading, stylized modern arcane, single centered subject, full body, clean transparent background, a warm crackling bonfire of stacked logs with bright amber and orange flames, rising sparks and glowing embers, cozy magical firelight",
+        "negative": "logo, watermark, text, signature, trademarked character, brand, celebrity likeness, photorealistic, hyperrealistic, realistic, 3d render, octane render, scene, multiple objects, frame, border, ring, wreath, ground, floor, shadow, anime, manga",
+        "seed": 2006,
+        "sampler": "euler",
+        "steps": 24,
+        "cfg": 7,
+        "master_resolution": 768,
+        "layerdiffuse": true,
+        "import_settings": {
+          "mipmaps": true,
+          "filter": "linear",
+          "compression": "lossless"
+        }
+      },
+      {
+        "name": "relic_storm_core",
+        "checkpoint": "cartoonArcadiaXL_v2.safetensors",
+        "prompt": "flat bold cartoon, clean thick outlines, vibrant cel shading, stylized modern arcane, single centered subject, full body, clean transparent background, a small floating arcane orb crackling with violet-blue lightning sealed inside a glass-and-gold core, electric energy, magical relic",
+        "negative": "logo, watermark, text, signature, trademarked character, brand, celebrity likeness, photorealistic, hyperrealistic, realistic, 3d render, octane render, scene, multiple objects, frame, border, ring, wreath, ground, floor, shadow, anime, manga",
+        "seed": 2009,
+        "sampler": "euler",
+        "steps": 24,
+        "cfg": 7,
+        "master_resolution": 512,
+        "layerdiffuse": true,
+        "import_settings": {
+          "mipmaps": true,
+          "filter": "linear",
+          "compression": "lossless"
+        }
+      },
+      {
+        "name": "relic_iron_ward",
+        "checkpoint": "cartoonArcadiaXL_v2.safetensors",
+        "prompt": "flat bold cartoon, clean thick outlines, vibrant cel shading, stylized modern arcane, single centered subject, full body, clean transparent background, a small ornate iron heater-shield amulet engraved with a glowing blue protective rune, steel body with gold trim, magical relic",
+        "negative": "logo, watermark, text, signature, trademarked character, brand, celebrity likeness, photorealistic, hyperrealistic, realistic, 3d render, octane render, scene, multiple objects, frame, border, ring, wreath, ground, floor, shadow, anime, manga",
+        "seed": 2010,
+        "sampler": "euler",
+        "steps": 24,
+        "cfg": 7,
+        "master_resolution": 512,
+        "layerdiffuse": true,
+        "import_settings": {
+          "mipmaps": true,
+          "filter": "linear",
+          "compression": "lossless"
+        }
+      },
+      {
+        "name": "relic_arcane_battery",
+        "checkpoint": "cartoonArcadiaXL_v2.safetensors",
+        "prompt": "flat bold cartoon, clean thick outlines, vibrant cel shading, stylized modern arcane, single centered subject, full body, clean transparent background, a small glowing crystal vial brimming with swirling violet arcane energy, capped in gold, magical relic",
+        "negative": "logo, watermark, text, signature, trademarked character, brand, celebrity likeness, photorealistic, hyperrealistic, realistic, 3d render, octane render, scene, multiple objects, frame, border, ring, wreath, ground, floor, shadow, anime, manga",
+        "seed": 2011,
+        "sampler": "euler",
+        "steps": 24,
+        "cfg": 7,
+        "master_resolution": 512,
+        "layerdiffuse": true,
+        "import_settings": {
+          "mipmaps": true,
+          "filter": "linear",
+          "compression": "lossless"
+        }
+      },
+      {
+        "name": "relic_vitality_charm",
+        "checkpoint": "cartoonArcadiaXL_v2.safetensors",
+        "prompt": "flat bold cartoon, clean thick outlines, vibrant cel shading, stylized modern arcane, single centered subject, full body, clean transparent background, a small life-charm pendant, a glowing emerald leaf-heart gem in a gold setting, green vitality aura, magical relic",
+        "negative": "logo, watermark, text, signature, trademarked character, brand, celebrity likeness, photorealistic, hyperrealistic, realistic, 3d render, octane render, scene, multiple objects, frame, border, ring, wreath, ground, floor, shadow, anime, manga",
+        "seed": 2012,
+        "sampler": "euler",
+        "steps": 24,
+        "cfg": 7,
+        "master_resolution": 512,
+        "layerdiffuse": true,
+        "import_settings": {
+          "mipmaps": true,
+          "filter": "linear",
+          "compression": "lossless"
+        }
+      },
+      {
+        "name": "relic_gold_idol",
+        "checkpoint": "cartoonArcadiaXL_v2.safetensors",
+        "prompt": "flat bold cartoon, clean thick outlines, vibrant cel shading, stylized modern arcane, single centered subject, full body, clean transparent background, a small golden idol statuette of an owl-like arcane figure, gleaming solid gold with glowing gemstone eyes, opulent magical relic",
+        "negative": "logo, watermark, text, signature, trademarked character, brand, celebrity likeness, photorealistic, hyperrealistic, realistic, 3d render, octane render, scene, multiple objects, frame, border, ring, wreath, ground, floor, shadow, anime, manga",
+        "seed": 2013,
+        "sampler": "euler",
+        "steps": 24,
+        "cfg": 7,
+        "master_resolution": 512,
+        "layerdiffuse": true,
+        "import_settings": {
+          "mipmaps": true,
+          "filter": "linear",
+          "compression": "lossless"
+        }
+      },
+      {
+        "name": "relic_lucky_coin",
+        "checkpoint": "cartoonArcadiaXL_v2.safetensors",
+        "prompt": "flat bold cartoon, clean thick outlines, vibrant cel shading, stylized modern arcane, single centered subject, full body, clean transparent background, a small lucky gold coin embossed with a four-leaf-clover arcane rune, a violet ribbon threaded through it, glinting, magical relic",
+        "negative": "logo, watermark, text, signature, trademarked character, brand, celebrity likeness, photorealistic, hyperrealistic, realistic, 3d render, octane render, scene, multiple objects, frame, border, ring, wreath, ground, floor, shadow, anime, manga",
+        "seed": 2014,
+        "sampler": "euler",
+        "steps": 24,
+        "cfg": 7,
+        "master_resolution": 512,
+        "layerdiffuse": true,
+        "import_settings": {
+          "mipmaps": true,
+          "filter": "linear",
+          "compression": "lossless"
+        }
+      },
+      {
+        "name": "node_combat",
+        "checkpoint": "cartoonArcadiaXL_v2.safetensors",
+        "prompt": "flat bold cartoon, clean thick outlines, vibrant cel shading, stylized modern arcane, single centered game icon, bold minimal flat symbol, clean transparent background, two crossed swords, bright steel blades with gold hilts, bold flat combat emblem",
+        "negative": "logo, watermark, text, signature, photorealistic, 3d render, realistic, scene, multiple symbols, frame, border, ring, ground, shadow, anime, manga, blob, hollow, gray interior, black fill, dark interior, cluttered, smoke, blurry",
+        "seed": 2015,
+        "sampler": "euler",
+        "steps": 24,
+        "cfg": 7,
+        "master_resolution": 512,
+        "layerdiffuse": true,
+        "import_settings": {
+          "mipmaps": true,
+          "filter": "linear",
+          "compression": "lossless"
+        }
+      },
+      {
+        "name": "node_elite",
+        "checkpoint": "cartoonArcadiaXL_v2.safetensors",
+        "prompt": "flat bold cartoon, clean thick outlines, vibrant cel shading, stylized modern arcane, single centered game icon, bold minimal flat symbol, clean transparent background, a single upright sword wreathed in bright orange flame, fierce elite-threat emblem",
+        "negative": "logo, watermark, text, signature, photorealistic, 3d render, realistic, scene, multiple symbols, frame, border, ring, ground, shadow, anime, manga, blob, hollow, gray interior, black fill, dark interior, cluttered, smoke, blurry",
+        "seed": 2016,
+        "sampler": "euler",
+        "steps": 24,
+        "cfg": 7,
+        "master_resolution": 512,
+        "layerdiffuse": true,
+        "import_settings": {
+          "mipmaps": true,
+          "filter": "linear",
+          "compression": "lossless"
+        }
+      },
+      {
+        "name": "node_boss",
+        "checkpoint": "cartoonArcadiaXL_v2.safetensors",
+        "prompt": "flat bold cartoon, clean thick outlines, vibrant cel shading, stylized modern arcane, single centered game icon, bold minimal flat symbol, clean transparent background, a menacing horned demon skull with glowing magenta eyes, boss emblem",
+        "negative": "logo, watermark, text, signature, photorealistic, 3d render, realistic, scene, multiple symbols, frame, border, ring, ground, shadow, anime, manga, blob, hollow, gray interior, black fill, dark interior, cluttered, smoke, blurry",
+        "seed": 2017,
+        "sampler": "euler",
+        "steps": 24,
+        "cfg": 7,
+        "master_resolution": 512,
+        "layerdiffuse": true,
+        "import_settings": {
+          "mipmaps": true,
+          "filter": "linear",
+          "compression": "lossless"
+        }
+      },
+      {
+        "name": "node_event",
+        "checkpoint": "cartoonArcadiaXL_v2.safetensors",
+        "prompt": "flat bold cartoon, clean thick outlines, vibrant cel shading, stylized modern arcane, single centered game icon, bold minimal flat symbol, clean transparent background, a glowing arcane question-mark sigil rune, bright cyan-blue, mystery emblem",
+        "negative": "logo, watermark, text, signature, photorealistic, 3d render, realistic, scene, multiple symbols, frame, border, ring, ground, shadow, anime, manga, blob, hollow, gray interior, black fill, dark interior, cluttered, smoke, blurry",
+        "seed": 2018,
+        "sampler": "euler",
+        "steps": 24,
+        "cfg": 7,
+        "master_resolution": 512,
+        "layerdiffuse": true,
+        "import_settings": {
+          "mipmaps": true,
+          "filter": "linear",
+          "compression": "lossless"
+        }
+      },
+      {
+        "name": "node_shop",
+        "checkpoint": "cartoonArcadiaXL_v2.safetensors",
+        "prompt": "flat bold cartoon, clean thick outlines, vibrant cel shading, stylized modern arcane, single centered game icon, bold minimal flat symbol, clean transparent background, a bulging coin purse sack overflowing with bright gold coins, merchant emblem",
+        "negative": "logo, watermark, text, signature, photorealistic, 3d render, realistic, scene, multiple symbols, frame, border, ring, ground, shadow, anime, manga, blob, hollow, gray interior, black fill, dark interior, cluttered, smoke, blurry",
+        "seed": 2019,
+        "sampler": "euler",
+        "steps": 24,
+        "cfg": 7,
+        "master_resolution": 512,
+        "layerdiffuse": true,
+        "import_settings": {
+          "mipmaps": true,
+          "filter": "linear",
+          "compression": "lossless"
+        }
+      },
+      {
+        "name": "node_campfire",
+        "checkpoint": "cartoonArcadiaXL_v2.safetensors",
+        "prompt": "flat bold cartoon, clean thick outlines, vibrant cel shading, stylized modern arcane, single centered game icon, bold minimal flat symbol, clean transparent background, a small cozy campfire of logs with bright amber flames, rest emblem",
+        "negative": "logo, watermark, text, signature, photorealistic, 3d render, realistic, scene, multiple symbols, frame, border, ring, ground, shadow, anime, manga, blob, hollow, gray interior, black fill, dark interior, cluttered, smoke, blurry",
+        "seed": 2020,
+        "sampler": "euler",
+        "steps": 24,
+        "cfg": 7,
+        "master_resolution": 512,
+        "layerdiffuse": true,
+        "import_settings": {
+          "mipmaps": true,
+          "filter": "linear",
+          "compression": "lossless"
+        }
+      },
+      {
+        "name": "node_treasure",
+        "checkpoint": "cartoonArcadiaXL_v2.safetensors",
+        "prompt": "flat bold cartoon, clean thick outlines, vibrant cel shading, stylized modern arcane, single centered game icon, bold minimal flat symbol, clean transparent background, a small closed treasure chest with gold trim and a violet gem, loot emblem",
+        "negative": "logo, watermark, text, signature, photorealistic, 3d render, realistic, scene, multiple symbols, frame, border, ring, ground, shadow, anime, manga, blob, hollow, gray interior, black fill, dark interior, cluttered, smoke, blurry",
+        "seed": 2021,
+        "sampler": "euler",
+        "steps": 24,
+        "cfg": 7,
+        "master_resolution": 512,
+        "layerdiffuse": true,
+        "import_settings": {
+          "mipmaps": true,
+          "filter": "linear",
+          "compression": "lossless"
+        }
       }
     ]
   },
