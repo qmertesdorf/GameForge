@@ -2,7 +2,7 @@
   "id": "deckbuilder-0001",
   "name": "Arcane Duel",
   "created_at": "2026-06-03T00:29:19.641Z",
-  "updated_at": "2026-06-03T03:15:12.232Z",
+  "updated_at": "2026-06-05T19:46:02.057Z",
   "status": "playable",
   "concept": {
     "genre": "roguelike deckbuilder",
@@ -443,5 +443,22 @@
         "note": "element pip + card-area glyph for the lightning element (reused as the lightning status/pip). Took 3 regens: an abstract bolt symbol collapsed to a glowing mound, then a black-filled bolt, before a bright white-core violet-glow bolt landed (micro-asset quality bar)."
       }
     ]
+  },
+  "depth_pass": {
+    "axis": "run-meta",
+    "systems_added": [
+      "relic-hooks-refactor",
+      "run-persistent-hp",
+      "branching-map",
+      "gold",
+      "shop",
+      "events",
+      "card-upgrades",
+      "campfire",
+      "relic-pool",
+      "treasure"
+    ],
+    "selftest_assertions_added": 10,
+    "notes": "STS-style run layer grown over an intact CombatState rules engine via the deepen skill. Branching MapGen graph navigated by choice (combat/elite/event/campfire/shop/treasure/boss); run-persistent HP; gold economy; merchant shop (buy card/relic + card removal); choice-driven events (EventDB); campfire (heal 30% or upgrade a card via CardDB UPGRADES); 7-relic pool with on_run_start/on_combat_start/on_combat_win hooks (RelicDB). Surfaced behavior-changes to previously-frozen logic: CombatState.setup gained an optional start_hp arg (run-persistent HP); storm_core relic given a real effect (+1 max mana; was a no-op). New screens (MapView/ShopView/EventView/CampfireView) wired by deepen; their composited look is visual-audit's job, not recorded here. Known limitation: vitality_charm on_run_start hook is dormant for mid-run-acquired copies (relics start as ember_heart only). selftest.gd Stages 5-14 are the new regression+proof assertions."
   }
 }

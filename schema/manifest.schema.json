@@ -299,6 +299,16 @@
         "notes": { "type": "string" }
       }
     },
+    "depth_pass": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "axis": { "enum": ["systemic", "content", "run-meta"] },
+        "systems_added": { "type": "array", "items": { "type": "string" } },
+        "selftest_assertions_added": { "type": "integer" },
+        "notes": { "type": "string" }
+      }
+    },
     "_reserved": {
       "type": "object",
       "properties": {
