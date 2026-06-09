@@ -75,7 +75,7 @@ Record `store_pass.build_artifact` from the `build` command's JSON (format, buil
 ## Deferred (named gates — track, do not fake)
 
 - **APK/AAB build is now in scope** (no longer deferred): `node tools/package.mjs build <id>` shells out to headless Godot, guarded by `ANDROID_HOME`. On a toolchain-equipped machine it produces a debug APK (and `--release --aab` a signed AAB) and records `store_pass.build_artifact`. Without the SDK it skips cleanly (exit 3) — the same no-GPU/no-ComfyUI posture. The one-time machine setup (debug keystore, Godot editor SDK path, AVD) is documented in `README.md` → "Android export" + `tools/android-setup.ps1`.
-- **Real store submission** (Play developer account, release-keystore custody, listing copy, content rating, legal) → owner-gated. The signed AAB is built locally now; uploading it is the owner step documented in `docs/superpowers/specs/2026-06-02-play-console-submission.md`.
+- **Real store submission** (Play developer account, release-keystore custody, listing copy, content rating, legal) → owner-gated. The signed AAB is built locally now; uploading it is the owner step (Play developer account, release-keystore custody, listing copy, content rating, AAB upload).
 - **Icon/splash aesthetic A/B** → owner-gated, like every art/audio A/B.
 
 ## Hand off to the validator

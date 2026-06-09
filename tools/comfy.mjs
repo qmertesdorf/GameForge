@@ -59,7 +59,7 @@ export function injectRecipe(template, recipe) {
 // Buffer out — no disk, no network, no input mutation (slice() copies). The
 // envelope (trim-to-event → loudness-normalize → fades) is what turns a raw SAO
 // clip from "explosive / too quiet" into a clean, perceptibly-loud one-shot.
-// Evidence + the validated prototype: docs/superpowers/2026-06-02-audio-art-probe-results.md.
+// Defaults below were locked by an internal audio-calibration probe.
 
 export function decodeWav(buf) {
   if (!Buffer.isBuffer(buf) || buf.length < 12 ||

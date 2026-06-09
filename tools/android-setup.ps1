@@ -1,9 +1,11 @@
-# tools/android-setup.ps1 — one-time Android export setup for this machine.
+# tools/android-setup.ps1 — one-time Android export setup.
 # Idempotent: safe to re-run. Sources nothing secret into git.
+# Override the SDK location with $env:ANDROID_HOME; otherwise the Windows default
+# (%LOCALAPPDATA%\Android\Sdk) is used.
 $ErrorActionPreference = "Stop"
 
-$Sdk = "C:\Users\quint\AppData\Local\Android\Sdk"
-if (-not (Test-Path $Sdk)) { throw "Android SDK not found at $Sdk — install it first." }
+$Sdk = if ($env:ANDROID_HOME) { $env:ANDROID_HOME } else { Join-Path $env:LOCALAPPDATA "Android\Sdk" }
+if (-not (Test-Path $Sdk)) { throw "Android SDK not found at $Sdk — install it first, or set `$env:ANDROID_HOME." }
 
 # 1. Session env (the package.mjs toolchain guard keys off these).
 $env:ANDROID_HOME = $Sdk

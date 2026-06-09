@@ -1,6 +1,19 @@
 # GameForge (POC)
 
-An AI pipeline that turns a one-line prompt into a playable mobile game, built as Claude Agent Skills. See `docs/superpowers/specs/2026-05-30-gameforge-poc-design.html` for the design.
+An AI pipeline that turns a one-line prompt into a playable mobile game, built as Claude Agent Skills. A chain of eight skills — `concept → builder → validator → deepen → asset → visual-audit → audio → packager` — drives a manifest-based design "spine" from idea to a buildable Godot project. The real deliverable is **better skills**, not the games themselves.
+
+## Quick start
+
+The manifest tooling and the full test suite run with nothing but Node — no GPU, Godot, or ComfyUI needed:
+
+```
+npm install
+npm test                                          # 196 tests, network/SDK mocked
+node tools/manifest.mjs create demo "My Demo"     # scaffold a manifest (status=concept)
+node tools/manifest.mjs validate demo             # schema-check it
+```
+
+The agent skills themselves (`.claude/skills/`) run inside [Claude Code](https://claude.com/claude-code). The asset/audio/build stages additionally require local **ComfyUI**, **Godot 4.6.3**, and the **Android SDK** — see the per-stage sections below and `CLAUDE.md` for the reference environment. Set `GODOT_BIN` to your Godot console executable and `COMFY_HOST` to your ComfyUI server if they aren't on PATH / at the defaults.
 
 ## Pinned Godot version
 
@@ -45,7 +58,7 @@ Stack: ComfyUI + SDXL (Juggernaut XL v9 fp16, **no offload on 16 GB**) + the **C
 2. A **one-line join-patch** to `custom_nodes/ComfyUI-layerdiffuse/layered_diffusion.py` `LayeredDiffusionDecodeRGBA.decode`: build the RGBA tensor directly (`torch.cat([rgb, alpha], -1)`) AND use the parent `decode`'s alpha as-is — do NOT invert it.
 3. ComfyUI venv on **torch ≥2.7 / cu128** (we run 2.11.0+cu128) for any RTX 50-series/Blackwell GPU.
 
-See `docs/superpowers/m1.5-feasibility-notes.md` for full gate findings.
+These requirements were validated end-to-end at a local raster feasibility gate.
 
 ## Audio asset tool (M1.6)
 
@@ -70,7 +83,7 @@ Proven recipe defaults:
 2. A **`save_audio` soundfile-WAV patch** to `comfy_extras/nodes_audio.py`: under torch ≥2.11/cu128, `torchaudio.save` routes through TorchCodec (not installed, needs system FFmpeg). Patch `save_audio` to write WAV via `soundfile` (bundled libsndfile, no torchcodec/FFmpeg). This is the audio analog of the M1.5 LayerDiffuse join-patch.
 3. Same ComfyUI v0.3.16 pin and torch 2.11.0+cu128 venv as the raster stack.
 
-See `docs/superpowers/m1.6-feasibility-notes.md` for full gate findings.
+These requirements were validated end-to-end at a local audio feasibility gate.
 
 ## Android export (build/ship)
 
@@ -85,12 +98,12 @@ node tools/package.mjs verify-build <id>           # assert the built file is a 
 The `packager` skill runs `build` after generating store assets and records `store_pass.build_artifact` (format, build_type, path, bytes, package). `validator` Method 5 runs `verify-build` when the toolchain is present. Build outputs and keystores are **git-ignored** (`games/*/build/`, `*.apk`, `*.aab`, `*.keystore`).
 
 **One-time machine setup** (run `tools/android-setup.ps1`, then confirm the printed Godot editor-settings keys):
-1. **Android SDK** at `C:\Users\quint\AppData\Local\Android\Sdk`; export `ANDROID_HOME`/`ANDROID_SDK_ROOT` and add `platform-tools`/`emulator` to PATH.
+1. **Android SDK** (Windows default `%LOCALAPPDATA%\Android\Sdk`); export `ANDROID_HOME`/`ANDROID_SDK_ROOT` and add `platform-tools`/`emulator` to PATH.
 2. **Debug keystore** at `~/.android/debug.keystore` via `keytool` (alias `androiddebugkey`, store/key pass `android`).
 3. **Godot editor settings** (`%APPDATA%\Godot\editor_settings-4.tres`): set `export/android/android_sdk_path` + the debug-keystore keys — headless CLI export reads these.
 4. **AVD** via `avdmanager` (verify a system-image boots in `emulator` before relying on it).
 
-**Release signing (Phase B):** the committed `export_presets.cfg` carries NO secrets. `buildArtifact()` for a release build sets Godot's `GODOT_ANDROID_KEYSTORE_RELEASE_PATH/USER/PASSWORD` env vars from `tools/android-signing.local.json` (git-ignored). AAB output requires Godot's **gradle build** enabled (`gradle_build/use_gradle_build=true` in the release preset) and an installed Android build template — this is the standard AAB path, not custom native gradle source. Play Console submission steps live in `docs/superpowers/specs/2026-06-02-play-console-submission.md`.
+**Release signing (Phase B):** the committed `export_presets.cfg` carries NO secrets. `buildArtifact()` for a release build sets Godot's `GODOT_ANDROID_KEYSTORE_RELEASE_PATH/USER/PASSWORD` env vars from `tools/android-signing.local.json` (git-ignored). AAB output requires Godot's **gradle build** enabled (`gradle_build/use_gradle_build=true` in the release preset) and an installed Android build template — this is the standard AAB path, not custom native gradle source. Play Console submission (developer account, listing, content rating, AAB upload) is the owner-gated final step.
 
 ## Tests
 

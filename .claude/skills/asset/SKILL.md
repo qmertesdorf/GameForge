@@ -91,7 +91,7 @@ node tools/comfy.mjs --check
 ```
 If it prints `UNREACHABLE`, **stop** and ask the owner to start it. A failure here is *infra*, attributable to the stack — never work around it by faking a PNG.
 
-**Stack-version sensitivity.** ComfyUI-layerdiffuse is version-fragile: on a bleeding-edge ComfyUI it silently drops its model patch (`patch type not recognized` → haze) and errors on the alpha-join. If sprites come back as haze or a desaturated/gray interior (correct alpha, flat colour), that's a **stack-version** issue, not your recipe — check the server log for patch warnings and confirm the pin/patch from `docs/superpowers/m1.5-feasibility-notes.md` are in place before touching the recipe.
+**Stack-version sensitivity.** ComfyUI-layerdiffuse is version-fragile: on a bleeding-edge ComfyUI it silently drops its model patch (`patch type not recognized` → haze) and errors on the alpha-join. If sprites come back as haze or a desaturated/gray interior (correct alpha, flat colour), that's a **stack-version** issue, not your recipe — check the server log for patch warnings and confirm the ComfyUI v0.3.16 pin and the LayerDiffuse join-patch are in place before touching the recipe.
 
 ## Step 0 (raster) — style as a first-class choice
 Do the normal Step 0, plus:

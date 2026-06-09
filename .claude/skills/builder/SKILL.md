@@ -21,7 +21,7 @@ Generate a Godot 4.x project that opens and runs **without manual code fixes**, 
 - Wire **touch/tap input** for Android (`InputEventScreenTouch` and/or `_input`), not just keyboard.
 - Implement every mechanic listed in `concept.mechanics`, plus **game over + restart** so the loop is replayable.
 - Keep one main scene runnable on launch (`run/main_scene` set in `project.godot`).
-- Ship the **Game feel & juice** and **Tuning & fairness** requirements below — they are not optional polish, they are what separates "playable" from "terrible but playable" (see `docs/superpowers/poc-run-001.md`).
+- Ship the **Game feel & juice** and **Tuning & fairness** requirements below — they are not optional polish, they are what separates "playable" from "terrible but playable".
 
 ## Staged build for systems-heavy genres (REQUIRED when the loop is too large to one-shot)
 

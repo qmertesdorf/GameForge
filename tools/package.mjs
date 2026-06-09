@@ -262,11 +262,10 @@ export function bootSplashCfg({ image, showImage = true } = {}) {
   ].join("\n");
 }
 
-// Resolve the pinned Godot binary. PowerShell carries a `godot` shim; fall back
-// to the winget install path the README/memory pin (godot-binary-path).
+// Resolve the pinned Godot binary. Set GODOT_BIN to the absolute path of your
+// Godot 4.6.3 console executable; otherwise we look for `godot` on PATH.
 function godotBin() {
-  return process.env.GODOT_BIN
-    || "C:\\Users\\quint\\AppData\\Local\\Microsoft\\WinGet\\Packages\\GodotEngine.GodotEngine_Microsoft.Winget.Source_8wekyb3d8bbwe\\Godot_v4.6.3-stable_win64_console.exe";
+  return process.env.GODOT_BIN || "godot";
 }
 
 function runGodot(args, label) {
