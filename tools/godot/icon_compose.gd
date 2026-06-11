@@ -57,6 +57,7 @@ func _initialize() -> void:
 	print("ICON_COMPOSE OK")
 	quit(0)
 
+# Vertical 2-stop linear gradient, top→bot, square px×px (opaque).
 func _gradient(px: int, top: Color, bot: Color) -> Image:
 	var img := Image.create(px, px, false, Image.FORMAT_RGBA8)
 	for y in range(px):
