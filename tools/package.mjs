@@ -330,6 +330,7 @@ export function generateIcons(id, { gamesDir = GAMES_DIR, bg } = {}) {
   const focalAbs = join(gamesDir, id, focal);
   if (!existsSync(focalAbs)) throw new Error(`package: icon focal not found at ${focalAbs}`);
   const { top, bottom } = resolveIconBg({ bgArg: bg, manifest: m });
+  for (const e of iconSizeTable()) iconCompositionRole(e.kind); // fail loud in JS on an unknown kind before spawning Godot
   const outdir = join(gamesDir, id, "store", "icons");
   const specs = iconSizeTable().map((e) => `${e.name}:${e.px}:${e.kind}`).join(",");
   const out = runGodot(["--headless", "--path", GODOT_DIR, "--script", "res://icon_compose.gd", "--", focalAbs, outdir, specs, top, bottom], "icon_compose");
