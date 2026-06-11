@@ -705,4 +705,7 @@ describe("parseScreenshotArgs", () => {
   test("--script without a path throws", () => {
     expect(() => parseScreenshotArgs(["--script"])).toThrow();
   });
+  test("--script immediately followed by another flag throws", () => {
+    expect(() => parseScreenshotArgs(["--script", "--frames"])).toThrow();
+  });
 });
