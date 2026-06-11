@@ -1,5 +1,6 @@
 import { test, expect, describe } from "vitest";
 import { iconSizeTable, sizeBudget, pngSize, exportPresetCfg, parsePresetCfg, atlasLayout, splashSize, bootSplashCfg, verify, budgetReport, exportPresetsFile, buildArtifactPlan, androidToolchainPresent, buildArtifact, verifyBuildArtifact, packageNameFor } from "./package.mjs";
+import { parseHexLead, resolveIconBg } from "./package.mjs";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -593,5 +594,46 @@ describe("packageNameFor", () => {
   });
   test("prefixes a letter when the sanitized id would start with a digit", () => {
     expect(packageNameFor("0001-game")).toBe("com.gameforge.g_0001_game");
+  });
+});
+
+describe("parseHexLead", () => {
+  test("extracts the leading #hex from a palette entry", () => {
+    expect(parseHexLead("#2fa6a0 sea-teal (primary)")).toBe("#2fa6a0");
+  });
+  test("trims whitespace and lowercases", () => {
+    expect(parseHexLead("  #FF7B54  coral")).toBe("#ff7b54");
+  });
+  test("returns null when no leading hex", () => {
+    expect(parseHexLead("sea-teal")).toBe(null);
+    expect(parseHexLead("")).toBe(null);
+  });
+});
+
+describe("resolveIconBg", () => {
+  test("--bg with two stops wins", () => {
+    expect(resolveIconBg({ bgArg: "#111111,#222222", manifest: {} }))
+      .toEqual({ top: "#111111", bottom: "#222222" });
+  });
+  test("--bg with one stop sets both", () => {
+    expect(resolveIconBg({ bgArg: "#abcdef", manifest: {} }))
+      .toEqual({ top: "#abcdef", bottom: "#abcdef" });
+  });
+  test("falls back to store_pass.icon_bg", () => {
+    const manifest = { store_pass: { icon_bg: "#0a0b0c,#1a1b1c" } };
+    expect(resolveIconBg({ manifest })).toEqual({ top: "#0a0b0c", bottom: "#1a1b1c" });
+  });
+  test("derives from the asset_pass palette's first two hexes", () => {
+    const manifest = { asset_pass: { visual_system: { palette: [
+      "#2fa6a0 sea-teal (primary)", "#ff7b54 coral (accent)", "#8a5a3b wood"
+    ] } } };
+    expect(resolveIconBg({ manifest })).toEqual({ top: "#2fa6a0", bottom: "#ff7b54" });
+  });
+  test("single-hex palette uses it for both stops", () => {
+    const manifest = { asset_pass: { visual_system: { palette: ["#2fa6a0 only"] } } };
+    expect(resolveIconBg({ manifest })).toEqual({ top: "#2fa6a0", bottom: "#2fa6a0" });
+  });
+  test("absent everything → neutral default", () => {
+    expect(resolveIconBg({ manifest: {} })).toEqual({ top: "#202830", bottom: "#202830" });
   });
 });

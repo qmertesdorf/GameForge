@@ -262,6 +262,37 @@ export function bootSplashCfg({ image, showImage = true } = {}) {
   ].join("\n");
 }
 
+// Extract the leading "#rrggbb" from a palette entry like "#2fa6a0 sea-teal (primary)".
+// Pure; returns lowercased "#rrggbb" or null.
+export function parseHexLead(s) {
+  if (typeof s !== "string") return null;
+  const m = s.trim().match(/^#([0-9a-fA-F]{6})(?:[0-9a-fA-F]{2})?/);
+  return m ? `#${m[1].toLowerCase()}` : null;
+}
+
+// Decide the two-stop vertical gradient for the icon background, in priority order:
+// --bg arg ("#top,#bottom" or "#solid") > store_pass.icon_bg > asset_pass palette's
+// first two hexes > neutral default. Pure (manifest is a plain object).
+export function resolveIconBg({ bgArg, manifest = {} } = {}) {
+  const fromSpec = (spec) => {
+    if (typeof spec !== "string" || !spec.trim()) return null;
+    const parts = spec.split(",").map((p) => parseHexLead(p)).filter(Boolean);
+    if (parts.length === 0) return null;
+    return { top: parts[0], bottom: parts[1] || parts[0] };
+  };
+  const fromArg = fromSpec(bgArg);
+  if (fromArg) return fromArg;
+  const fromManifest = fromSpec(manifest?.store_pass?.icon_bg);
+  if (fromManifest) return fromManifest;
+  const palette = manifest?.asset_pass?.visual_system?.palette;
+  if (Array.isArray(palette)) {
+    const hexes = palette.map(parseHexLead).filter(Boolean);
+    if (hexes.length >= 2) return { top: hexes[0], bottom: hexes[1] };
+    if (hexes.length === 1) return { top: hexes[0], bottom: hexes[0] };
+  }
+  return { top: "#202830", bottom: "#202830" };
+}
+
 // Resolve the pinned Godot binary. Set GODOT_BIN to the absolute path of your
 // Godot 4.6.3 console executable; otherwise we look for `godot` on PATH.
 function godotBin() {
