@@ -297,6 +297,7 @@
           }
         },
         "icon_master": { "type": "string" },
+        "icon_bg": { "type": "string" },
         "notes": { "type": "string" }
       }
     },
