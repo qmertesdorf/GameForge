@@ -16,7 +16,7 @@ Turn a folder of mobile-grade assets into the **inputs a shippable Android build
 
 - `manifests/<id>.json` carrying **both** an `asset_pass` (visual identity, owner A/B-confirmed → the game reached `styled`) **and** an `audio_pass` (audio identity, owner A/B-confirmed → the game reached `scored`). A primitive-art or silent game is **not** store-ready — both identities are mandatory (spec §2). The canonical incoming status is `scored`.
 - The game on disk at `games/<id>/`, with its committed raster art under `games/<id>/art/`.
-- The pinned Godot from `README.md` (`tools/package.mjs` spawns it for the pixel ops). ComfyUI is **not** needed here — packaging reuses art that already exists.
+- The pinned Godot from `README.md` (`tools/package.mjs` spawns it for the pixel ops). ComfyUI **is** needed — but only for the single GPU step: generating the bespoke transparent icon focal. Everything else (atlas, screenshots, splash composite, budget, preset, build) reuses existing art or is fully deterministic.
 
 ## Outputs
 
@@ -32,7 +32,11 @@ Turn a folder of mobile-grade assets into the **inputs a shippable Android build
 
 Like `asset`/`audio` Step 0, write the packaging decisions down **before** generating anything, anchored to `concept.theme` (premise/tone/mood_keywords/setting — the same modality-neutral world the visuals and audio express). The icon, splash, and screenshots are the title's **store face**; they must read as *that theme's world*, not a fourth independent interpretation. Decide and record verbatim in `store_pass`:
 
-- **Icon master** — the styled hero/character sprite that best represents the theme (e.g. the painterly forest-spirit for a cozy-woodland title), or a deliberately-composed master. Record it as `store_pass.icon_master` (a path under `games/<id>/`). For this **foundation** the master is *derived from an existing sprite*; the **final** icon/splash art is an **owner aesthetic A/B**, recorded as deferred in `notes` (the inverse of `asset`'s "flag what SVG does badly").
+- **Icon master** — a **bespoke transparent focal** generated via `tools/comfy.mjs` + the asset checkpoint with **LayerDiffuse** (RGBA), square (1024²), recorded as `store_pass.icon_master` (e.g. `store/icon_focal.png`). Use the icon prompt scaffold verbatim:
+
+  > single bold focal subject · centered · generous empty margins · simple iconic shape · high contrast · flat clean cartoon · NO text · NO words · NO scene/background · NO multiple objects — plus the title's own hero subject from `concept.theme`, square (1024²).
+
+  `icon_compose` builds the adaptive layers from this focal: the transparent foreground is placed inside the ~66% Android safe zone; the background is a code-gradient derived from the `concept.theme` palette (or `--bg "#top,#bottom"` / `store_pass.icon_bg`); the legacy and Play icons are the focal alpha-composited over that gradient. This also fixes the old bug where the adaptive foreground and background were identical (square-stretched sprite used for both). The **final** icon/splash art is an **owner aesthetic A/B**, recorded as deferred in `notes`.
 - **Splash** — the boot image and whether to show it.
 - **Screenshots** — which gameplay moments read best in a store listing (e.g. a mid-combo frame, a near-miss).
 - **Atlas membership** — which sprite PNGs pack into the atlas.
@@ -43,9 +47,10 @@ Like `asset`/`audio` Step 0, write the packaging decisions down **before** gener
 Run the tool (it pairs the pure JS seam with the Godot pixel scripts, exactly like `comfy.mjs`):
 
 ```
-node tools/package.mjs icons <id>        # resize the icon master into every density (headless Image)
+node tools/comfy.mjs gen <id> icon_focal '<recipe-json>'   # bespoke transparent icon focal (LayerDiffuse, square 1024², icon scaffold)
+node tools/package.mjs icons <id> [--bg "#top,#bottom"]    # focal -> adaptive fg/bg + composited legacy/Play (headless Image)
 node tools/package.mjs atlas <id>        # pack art/*.png → store/atlas.png + atlas.json (headless Image)
-node tools/package.mjs screenshot <id> <name> [frames]   # capture a play frame on the REAL renderer (not headless)
+node tools/package.mjs screenshot <id> --script res://_shots.gd   # run the game's capture harness on the REAL renderer
 node tools/package.mjs splash <id> [#RRGGBBAA]   # composite the icon master onto a themed bg → store/splash.png (headless Image); pick the bg from concept.theme
 node tools/package.mjs budget <id>       # sum store assets vs the budget (run AFTER icons/atlas/screenshot/splash so it includes them)
 node tools/package.mjs preset <id>       # print the Android export_presets.cfg (redirect into games/<id>/export_presets.cfg)
@@ -53,10 +58,12 @@ node tools/package.mjs build <id>            # build the debug APK via headless 
 node tools/package.mjs build <id> --release --aab   # build the signed release AAB (needs tools/android-signing.local.json)
 ```
 
+`screenshot <id> <name> [frames]` still works as the boot-only fallback (no harness script needed), but the `--script` form is preferred: it drives the game's own capture harness through showcase moments rather than capturing a single boot frame.
+
 Then record `store_pass` (arrays replace wholesale — pass the full set):
 
 ```
-node tools/manifest.mjs merge <id> "{\"store_pass\": { \"icon_master\": \"art/<hero>.png\", \"icons\": [ … ], \"splash\": { … }, \"screenshots\": [ … ], \"atlas\": { … }, \"size_budget\": { … }, \"export_preset\": { \"path\": \"export_presets.cfg\", \"platform\": \"android\", \"package\": \"com.gameforge.<id>\" }, \"build_artifact\": { … }, \"notes\": \"…\" }}"
+node tools/manifest.mjs merge <id> "{\"store_pass\": { \"icon_master\": \"store/icon_focal.png\", \"icon_bg\": \"#top,#bottom\", \"icons\": [ … ], \"splash\": { … }, \"screenshots\": [ … ], \"atlas\": { … }, \"size_budget\": { … }, \"export_preset\": { \"path\": \"export_presets.cfg\", \"platform\": \"android\", \"package\": \"com.gameforge.<id>\" }, \"build_artifact\": { … }, \"notes\": \"…\" }}"
 node tools/manifest.mjs validate <id>
 ```
 
@@ -65,9 +72,10 @@ Record `store_pass.build_artifact` from the `build` command's JSON (format, buil
 ## Hard requirements & honesty
 
 - **Headless vs real renderer.** Icon resize + atlas composite use Godot's `Image` API and run **headless**. Screenshots **must not** be headless — the dummy renderer captures no pixels; `package.mjs` runs the harness on the real Vulkan renderer (see the `asset` raster note + `godot-binary-path`).
+- **Capture-harness pattern.** Copy `tools/godot/shots.template.gd` → `games/<id>/_shots.gd`. Edit the `const PHASE` preload and drive the view's state to each showcase moment the same way `selftest` Stage 6 does: set phase/collections directly, call `main._rebuild_ui()`, then capture. Clear `user://save.json` at the start and end of the script so each run is clean. The harness prints `wrote <path> (WxH)` per frame and `SHOTS OK` on completion. Commit `_shots.gd` alongside the game — it is a permanent artifact like `selftest.gd`, not a throwaway.
 - **Recording screenshots — assemble the schema shape, don't paste tool output.** `package.mjs screenshot` returns `{name, source, path}`, but `store_pass.screenshots[]` records `{name, px, source}` (schema-validated). When you merge, **drop the tool's `path`** (it's an absolute disk path) and **add `px`** as the captured `"WxH"` (e.g. `"720x1280"`). Pasting the tool's object verbatim fails the very next `validate` step (extra `path`, missing `px`).
 - **Mobile density.** Every launcher density comes from **downscaling** the high-res master, never upscaling — that is the app-store readiness the raster masters were sized for.
-- **Boot splash.** `splash` composites the icon master (~60%, centered) onto a themed solid background at the canonical portrait size (`splashSize()` → 1080×1920) and returns the `boot_splash_cfg` block for `project.godot`'s `[application]` section. `store_pass.splash` records only `{source, show_image}`; splicing `boot_splash_cfg` into the game's `project.godot` is applied at **real-package time** alongside the export preset (the foundation commits the asset + record, not the runtime project change). A splash composited from a master with an opaque background will show that background — for the final art, prefer a transparent-bg master or a deliberately-composed splash (the deferred owner aesthetic A/B).
+- **Boot splash.** `splash` composites the icon master (~60%, centered) onto a themed solid background at the canonical portrait size (`splashSize()` → 1080×1920) and returns the `boot_splash_cfg` block for `project.godot`'s `[application]` section. `store_pass.splash` records only `{source, show_image}`; splicing `boot_splash_cfg` into the game's `project.godot` is applied at **real-package time** alongside the export preset (the foundation commits the asset + record, not the runtime project change). The v2 icon focal is **transparent**, so the splash composites cleanly over whatever background colour you choose — no opaque-bg bleed. The old caution ("A splash composited from a master with an opaque background will show that background") applies only as a fallback when an opaque master is unavoidable; prefer the transparent focal.
 - **IP safety.** The icon/splash/screenshots inherit the art's IP posture; do not introduce franchise/character/studio likenesses. The owner aesthetic A/B is the final IP review (same as `asset`).
 - **Do not** edit `concept`, `builder`, `asset`, or `audio`. Consume `concept.theme` + the two pass blocks as-is.
 - **Do not** set `packaged` — hand to `validator`.
