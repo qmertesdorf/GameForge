@@ -37,6 +37,8 @@ Like `asset`/`audio` Step 0, write the packaging decisions down **before** gener
   > single bold focal subject · centered · generous empty margins · simple iconic shape · high contrast · flat clean cartoon · NO text · NO words · NO scene/background · NO multiple objects — plus the title's own hero subject from `concept.theme`, square (1024²).
 
   `icon_compose` builds the adaptive layers from this focal: the transparent foreground is placed inside the ~66% Android safe zone; the background is a code-gradient derived from the `concept.theme` palette (or `--bg "#top,#bottom"` / `store_pass.icon_bg`); the legacy and Play icons are the focal alpha-composited over that gradient. This also fixes the old bug where the adaptive foreground and background were identical (square-stretched sprite used for both). The **final** icon/splash art is an **owner aesthetic A/B**, recorded as deferred in `notes`.
+
+  **Where the focal lives:** `comfy.mjs gen <id> icon_focal …` writes to `games/<id>/art/icon_focal.png`. **Move it to `games/<id>/store/icon_focal.png`** before composing — `atlas` packs every `art/*.png`, so a focal left under `art/` pollutes the sprite atlas. Set `store_pass.icon_master` to `store/icon_focal.png`.
 - **Splash** — the boot image and whether to show it.
 - **Screenshots** — which gameplay moments read best in a store listing (e.g. a mid-combo frame, a near-miss).
 - **Atlas membership** — which sprite PNGs pack into the atlas.
@@ -47,7 +49,8 @@ Like `asset`/`audio` Step 0, write the packaging decisions down **before** gener
 Run the tool (it pairs the pure JS seam with the Godot pixel scripts, exactly like `comfy.mjs`):
 
 ```
-node tools/comfy.mjs gen <id> icon_focal '<recipe-json>'   # bespoke transparent icon focal (LayerDiffuse, square 1024², icon scaffold)
+node tools/comfy.mjs gen <id> icon_focal '<recipe-json>'   # bespoke transparent icon focal (LayerDiffuse, square 1024², icon scaffold) -> games/<id>/art/icon_focal.png
+mv games/<id>/art/icon_focal.png games/<id>/store/icon_focal.png   # keep the focal OUT of the sprite atlas; set store_pass.icon_master to store/icon_focal.png
 node tools/package.mjs icons <id> [--bg "#top,#bottom"]    # focal -> adaptive fg/bg + composited legacy/Play (headless Image)
 node tools/package.mjs atlas <id>        # pack art/*.png → store/atlas.png + atlas.json (headless Image)
 node tools/package.mjs screenshot <id> --script res://_shots.gd   # run the game's capture harness on the REAL renderer
