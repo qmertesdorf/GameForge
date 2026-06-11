@@ -31,7 +31,7 @@ A turn-based deckbuilder, a tactics game, or any title with a rules engine + con
 2. **Content as data classes.** Card/enemy/item definitions live in data files (e.g. `data/CardDB.gd`, `data/EnemyDB.gd` returning typed Dictionaries) so the pool extends without touching the engine. Never inline content into the rules. **Reach them via `preload(...)` + `static func`, NOT autoload globals** — a headless `--script` self-test does not instantiate autoloads (see the turn-based self-test rules below), so autoload-based data is invisible to the test.
 3. **Orchestration** (run/map/progression, e.g. `RunController.gd`) on top of the engine.
 4. **Persistence** (`user://save.json` via a `MetaSave.gd`) — read at boot, write at the meta milestone.
-5. **Rendering + juice LAST** (`CombatView.gd`): reads engine state, replays the engine's returned events as animations (tweens, pop-ups, shake, particles), and **never owns a rule.** If the view computes damage, the seam is broken — move it into the engine.
+5. **Rendering + juice LAST** (`CombatView.gd`): reads engine state, replays the engine's returned events as animations (tweens, pop-ups, shake, particles), and **never owns a rule.** If the view computes damage, the seam is broken — move it into the engine. **Event-contract completeness:** every engine method that mutates the phase/screen state MUST emit the transition event (e.g. `phase_changed`) — the view rebuilds *only* on events. A method that flips phase silently (shopkeep-0001: `start_day()` reached via Next Day / retry) leaves a dead stale screen, and it passes the state-level self-test AND per-screen pixel audits; only a real click-through catches it. Don't let an explicit `_rebuild_ui()` on the boot path mask a missing event on the loop path.
 
 Build and self-test each stage before starting the next; commit per stage. The decomposition is the deliverable as much as the game — a fused build that "works" is a skill failure even if it runs.
 
@@ -171,6 +171,7 @@ Create `Main.tscn` as a text scene referencing `Main.gd` on the root node, plus 
 
 ## Notes
 - Importing a `.gd` script generates a sibling `<name>.gd.uid` file. This is expected Godot 4.x output, not stray junk — commit it alongside the script.
+- **`MOUSE_FILTER_PASS` does NOT pass input to siblings underneath.** The viewport hit-test stops at the topmost non-IGNORE Control under the point; PASS only bubbles the event to *ancestors*. A full-screen container Control with PASS layered over clickable siblings silently swallows every tap on them (shopkeep-0001: a 720×1280 patron-queue box over the shelf tiles killed all shelf taps). Pure container/overlay Controls must be `MOUSE_FILTER_IGNORE` — IGNORE skips only the box itself; its own children stay clickable.
 
 ## Self-test for logic-heavy genres (REQUIRED when the loop has non-trivial state logic)
 "Runs headless without errors" does NOT prove the loop is correct — a match-3 with broken match-detection, or a hybrid whose offense match never actually damages the threat, will pass the programmatic gate and only fail a human (POC runs 002–004). For logic-heavy genres (puzzle/grid, state machines, multi-subsystem hybrids), emit `games/<id>/selftest.gd`: a headless `SceneTree` script that loads the game, drives the core action over N frames (drive state directly or synthesize `InputEvent`s — never wait on real input), ASSERTS observable state changes, then prints exactly `SELFTEST OK` and exits 0, or `SELFTEST FAIL: <reason>` and exits non-zero.
@@ -199,6 +200,8 @@ Assert what a human would check, e.g.:
 - an offense match lowers the threat's HP and a defense match raises wall HP (the hybrid's whole point),
 - `_game_over()` fires when the loss condition is forced.
 Keep it deterministic and headless-safe. The `validator` runs it automatically and will `fail` the build on `SELFTEST FAIL`. For a trivially simple arcade loop where a state assertion adds nothing, you may skip it — but say so explicitly in the build notes so the omission is a deliberate, legible choice, not a gap.
+
+**For tap/click-driven games, also audit the view↔input seam with REAL clicks.** A state-level self-test (drives the engine directly) and a pixel audit (judges renders) both miss a whole bug class: the screen looks right and the rules are right, but taps never reach handlers (mouse-filter shadowing, missing rebuild events — both bit shopkeep-0001). The cheap pattern: a throwaway `SceneTree` script that boots `Main.tscn` headless, builds `InputEventMouseButton` down+up pairs at each control's `get_global_rect().get_center()`, pushes them via `root.push_input(ev, true)` (`in_local_coords=true` — the headless window ignores project size, so window coords mis-stretch), and asserts the *engine state* changed after each click through the full core loop. Make outcome checks deterministic by forcing the relevant state first (e.g. set the patron's want to the shelf item you'll tap) — post-action UI resets make "did the tap land" ambiguous otherwise.
 
 Run your own self-test before handing off:
 ```
