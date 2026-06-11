@@ -376,6 +376,26 @@ export function captureScreenshot(id, name, { gamesDir = GAMES_DIR, frames = 220
   return { name, source: `store/screenshots/${name}.png`, path: outPath };
 }
 
+// Run a game-provided capture harness (committed at games/<id>/_shots.gd) on the
+// REAL renderer; collect the {name, px, source} of every frame it prints. The
+// harness drives the game's own state, so moment selection lives with the game.
+export function captureScreenshotScript(id, { gamesDir = GAMES_DIR, script = "res://_shots.gd" } = {}) {
+  const gameDir = join(gamesDir, id);
+  const storeDir = join(gameDir, "store", "screenshots");
+  mkdirSync(storeDir, { recursive: true });
+  const out = runGodot(["--path", gameDir, "--script", script, "--", storeDir], "shots"); // NOT --headless
+  if (!out.includes("SHOTS OK")) throw new Error(`package: capture script did not report SHOTS OK:\n${out}`);
+  const shots = [];
+  for (const line of out.split(/\r?\n/)) {
+    const m = line.match(/wrote (.+\.png) \((\d+)x(\d+)\)/);
+    if (m) {
+      const name = basename(m[1], ".png");
+      shots.push({ name, px: `${m[2]}x${m[3]}`, source: `store/screenshots/${name}.png` });
+    }
+  }
+  return { script, shots };
+}
+
 // Render the boot splash from the icon master onto a solid background under games/<id>/store/.
 // bg is "#RRGGBBAA" (the packager skill picks it from concept.theme); defaults to opaque black.
 export function generateSplash(id, { gamesDir = GAMES_DIR, bg = "#000000ff", showImage = true } = {}) {
@@ -604,7 +624,14 @@ async function cli(argv) {
       return;
     }
     case "atlas": console.log(JSON.stringify(generateAtlas(id), null, 2)); return;
-    case "screenshot": console.log(JSON.stringify(captureScreenshot(id, rest[1] || "screen-1", { frames: Number(rest[2] || 220) }), null, 2)); return;
+    case "screenshot": {
+      const a = parseScreenshotArgs(rest.slice(1));
+      const r = a.mode === "script"
+        ? captureScreenshotScript(id, { script: a.script })
+        : captureScreenshot(id, a.name, { frames: a.frames });
+      console.log(JSON.stringify(r, null, 2));
+      return;
+    }
     case "splash": console.log(JSON.stringify(generateSplash(id, { bg: rest[1] || "#000000ff" }), null, 2)); return;
     case "budget": console.log(JSON.stringify(budgetReport(id), null, 2)); return;
     case "preset": {
