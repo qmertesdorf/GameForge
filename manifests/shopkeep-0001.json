@@ -2,7 +2,7 @@
   "id": "shopkeep-0001",
   "name": "Tide & Tally",
   "created_at": "2026-06-11T01:03:00.419Z",
-  "updated_at": "2026-06-11T21:29:27.817Z",
+  "updated_at": "2026-06-11T23:20:54.083Z",
   "status": "packaged",
   "concept": {
     "theme": {
@@ -723,7 +723,7 @@
     "notes": "Audio identity for the sunny seaside-boardwalk shopkeeper sim (concept.theme), generated locally via Stable Audio Open. 7 SFX + 1 looping bed. SONIC: cozy/organic -> kalimba/marimba warm-wood timbre (sonic_character) threaded into every SFX prompt + theme-aware negatives (explosion/harsh/electronic/gunshot); the register 'sale' beat is the loudest/brightest cue (the cashier hook). All SFX generated at steps 55 (clean tone, not the steps-8 explosive-noise failure); the deterministic comfy.mjs envelope auto-shapes loudness (trim/normalize/fade). Measured clips: SFX ZCR 579-3839/s (all clean, far below noise); BGM rms 0.057. BGM = fingerpicked nylon-guitar low/warm repeating melody with anti-drone + anti-high-pitch negatives + cfg 8 (avoids the ambient-pad-collapses-to-drone failure). WIRING: audio only ADDS AudioStreamPlayer nodes + play() at existing _handle_events points; ShopState logic untouched (SELFTEST OK). The long imported bed is REBUILT in code from its PCM data (bgm.wav.import compress/mode=0) + looped + autoplay-before-add_child (the imported-long-WAV-won't-play gotcha); probe confirms MusicAmbient.playing=true with advancing get_playback_position(). LEVELS: bed volume_db=-2.0 -- the lullaby came back ~RMS 0.057 vs the SFX event level ~0.13 (~7 dB under raw), a small cut seats it audible-but-under the one-shots. Event map: node_collected->pick, banked/upgrade_bought/day_complete->bank, crafted/stocked->craft, sale->sale, tide_returned->tide, patron_left/day_failed->walkout, all deny beats->error. IP-safe: no artist/track names; music negative excludes vocals/lyrics. STATUS ADVANCED to scored (audio pass produced + technically verified); owner ear-judgment A/B still the human gate before packaging."
   },
   "store_pass": {
-    "icon_master": "store/icon_master.png",
+    "icon_master": "store/icon_focal.png",
     "icons": [
       {
         "name": "ic_launcher_mdpi",
@@ -801,7 +801,7 @@
       "sprite_count": 18
     },
     "size_budget": {
-      "total_bytes": 7404168,
+      "total_bytes": 7933837,
       "budget_bytes": 52428800,
       "pass": true,
       "per_file": [
@@ -819,7 +819,7 @@
         },
         {
           "path": "store/icons/ic_adaptive_background.png",
-          "bytes": 131837
+          "bytes": 1838
         },
         {
           "path": "store/icons/ic_adaptive_background.png.import",
@@ -827,7 +827,7 @@
         },
         {
           "path": "store/icons/ic_adaptive_foreground.png",
-          "bytes": 131837
+          "bytes": 64752
         },
         {
           "path": "store/icons/ic_adaptive_foreground.png.import",
@@ -835,7 +835,7 @@
         },
         {
           "path": "store/icons/ic_launcher_hdpi.png",
-          "bytes": 7710
+          "bytes": 4270
         },
         {
           "path": "store/icons/ic_launcher_hdpi.png.import",
@@ -843,7 +843,7 @@
         },
         {
           "path": "store/icons/ic_launcher_mdpi.png",
-          "bytes": 3893
+          "bytes": 2248
         },
         {
           "path": "store/icons/ic_launcher_mdpi.png.import",
@@ -851,7 +851,7 @@
         },
         {
           "path": "store/icons/ic_launcher_xhdpi.png",
-          "bytes": 12155
+          "bytes": 6744
         },
         {
           "path": "store/icons/ic_launcher_xhdpi.png.import",
@@ -859,7 +859,7 @@
         },
         {
           "path": "store/icons/ic_launcher_xxhdpi.png",
-          "bytes": 22550
+          "bytes": 13290
         },
         {
           "path": "store/icons/ic_launcher_xxhdpi.png.import",
@@ -867,7 +867,7 @@
         },
         {
           "path": "store/icons/ic_launcher_xxxhdpi.png",
-          "bytes": 35356
+          "bytes": 21438
         },
         {
           "path": "store/icons/ic_launcher_xxxhdpi.png.import",
@@ -875,11 +875,15 @@
         },
         {
           "path": "store/icons/ic_play_store.png",
-          "bytes": 170981
+          "bytes": 115056
         },
         {
           "path": "store/icons/ic_play_store.png.import",
           "bytes": 955
+        },
+        {
+          "path": "store/icon_focal.png",
+          "bytes": 841536
         },
         {
           "path": "store/icon_master.png",
@@ -891,7 +895,7 @@
         },
         {
           "path": "store/screenshots/craft.png",
-          "bytes": 190050
+          "bytes": 190068
         },
         {
           "path": "store/screenshots/craft.png.import",
@@ -899,7 +903,7 @@
         },
         {
           "path": "store/screenshots/gather.png",
-          "bytes": 660250
+          "bytes": 635431
         },
         {
           "path": "store/screenshots/gather.png.import",
@@ -907,7 +911,7 @@
         },
         {
           "path": "store/screenshots/sell.png",
-          "bytes": 584885
+          "bytes": 585034
         },
         {
           "path": "store/screenshots/sell.png.import",
@@ -915,7 +919,7 @@
         },
         {
           "path": "store/splash.png",
-          "bytes": 273487
+          "bytes": 272955
         },
         {
           "path": "store/splash.png.import",
@@ -928,13 +932,14 @@
       "platform": "android",
       "package": "com.gameforge.shopkeep_0001"
     },
-    "notes": "Packaging FOUNDATION pass. icon_master is a deliberately-composed square master (icon_shell sprite contain-fit centered on the palette sea-teal #2fa6a0 with a soft radial lift) to avoid the flat square-resize squish of the wide 441x324 shell sprite. Splash bg matched to the master bg so the opaque-bg composite reads as one seamless sea-teal panel. Screenshots = the 3 signature moments (GATHER tide-pool combing / CRAFT workbench with demand / SELL patron queue under the Tide & Tally sign), driven via the view's ShopState the same way selftest Stage 6 sets up. DEFERRED owner gates (per packager skill): final icon/splash aesthetic A/B + cross-modal cohesion A/B + real Play submission. Build artifact recorded separately if the Android toolchain produced one this session.",
+    "notes": "packager v2 re-package: icon is now a bespoke ComfyUI transparent focal (store/icon_focal.png, coral scallop, LayerDiffuse seed 7) composed by icon_compose.gd into correct adaptive layers (transparent fg in 66% safe zone + sea-teal code-gradient bg #2fa6a0->#1c7d78 + composited legacy/Play) — replaces the v1 flat shell-on-flat-teal and fixes the adaptive fg==bg bug. Screenshots re-captured via the committed _shots.gd through the new package.mjs screenshot --script runner. Splash composites the transparent focal (blend_rect). DEFERRED owner gates: final icon/splash aesthetic A/B + real Play submission.",
     "build_artifact": {
       "format": "apk",
       "build_type": "debug",
       "path": "build/shopkeep-0001-debug.apk",
       "bytes": 43222641,
       "package": "com.gameforge.shopkeep_0001"
-    }
+    },
+    "icon_bg": "#2fa6a0,#1c7d78"
   }
 }
