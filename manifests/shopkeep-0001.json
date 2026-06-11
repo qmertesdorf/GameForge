@@ -2,8 +2,8 @@
   "id": "shopkeep-0001",
   "name": "Tide & Tally",
   "created_at": "2026-06-11T01:03:00.419Z",
-  "updated_at": "2026-06-11T20:33:09.489Z",
-  "status": "scored",
+  "updated_at": "2026-06-11T21:29:27.817Z",
+  "status": "packaged",
   "concept": {
     "theme": {
       "premise": "a breezy seaside-boardwalk folktale of a young beachcomber who runs a tiny curiosity shop — combing the tide pools at dawn for shells, sea glass and driftwood, crafting them into trinkets, and ringing up a queue of cheerful seaside patrons by afternoon",
@@ -173,7 +173,8 @@
   ],
   "validation": {
     "issues": [
-      "audio (Method 4) PASS: 8 clips import clean; 7 Sfx* players + MusicAmbient reference valid streams (bed loop=true, playing=true with advancing position on the real driver); SFX play-spy registers; sizes mobile-OK (SFX 145-255KB, BGM 5.0MB WAV, <=48kHz); IP-safe (no artist/track names, music excludes vocals); cross-modal cohesion OK (warm kalimba/marimba + fingerpicked nylon-guitar seaside audio reads as one world with the sunny flat-cartoon seaside visuals). Regression: selftest SELFTEST OK, uitest UITEST OK, run-clean exit 0 (audio only ADDED players + play() calls; ShopState untouched). OWNER EAR A/B CONFIRMED 2026-06-11 (owner: audio is great) -> scored gate fully passed."
+      "packager/Method5: all CI-checkable packaging gates PASS — package.mjs verify file_checks_pass=true (8 icons at exact px, atlas 18/18 sprites, size_budget 7.4MB<50MiB, export_presets.cfg parses as Android), verify-build ok+signature_ok (43.2MB debug APK com.gameforge.shopkeep_0001, ZIP magic OK), regression headless run clean. Both asset_pass+audio_pass present & owner-A/B-confirmed (styled+scored).",
+      "packager/Method5 item-7: owner cross-modal cohesion A/B CONFIRMED ('good enough for this trial, lets do it') — icon/splash/screenshots read as one sunny-handcrafted-seaside world with the visuals+audio; shell icon/splash aesthetic accepted as shippable for the trial. -> packaged."
     ],
     "opens_in_editor": true,
     "runs": true,
@@ -720,5 +721,220 @@
       }
     ],
     "notes": "Audio identity for the sunny seaside-boardwalk shopkeeper sim (concept.theme), generated locally via Stable Audio Open. 7 SFX + 1 looping bed. SONIC: cozy/organic -> kalimba/marimba warm-wood timbre (sonic_character) threaded into every SFX prompt + theme-aware negatives (explosion/harsh/electronic/gunshot); the register 'sale' beat is the loudest/brightest cue (the cashier hook). All SFX generated at steps 55 (clean tone, not the steps-8 explosive-noise failure); the deterministic comfy.mjs envelope auto-shapes loudness (trim/normalize/fade). Measured clips: SFX ZCR 579-3839/s (all clean, far below noise); BGM rms 0.057. BGM = fingerpicked nylon-guitar low/warm repeating melody with anti-drone + anti-high-pitch negatives + cfg 8 (avoids the ambient-pad-collapses-to-drone failure). WIRING: audio only ADDS AudioStreamPlayer nodes + play() at existing _handle_events points; ShopState logic untouched (SELFTEST OK). The long imported bed is REBUILT in code from its PCM data (bgm.wav.import compress/mode=0) + looped + autoplay-before-add_child (the imported-long-WAV-won't-play gotcha); probe confirms MusicAmbient.playing=true with advancing get_playback_position(). LEVELS: bed volume_db=-2.0 -- the lullaby came back ~RMS 0.057 vs the SFX event level ~0.13 (~7 dB under raw), a small cut seats it audible-but-under the one-shots. Event map: node_collected->pick, banked/upgrade_bought/day_complete->bank, crafted/stocked->craft, sale->sale, tide_returned->tide, patron_left/day_failed->walkout, all deny beats->error. IP-safe: no artist/track names; music negative excludes vocals/lyrics. STATUS ADVANCED to scored (audio pass produced + technically verified); owner ear-judgment A/B still the human gate before packaging."
+  },
+  "store_pass": {
+    "icon_master": "store/icon_master.png",
+    "icons": [
+      {
+        "name": "ic_launcher_mdpi",
+        "px": 48,
+        "kind": "launcher",
+        "source": "store/icons/ic_launcher_mdpi.png"
+      },
+      {
+        "name": "ic_launcher_hdpi",
+        "px": 72,
+        "kind": "launcher",
+        "source": "store/icons/ic_launcher_hdpi.png"
+      },
+      {
+        "name": "ic_launcher_xhdpi",
+        "px": 96,
+        "kind": "launcher",
+        "source": "store/icons/ic_launcher_xhdpi.png"
+      },
+      {
+        "name": "ic_launcher_xxhdpi",
+        "px": 144,
+        "kind": "launcher",
+        "source": "store/icons/ic_launcher_xxhdpi.png"
+      },
+      {
+        "name": "ic_launcher_xxxhdpi",
+        "px": 192,
+        "kind": "launcher",
+        "source": "store/icons/ic_launcher_xxxhdpi.png"
+      },
+      {
+        "name": "ic_play_store",
+        "px": 512,
+        "kind": "play",
+        "source": "store/icons/ic_play_store.png"
+      },
+      {
+        "name": "ic_adaptive_foreground",
+        "px": 432,
+        "kind": "adaptive_fg",
+        "source": "store/icons/ic_adaptive_foreground.png"
+      },
+      {
+        "name": "ic_adaptive_background",
+        "px": 432,
+        "kind": "adaptive_bg",
+        "source": "store/icons/ic_adaptive_background.png"
+      }
+    ],
+    "splash": {
+      "source": "store/splash.png",
+      "show_image": true
+    },
+    "screenshots": [
+      {
+        "name": "gather",
+        "px": "720x1280",
+        "source": "store/screenshots/gather.png"
+      },
+      {
+        "name": "craft",
+        "px": "720x1280",
+        "source": "store/screenshots/craft.png"
+      },
+      {
+        "name": "sell",
+        "px": "720x1280",
+        "source": "store/screenshots/sell.png"
+      }
+    ],
+    "atlas": {
+      "sheet": "store/atlas.png",
+      "map": "store/atlas.json",
+      "sprite_count": 18
+    },
+    "size_budget": {
+      "total_bytes": 7404168,
+      "budget_bytes": 52428800,
+      "pass": true,
+      "per_file": [
+        {
+          "path": "store/atlas.json",
+          "bytes": 1989
+        },
+        {
+          "path": "store/atlas.png",
+          "bytes": 4993680
+        },
+        {
+          "path": "store/atlas.png.import",
+          "bytes": 925
+        },
+        {
+          "path": "store/icons/ic_adaptive_background.png",
+          "bytes": 131837
+        },
+        {
+          "path": "store/icons/ic_adaptive_background.png.import",
+          "bytes": 982
+        },
+        {
+          "path": "store/icons/ic_adaptive_foreground.png",
+          "bytes": 131837
+        },
+        {
+          "path": "store/icons/ic_adaptive_foreground.png.import",
+          "bytes": 981
+        },
+        {
+          "path": "store/icons/ic_launcher_hdpi.png",
+          "bytes": 7710
+        },
+        {
+          "path": "store/icons/ic_launcher_hdpi.png.import",
+          "bytes": 964
+        },
+        {
+          "path": "store/icons/ic_launcher_mdpi.png",
+          "bytes": 3893
+        },
+        {
+          "path": "store/icons/ic_launcher_mdpi.png.import",
+          "bytes": 964
+        },
+        {
+          "path": "store/icons/ic_launcher_xhdpi.png",
+          "bytes": 12155
+        },
+        {
+          "path": "store/icons/ic_launcher_xhdpi.png.import",
+          "bytes": 966
+        },
+        {
+          "path": "store/icons/ic_launcher_xxhdpi.png",
+          "bytes": 22550
+        },
+        {
+          "path": "store/icons/ic_launcher_xxhdpi.png.import",
+          "bytes": 970
+        },
+        {
+          "path": "store/icons/ic_launcher_xxxhdpi.png",
+          "bytes": 35356
+        },
+        {
+          "path": "store/icons/ic_launcher_xxxhdpi.png.import",
+          "bytes": 973
+        },
+        {
+          "path": "store/icons/ic_play_store.png",
+          "bytes": 170981
+        },
+        {
+          "path": "store/icons/ic_play_store.png.import",
+          "bytes": 955
+        },
+        {
+          "path": "store/icon_master.png",
+          "bytes": 170146
+        },
+        {
+          "path": "store/icon_master.png.import",
+          "bytes": 943
+        },
+        {
+          "path": "store/screenshots/craft.png",
+          "bytes": 190050
+        },
+        {
+          "path": "store/screenshots/craft.png.import",
+          "bytes": 937
+        },
+        {
+          "path": "store/screenshots/gather.png",
+          "bytes": 660250
+        },
+        {
+          "path": "store/screenshots/gather.png.import",
+          "bytes": 940
+        },
+        {
+          "path": "store/screenshots/sell.png",
+          "bytes": 584885
+        },
+        {
+          "path": "store/screenshots/sell.png.import",
+          "bytes": 934
+        },
+        {
+          "path": "store/splash.png",
+          "bytes": 273487
+        },
+        {
+          "path": "store/splash.png.import",
+          "bytes": 928
+        }
+      ]
+    },
+    "export_preset": {
+      "path": "export_presets.cfg",
+      "platform": "android",
+      "package": "com.gameforge.shopkeep_0001"
+    },
+    "notes": "Packaging FOUNDATION pass. icon_master is a deliberately-composed square master (icon_shell sprite contain-fit centered on the palette sea-teal #2fa6a0 with a soft radial lift) to avoid the flat square-resize squish of the wide 441x324 shell sprite. Splash bg matched to the master bg so the opaque-bg composite reads as one seamless sea-teal panel. Screenshots = the 3 signature moments (GATHER tide-pool combing / CRAFT workbench with demand / SELL patron queue under the Tide & Tally sign), driven via the view's ShopState the same way selftest Stage 6 sets up. DEFERRED owner gates (per packager skill): final icon/splash aesthetic A/B + cross-modal cohesion A/B + real Play submission. Build artifact recorded separately if the Android toolchain produced one this session.",
+    "build_artifact": {
+      "format": "apk",
+      "build_type": "debug",
+      "path": "build/shopkeep-0001-debug.apk",
+      "bytes": 43222641,
+      "package": "com.gameforge.shopkeep_0001"
+    }
   }
 }

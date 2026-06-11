@@ -1,0 +1,134 @@
+{
+  "sheet": {
+    "w": 1024,
+    "h": 8192
+  },
+  "placements": [
+    {
+      "name": "bg_beach",
+      "x": 0,
+      "y": 0,
+      "w": 720,
+      "h": 1280
+    },
+    {
+      "name": "patron_d",
+      "x": 0,
+      "y": 1280,
+      "w": 539,
+      "h": 997
+    },
+    {
+      "name": "patron_c",
+      "x": 0,
+      "y": 2277,
+      "w": 722,
+      "h": 995
+    },
+    {
+      "name": "patron_a",
+      "x": 0,
+      "y": 3272,
+      "w": 547,
+      "h": 993
+    },
+    {
+      "name": "patron_b",
+      "x": 547,
+      "y": 3272,
+      "w": 439,
+      "h": 633
+    },
+    {
+      "name": "icon_seaglass_pendant",
+      "x": 0,
+      "y": 4265,
+      "w": 208,
+      "h": 498
+    },
+    {
+      "name": "icon_shell_charm",
+      "x": 208,
+      "y": 4265,
+      "w": 390,
+      "h": 497
+    },
+    {
+      "name": "gather_node_pool",
+      "x": 0,
+      "y": 4763,
+      "w": 474,
+      "h": 482
+    },
+    {
+      "name": "icon_driftwood_frame",
+      "x": 474,
+      "y": 4763,
+      "w": 443,
+      "h": 480
+    },
+    {
+      "name": "icon_tide_lantern",
+      "x": 0,
+      "y": 5245,
+      "w": 355,
+      "h": 473
+    },
+    {
+      "name": "gather_node_pool_far",
+      "x": 355,
+      "y": 5245,
+      "w": 481,
+      "h": 438
+    },
+    {
+      "name": "icon_seaglass",
+      "x": 0,
+      "y": 5718,
+      "w": 444,
+      "h": 437
+    },
+    {
+      "name": "icon_shell",
+      "x": 444,
+      "y": 5718,
+      "w": 441,
+      "h": 324
+    },
+    {
+      "name": "icon_driftwood",
+      "x": 0,
+      "y": 6155,
+      "w": 445,
+      "h": 219
+    },
+    {
+      "name": "coin",
+      "x": 445,
+      "y": 6155,
+      "w": 263,
+      "h": 216
+    },
+    {
+      "name": "icon_pearl_ring",
+      "x": 708,
+      "y": 6155,
+      "w": 207,
+      "h": 213
+    },
+    {
+      "name": "icon_wind_chime",
+      "x": 0,
+      "y": 6374,
+      "w": 479,
+      "h": 169
+    },
+    {
+      "name": "icon_pearl",
+      "x": 479,
+      "y": 6374,
+      "w": 74,
+      "h": 72
+    }
+  ]
+}
