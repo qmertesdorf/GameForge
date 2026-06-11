@@ -61,6 +61,7 @@ var tide_fill: ColorRect
 var tide_bar_w: float = 0.0
 var carried_label: Label
 var banked_label: Label
+var bank_btn: Button
 var node_boxes: Dictionary = {}  # engine node idx -> TapBox
 
 # sell refs
@@ -72,6 +73,7 @@ var patrons_left_label: Label
 var sel_patron: int = -1
 var sel_shelf: int = -1
 var patrons_y: float = 680.0
+var patron_skin_next: int = 0
 
 var toast_slot: int = 0
 
@@ -110,27 +112,33 @@ func _process(delta: float) -> void:
 func _draw() -> void:
 	# Painted beach backdrop (sky ~0-320, sea ~320-760, sand ~760-1280).
 	draw_texture_rect(TEX_BG, Rect2(0, 0, 720, 1280), false)
-	# Drifting wave scallops over the painted sea (slow parallax: upper rows drift slower).
+	# Drifting wave scallops over the painted sea only — each row stops where
+	# the painted cliff begins so the arcs never stamp onto rock.
+	var row_max_x: Array = [740.0, 560.0, 470.0, 430.0]
 	for row in range(4):
-		var wy: float = 400.0 + float(row) * 80.0
+		var wy: float = 390.0 + float(row) * 72.0
 		var speed: float = 8.0 + float(row) * 7.0
 		var off: float = fmod(bg_time * speed + float(row) * 41.0, 96.0)
 		var x: float = -96.0 + off
-		while x < 740.0:
-			draw_arc(Vector2(x, wy), 26.0, PI, TAU, 10, Color(1, 1, 1, 0.30), 3.0)
+		var xmax: float = row_max_x[row]
+		while x < xmax:
+			draw_arc(Vector2(x, wy), 26.0, PI, TAU, 10, Color(1, 1, 1, 0.28), 3.0)
 			x += 96.0
-	# Animated froth edge along the painted waterline.
+	# Animated froth edge along the painted waterline (left shore only).
 	var foff: float = fmod(bg_time * 14.0, 72.0)
 	var fx: float = -72.0 + foff
-	while fx < 740.0:
-		draw_arc(Vector2(fx, 764.0), 20.0, 0.0, PI, 10, Color(1, 1, 1, 0.45), 4.0)
+	while fx < 430.0:
+		draw_arc(Vector2(fx, 764.0), 20.0, 0.0, PI, 10, Color(1, 1, 1, 0.40), 4.0)
 		fx += 72.0
-	# Boardwalk planks.
+	# Boardwalk planks (subtle per-plank tint + top edge highlight).
 	draw_rect(Rect2(0, 1088, 720, 192), WOOD_DARK)
+	draw_rect(Rect2(0, 1088, 720, 3), Color(1.0, 0.92, 0.75, 0.35))
 	var py: float = 1092.0
 	var row_i: int = 0
 	while py < 1280.0:
-		draw_rect(Rect2(0, py, 720, 42), WOOD)
+		var plank: Color = WOOD.lightened(0.06) if row_i % 2 == 0 else WOOD.darkened(0.05)
+		draw_rect(Rect2(0, py, 720, 42), plank)
+		draw_rect(Rect2(0, py, 720, 2), Color(1.0, 0.92, 0.75, 0.14))
 		var seam: float = 180.0 if row_i % 2 == 0 else 420.0
 		draw_rect(Rect2(seam, py, 4, 42), WOOD_DARK)
 		draw_circle(Vector2(seam - 14.0, py + 21.0), 3.0, WOOD_DARK)
@@ -294,30 +302,58 @@ func _build_gather() -> void:
 	tide_fill.color = SEA
 	tide_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	ui.add_child(tide_fill)
-	var bar_txt := _label("TIDE", 18, CREAM, HORIZONTAL_ALIGNMENT_CENTER)
+	var bar_txt := _label("TIDE", 18, INK, HORIZONTAL_ALIGNMENT_CENTER)
 	bar_txt.position = Vector2(12, 88)
 	bar_txt.size = Vector2(696, 22)
 	ui.add_child(bar_txt)
-	# Resource nodes.
+	# Resource nodes. Map engine positions onto the painted bands first — FAR
+	# pools go to open water only (the painted cliff owns the right side), NEAR
+	# pools to the wet shoreline — then relax overlaps so every pool and its
+	# resource icon stays readable (view-only; taps still hit the same nodes).
+	var placed: Array = []
 	for i in range(S.gather_nodes.size()):
 		var nd: Dictionary = S.gather_nodes[i]
 		if nd["taken"]:
 			continue
 		var pos: Vector2 = nd["pos"]
-		var res: String = nd["res"]
-		var box := TapBox.new()
-		box.size = Vector2(88, 88)
-		# Map normalized engine pos onto the painted bands: far pools float in the
-		# sea (~380-640), near pools dot the wet shoreline (~764-856).
+		var nx: float
 		var ny: float
 		if nd["far"]:
-			ny = 380.0 + clampf((pos.y - 0.04) / 0.38, 0.0, 1.0) * 260.0
+			nx = 24.0 + pos.x * 330.0
+			ny = 380.0 + clampf((pos.y - 0.04) / 0.38, 0.0, 1.0) * 240.0
 		else:
-			ny = 764.0 + clampf((pos.y - 0.56) / 0.40, 0.0, 1.0) * 92.0
-		box.position = Vector2(24.0 + pos.x * 600.0, ny)
+			nx = 24.0 + pos.x * 600.0
+			ny = 764.0 + clampf((pos.y - 0.56) / 0.40, 0.0, 1.0) * 84.0
+		placed.append({"idx": i, "p": Vector2(nx, ny), "far": nd["far"]})
+	for pass_i in range(12):
+		var moved: bool = false
+		for a in range(placed.size()):
+			for b in range(a + 1, placed.size()):
+				var pa: Vector2 = placed[a]["p"]
+				var pb: Vector2 = placed[b]["p"]
+				var d: Vector2 = pb - pa
+				if absf(d.x) < 86.0 and absf(d.y) < 86.0:
+					var push: Vector2 = d.normalized() if d.length() > 0.01 else Vector2(1, 0)
+					placed[a]["p"] = pa - push * 12.0
+					placed[b]["p"] = pb + push * 12.0
+					moved = true
+		if not moved:
+			break
+	for e in placed:
+		var ent: Dictionary = e
+		var far_e: bool = ent["far"]
+		var pv: Vector2 = ent["p"]
+		pv.x = clampf(pv.x, 8.0, 354.0 if far_e else 624.0)
+		pv.y = clampf(pv.y, 380.0, 620.0) if far_e else clampf(pv.y, 760.0, 850.0)
+		var i2: int = ent["idx"]
+		var nd2: Dictionary = S.gather_nodes[i2]
+		var res: String = nd2["res"]
+		var box := TapBox.new()
+		box.size = Vector2(88, 88)
+		box.position = pv
 		var blob := NodeBlob.new()
 		blob.res = res
-		blob.far = nd["far"]
+		blob.far = far_e
 		blob.size = Vector2(88, 88)
 		blob.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		box.add_child(blob)
@@ -327,10 +363,9 @@ func _build_gather() -> void:
 		icon.size = Vector2(48, 48)
 		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		box.add_child(icon)
-		var idx: int = i
-		box.tapped.connect(func() -> void: _handle_events(S.tap_node(idx)))
+		box.tapped.connect(func() -> void: _handle_events(S.tap_node(i2)))
 		ui.add_child(box)
-		node_boxes[i] = box
+		node_boxes[i2] = box
 	# Basket panel.
 	var bp := _panel(Rect2(12, 952, 696, 120), CREAM, WOOD, 3, 18)
 	ui.add_child(bp)
@@ -344,7 +379,7 @@ func _build_gather() -> void:
 	banked_label.size = Vector2(330, 34)
 	banked_label.pivot_offset = Vector2(80, 17)
 	ui.add_child(banked_label)
-	var bank_btn := _button("Bank It", CORAL)
+	bank_btn = _button("Bank It", CORAL)
 	bank_btn.position = Vector2(400, 966)
 	bank_btn.size = Vector2(280, 88)
 	bank_btn.pressed.connect(func() -> void: _handle_events(S.bank()))
@@ -360,6 +395,10 @@ func _build_gather() -> void:
 func _update_gather_hud() -> void:
 	if S.phase != ShopState.Phase.GATHER:
 		return
+	if bank_btn != null:
+		var can_bank: bool = S.unbanked_total() > 0
+		bank_btn.disabled = not can_bank
+		bank_btn.modulate.a = 1.0 if can_bank else 0.6
 	if tide_fill != null:
 		var frac: float = clamp(S.tide_left / S.tide_window(), 0.0, 1.0)
 		tide_fill.size = Vector2(tide_bar_w * frac, 26.0)
@@ -447,13 +486,14 @@ func _build_craft() -> void:
 		name_lbl.position = Vector2(112, ry + 10)
 		name_lbl.size = Vector2(240, 28)
 		ui.add_child(name_lbl)
-		var price_lbl := _label("%dg%s" % [price, star], 20, GOLD.darkened(0.35))
+		var price_col: Color = CORAL_DARK if S.demand.has(rid2) else GOLD.darkened(0.5)
+		var price_lbl := _label("%dg%s" % [price, star], 20, price_col)
 		price_lbl.position = Vector2(112, ry + 42)
 		price_lbl.size = Vector2(200, 26)
 		ui.add_child(price_lbl)
 		# Cost chips.
 		var cost: Dictionary = rec["cost"]
-		var cx: float = 330.0
+		var cx: float = 320.0
 		for cres in cost.keys():
 			var crid: String = cres
 			var need: int = cost[crid]
@@ -465,12 +505,13 @@ func _build_craft() -> void:
 			if not have:
 				ci.modulate = Color(1, 1, 1, 0.45)
 			ui.add_child(ci)
-			var cl := _label(str(need), 20, INK if have else RED)
-			cl.position = Vector2(cx + 36, ry + 24)
+			var cl := _label(str(need), 20, INK if have else Color("#b03030"))
+			cl.position = Vector2(cx + 40, ry + 24)
 			cl.size = Vector2(30, 26)
 			ui.add_child(cl)
-			cx += 74.0
-		var craft_btn := _button("Craft", SEA if S.can_craft(rid2) else SAND_DARK)
+			cx += 76.0
+		var craft_btn := _button("Craft", SEA)
+		craft_btn.disabled = not S.can_craft(rid2)
 		craft_btn.position = Vector2(556, ry + 10)
 		craft_btn.size = Vector2(118, 58)
 		craft_btn.pressed.connect(func() -> void: _handle_events(S.craft(rid2)))
@@ -534,12 +575,15 @@ func _build_craft() -> void:
 # --------------------------------------------------------------- sell -----
 
 func _build_sell() -> void:
+	# Solid pill behind the header text — it sits over painted art.
+	var head_pill := _panel(Rect2(110, 78, 500, 64), Color(CREAM.r, CREAM.g, CREAM.b, 0.94), WOOD, 2, 16)
+	ui.add_child(head_pill)
 	patrons_left_label = _label("", 22, INK, HORIZONTAL_ALIGNMENT_CENTER)
 	patrons_left_label.position = Vector2(60, 84)
 	patrons_left_label.size = Vector2(600, 28)
 	ui.add_child(patrons_left_label)
-	var hint := _label("Tap a patron, then the item they want", 19, Color(INK.r, INK.g, INK.b, 0.65), HORIZONTAL_ALIGNMENT_CENTER)
-	hint.position = Vector2(60, 114)
+	var hint := _label("Tap a patron, then the item they want", 19, Color(INK.r, INK.g, INK.b, 0.72), HORIZONTAL_ALIGNMENT_CENTER)
+	hint.position = Vector2(60, 112)
 	hint.size = Vector2(600, 24)
 	ui.add_child(hint)
 	sell_shelves_box = Control.new()
@@ -556,12 +600,16 @@ func _build_sell() -> void:
 	var rows: int = int(ceil(float(S.shelf_slots()) / 4.0))
 	var panel_h: float = 24.0 + float(rows) * 208.0
 	var counter_y: float = 146.0 + panel_h + 14.0
-	patrons_y = counter_y + 84.0
-	var counter := _panel(Rect2(16, counter_y, 688, 64), WOOD, WOOD_DARK, 3, 12)
+	patrons_y = counter_y + 70.0
+	# Thin counter lip under the shelf panel (the big sign moved to the boardwalk).
+	var counter := _panel(Rect2(16, counter_y, 688, 26), WOOD, WOOD_DARK, 2, 8)
 	ui.add_child(counter)
-	var sign_lbl := _label("· TIDE & TALLY ·", 22, CREAM, HORIZONTAL_ALIGNMENT_CENTER)
-	sign_lbl.position = Vector2(16, counter_y + 16.0)
-	sign_lbl.size = Vector2(688, 30)
+	# Shop plaque on the boardwalk so the bottom band isn't dead timber.
+	var plaque := _panel(Rect2(200, 1112, 320, 54), WOOD, WOOD_DARK, 3, 14)
+	ui.add_child(plaque)
+	var sign_lbl := _label("· TIDE & TALLY ·", 21, CREAM, HORIZONTAL_ALIGNMENT_CENTER)
+	sign_lbl.position = Vector2(200, 1126)
+	sign_lbl.size = Vector2(320, 28)
 	ui.add_child(sign_lbl)
 	_refresh_shelves()
 	_refresh_patrons()
@@ -608,7 +656,7 @@ func _refresh_shelves() -> void:
 		var price: int = ItemDB.base_price(item)
 		var bonus: bool = S.demand.has(item)
 		var ptext: String = "%dg ★" % int(ceil(float(price) * ItemDB.DEMAND_BONUS)) if bonus else "%dg" % price
-		var plabel := _label(ptext, 20, CORAL_DARK if bonus else WOOD_DARK, HORIZONTAL_ALIGNMENT_CENTER)
+		var plabel := _label(ptext, 20, CORAL_DARK.darkened(0.12) if bonus else WOOD_DARK, HORIZONTAL_ALIGNMENT_CENTER)
 		plabel.position = Vector2(0, 104)
 		plabel.size = Vector2(156, 26)
 		plabel.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -634,27 +682,34 @@ func _refresh_patrons() -> void:
 	for i in range(S.patrons.size()):
 		var p: Dictionary = S.patrons[i]
 		var want: String = p["want"]
+		# Stable per-patron look: assign a skin once on first sight so the same
+		# body slides left with its bubble/bar when the queue shifts.
+		if not p.has("skin"):
+			p["skin"] = patron_skin_next
+			patron_skin_next += 1
 		var pv := PatronView.new()
-		pv.position = Vector2(20.0 + float(i) * 172.0, patrons_y)
+		# Slight baseline stagger so the row follows the sand, not a ruler.
+		var stag: float = -8.0 + float((int(p["skin"]) % 2)) * 16.0
+		pv.position = Vector2(20.0 + float(i) * 172.0, patrons_y + stag)
 		pv.size = Vector2(164, 330)
-		pv.idx = i
+		pv.idx = int(p["skin"])
 		pv.pivot_offset = Vector2(82, 300)
-		# Want bubble.
+		# Want bubble with a tail pointing at its patron.
 		var bubble := _panel(Rect2(46, 30, 72, 72), CREAM, INK, 2, 16)
 		bubble.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		pv.add_child(bubble)
+		var tail := Polygon2D.new()
+		tail.polygon = PackedVector2Array([Vector2(72, 100), Vector2(92, 100), Vector2(82, 116)])
+		tail.color = CREAM
+		pv.add_child(tail)
 		var icon := IconView.new()
 		icon.kind = want
 		icon.position = Vector2(58, 42)
 		icon.size = Vector2(48, 48)
 		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		pv.add_child(icon)
-		# Patience bar.
-		var bb := ColorRect.new()
-		bb.position = Vector2(22, 6)
-		bb.size = Vector2(120, 12)
-		bb.color = Color(INK.r, INK.g, INK.b, 0.25)
-		bb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		# Patience bar: dark solid track + border so the gauge reads over any art.
+		var bb := _panel(Rect2(18, 2, 128, 20), Color(INK.r, INK.g, INK.b, 0.85), WOOD_DARK, 1, 8)
 		pv.add_child(bb)
 		var fill := ColorRect.new()
 		fill.position = Vector2(22, 6)
@@ -662,10 +717,16 @@ func _refresh_patrons() -> void:
 		fill.color = GREEN
 		fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		pv.add_child(fill)
+		# Non-colour critical cue, toggled in _update_sell_hud.
+		var alert := _label("!", 30, RED, HORIZONTAL_ALIGNMENT_CENTER)
+		alert.position = Vector2(118, 24)
+		alert.size = Vector2(30, 34)
+		alert.visible = false
+		pv.add_child(alert)
 		var p_idx: int = i
 		pv.tapped.connect(func() -> void: _on_patron_tapped(p_idx))
 		sell_patrons_box.add_child(pv)
-		patron_views.append({"view": pv, "fill": fill})
+		patron_views.append({"view": pv, "fill": fill, "alert": alert})
 		# Arrival pop (squash & stretch).
 		pv.scale = Vector2(1.1, 0.7)
 		var tw := create_tween()
@@ -687,10 +748,15 @@ func _update_sell_hud() -> void:
 		var left: float = p["patience"]
 		var frac: float = clamp(left / mp, 0.0, 1.0)
 		var fill: ColorRect = w["fill"]
-		fill.size = Vector2(120.0 * frac, 12.0)
+		# Keep a minimum visible sliver while the patron is still waiting.
+		fill.size = Vector2(maxf(120.0 * frac, 4.0 if left > 0.0 else 0.0), 12.0)
+		var alert: Label = w["alert"]
+		alert.visible = frac < 0.25
 		if frac < 0.25:
-			var blink: float = 0.5 + 0.5 * sin(bg_time * 12.0)
+			# Blink floors at 0.55 alpha — the critical signal never vanishes.
+			var blink: float = 0.775 + 0.225 * sin(bg_time * 12.0)
 			fill.color = Color(RED.r, RED.g, RED.b, blink)
+			alert.modulate.a = blink
 		elif frac < 0.55:
 			fill.color = GOLD.darkened(0.1)
 		else:
@@ -730,7 +796,9 @@ func _on_shelf_tapped(idx: int) -> void:
 func _try_serve() -> void:
 	if sel_patron < 0 or sel_shelf < 0:
 		return
-	var ppos := Vector2(102.0 + float(sel_patron) * 172.0, patrons_y + 220.0)
+	# Burst at bubble height — the queue shifts left immediately on a sale, so a
+	# body-level burst reads as if the NEXT patron paid.
+	var ppos := Vector2(102.0 + float(sel_patron) * 172.0, patrons_y + 60.0)
 	var events: Array = S.serve(sel_patron, sel_shelf)
 	for e in events:
 		var ev: Dictionary = e
@@ -759,20 +827,19 @@ func _build_results() -> void:
 	title.position = Vector2(28, 124)
 	title.size = Vector2(664, 50)
 	ui.add_child(title)
-	var line: String = "Earned %dg  ·  %d sales  ·  %d walked out" % [S.day_income, S.sales_count, S.walkout_count]
+	var sales_word: String = "sale" if S.sales_count == 1 else "sales"
+	var line: String = "Earned %dg  ·  %d %s  ·  %d walked out" % [S.day_income, S.sales_count, sales_word, S.walkout_count]
 	var income := _label(line, 23, INK, HORIZONTAL_ALIGNMENT_CENTER)
 	income.position = Vector2(28, 184)
 	income.size = Vector2(664, 30)
 	ui.add_child(income)
-	var gold_line := _label("Gold: %d" % S.gold, 30, GOLD.darkened(0.35), HORIZONTAL_ALIGNMENT_CENTER)
-	gold_line.position = Vector2(28, 224)
-	gold_line.size = Vector2(664, 38)
-	ui.add_child(gold_line)
-	var up_title := _label("— UPGRADES —", 24, WOOD_DARK, HORIZONTAL_ALIGNMENT_CENTER)
-	up_title.position = Vector2(28, 286)
+	# (Gold total lives in the HUD pill right above — stating it twice flattened
+	# the header.)
+	var up_title := _label("— SPEND YOUR GOLD —", 24, WOOD_DARK, HORIZONTAL_ALIGNMENT_CENTER)
+	up_title.position = Vector2(28, 250)
 	up_title.size = Vector2(664, 30)
 	ui.add_child(up_title)
-	var ry: float = 330.0
+	var ry: float = 300.0
 	var all_tracks: Array = []
 	all_tracks.append_array(UpgradeDB.TOOL_TRACKS)
 	all_tracks.append_array(UpgradeDB.SHOP_TRACKS)
@@ -790,7 +857,7 @@ func _build_results() -> void:
 		name_lbl.size = Vector2(260, 28)
 		ui.add_child(name_lbl)
 		var tdesc: String = t["desc"]
-		var desc_lbl := _label(tdesc, 17, Color(INK.r, INK.g, INK.b, 0.65))
+		var desc_lbl := _label(tdesc, 17, Color(INK.r, INK.g, INK.b, 0.85))
 		desc_lbl.position = Vector2(64, ry + 44)
 		desc_lbl.size = Vector2(280, 24)
 		ui.add_child(desc_lbl)
@@ -808,7 +875,8 @@ func _build_results() -> void:
 			ui.add_child(maxed)
 		else:
 			var afford: bool = S.gold >= cost
-			var buy_btn := _button("%dg" % cost, SEA if afford else SAND_DARK)
+			var buy_btn := _button("%dg" % cost, SEA)
+			buy_btn.disabled = not afford
 			buy_btn.position = Vector2(520, ry + 18)
 			buy_btn.size = Vector2(130, 60)
 			buy_btn.pressed.connect(func() -> void: _handle_events(S.buy_upgrade(track)))
@@ -822,19 +890,20 @@ func _build_results() -> void:
 
 
 func _build_day_failed() -> void:
-	var panel := _panel(Rect2(60, 420, 600, 360), CREAM, RED, 4, 22)
+	var panel := _panel(Rect2(60, 440, 600, 240), CREAM, RED, 4, 22)
 	ui.add_child(panel)
 	var title := _label("Nothing to sell!", 40, RED, HORIZONTAL_ALIGNMENT_CENTER)
-	title.position = Vector2(60, 470)
+	title.position = Vector2(60, 482)
 	title.size = Vector2(600, 50)
 	ui.add_child(title)
 	var sub := _label("The shop stayed dark today.\nComb the beach and craft something first.", 22, INK, HORIZONTAL_ALIGNMENT_CENTER)
-	sub.position = Vector2(80, 540)
+	sub.position = Vector2(80, 552)
 	sub.size = Vector2(560, 80)
 	ui.add_child(sub)
+	# CTA lives on the boardwalk like every other phase.
 	var retry_btn := _button("Comb the Beach Again", CORAL)
-	retry_btn.position = Vector2(140, 650)
-	retry_btn.size = Vector2(440, 90)
+	retry_btn.position = Vector2(140, 1124)
+	retry_btn.size = Vector2(440, 96)
 	retry_btn.pressed.connect(func() -> void: _handle_events(S.restart_day()))
 	ui.add_child(retry_btn)
 
@@ -863,17 +932,15 @@ func _pulse(node: Control, peak: float) -> void:
 
 
 func _toast(text: String, color: Color) -> void:
-	var l := _label(text, 28, color, HORIZONTAL_ALIGNMENT_CENTER)
+	# Darken light accents so every toast reads on the cream pill.
+	var ink: Color = color.darkened(0.22)
+	var l := _label(text, 28, ink, HORIZONTAL_ALIGNMENT_CENTER)
 	l.position = Vector2(0, 1090.0 - float(toast_slot % 3) * 44.0)
 	l.size = Vector2(720, 40)
 	toast_slot += 1
-	# Soft cream backing so toasts read over any scene.
-	var back := ColorRect.new()
-	back.color = Color(CREAM.r, CREAM.g, CREAM.b, 0.85)
-	back.position = Vector2(120, 2)
-	back.size = Vector2(480, 38)
+	# Solid cream pill with the standard wood border so toasts read over any art.
+	var back := _panel(Rect2(110, -4, 500, 48), Color(CREAM.r, CREAM.g, CREAM.b, 0.96), WOOD, 3, 22)
 	back.show_behind_parent = true
-	back.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	l.add_child(back)
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	ui.add_child(l)
@@ -977,6 +1044,12 @@ func _button(text: String, bg: Color) -> Button:
 	sbp.border_width_bottom = 3
 	b.add_theme_stylebox_override("pressed", sbp)
 	b.add_theme_stylebox_override("hover", sb)
+	var sbd: StyleBoxFlat = sb.duplicate()
+	sbd.bg_color = SAND_DARK
+	sbd.border_color = SAND_DARK.darkened(0.25)
+	sbd.border_width_bottom = 3
+	b.add_theme_stylebox_override("disabled", sbd)
+	b.add_theme_color_override("font_disabled_color", WOOD_DARK)
 	return b
 
 
@@ -1025,10 +1098,13 @@ class PipsView extends Control:
 		for i in range(total):
 			var c := Vector2(10.0 + float(i) * 26.0, 8.0)
 			if i < filled:
-				draw_circle(c, 8.0, Color("#2fa6a0"))
+				draw_circle(c, 9.0, Color("#1d7d7c"))
+				draw_circle(c, 7.5, Color("#2fa6a0"))
+				draw_circle(c - Vector2(2.2, 2.6), 2.4, Color(1, 1, 1, 0.7))
 			else:
-				draw_circle(c, 8.0, Color("#2b3a42", 0.2))
-				draw_arc(c, 8.0, 0.0, TAU, 16, Color("#2b3a42", 0.4), 1.5)
+				draw_circle(c, 9.0, Color("#8a5a3b", 0.45))
+				draw_circle(c, 7.5, Color("#f2e3c2", 0.55))
+				draw_arc(c + Vector2(0, 1.5), 5.0, 0.3, PI - 0.3, 10, Color("#8a5a3b", 0.30), 2.0)
 
 
 class NodeBlob extends Control:
@@ -1042,15 +1118,9 @@ class NodeBlob extends Control:
 		# Painted tide pool, gently squashed for perspective.
 		var pool: Texture2D = TEX_POOL_FAR if far else TEX_POOL
 		draw_texture_rect(pool, Rect2(0, 20, 88, 66), false)
-		# Glow halo behind the goodie (glow recipe).
-		var rc: Color = Color("#f7cfa3")
-		match res:
-			"shell": rc = Color("#f7cfa3")
-			"driftwood": rc = Color("#a8754e")
-			"seaglass": rc = Color("#6fd6c2")
-			"pearl": rc = Color("#f5edf3")
-		draw_circle(c - Vector2(0, 4), 30.0, Color(rc.r, rc.g, rc.b, 0.3))
-		draw_circle(c - Vector2(0, 4), 24.0, Color(1, 1, 1, 0.25))
+		# Soft white sparkle behind the goodie (the old coloured halo read as a
+		# flat smudge over the painted pool).
+		draw_circle(c - Vector2(0, 4), 24.0, Color(1, 1, 1, 0.30))
 
 
 class PatronView extends Control:
@@ -1096,9 +1166,10 @@ class PatronView extends Control:
 
 
 class IconView extends Control:
-	# Raster item icons (asset pass). The pearl stays a code primitive: a plain
-	# white sphere fought the diffusion medium across 4 regen attempts.
+	# Raster item icons (asset pass). The pearl token is cropped from the
+	# painted pearl_ring art (a standalone pearl fought diffusion 4x).
 	const TEXES: Dictionary = {
+		"pearl": preload("res://art/icon_pearl.png"),
 		"shell": preload("res://art/icon_shell.png"),
 		"driftwood": preload("res://art/icon_driftwood.png"),
 		"seaglass": preload("res://art/icon_seaglass.png"),
@@ -1120,13 +1191,5 @@ class IconView extends Control:
 			var k: float = minf(size.x / ts.x, size.y / ts.y)
 			var ds: Vector2 = ts * k
 			draw_texture_rect(t, Rect2((size - ds) * 0.5, ds), false)
-		elif kind == "pearl":
-			_pearl(c, s * 0.32)
 		else:
 			draw_circle(c, s * 0.3, Color("#ff7b54"))
-
-	func _pearl(c: Vector2, r: float) -> void:
-		draw_circle(c, r * 1.35, Color(0.96, 0.93, 0.95, 0.3))
-		draw_circle(c, r, Color("#f5edf3"))
-		draw_circle(c + Vector2(r * 0.25, r * 0.3), r * 0.7, Color(0.85, 0.78, 0.86, 0.5))
-		draw_circle(c - Vector2(r * 0.3, r * 0.35), r * 0.25, Color(1, 1, 1, 0.9))

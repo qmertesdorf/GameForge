@@ -2,7 +2,7 @@
   "id": "shopkeep-0001",
   "name": "Tide & Tally",
   "created_at": "2026-06-11T01:03:00.419Z",
-  "updated_at": "2026-06-11T04:31:09.740Z",
+  "updated_at": "2026-06-11T05:26:40.619Z",
   "status": "playable",
   "concept": {
     "theme": {
@@ -95,8 +95,8 @@
     {
       "type": "sprite",
       "name": "icon_pearl",
-      "source": "placeholder",
-      "origin": "primitive"
+      "source": "art/icon_pearl.png",
+      "origin": "raster"
     },
     {
       "type": "sprite",
@@ -222,15 +222,15 @@
       "patron_b",
       "patron_c",
       "patron_d",
-      "coin"
+      "coin",
+      "icon_pearl"
     ],
     "left_primitive": [
-      "icon_pearl",
       "boardwalk_planks",
       "ui_chrome_panels_buttons"
     ],
     "art_path": "games/shopkeep-0001/art/",
-    "notes": "Swap strategy: draw_texture*-in-place inside the existing inner-class _draw()s (IconView/NodeBlob/PatronView/CoinView) + full-frame backdrop in Main._draw(); all juice (glow halos, bursts, froth sweep, shake, tweens) stays code. left_primitive justifications: icon_pearl = a plain white sphere fought the diffusion medium across 4 regen attempts (lens/swirl/spot attractors) and the code pearl reads clean at 34-48px; boardwalk_planks = kept as the code-drawn bottom band because the painted backdrop's shoreline composition had no boardwalk and the code planks anchor the shop/UI zone; ui_chrome_panels_buttons = canonical code-chrome case (panels/buttons/bars need symmetry + variable sizes diffusion can't deliver). View-only layout remap: gather nodes now map far->painted sea band (y 380-640) and near->wet shoreline (y 764-856) to sit on the painted bands; ShopState logic untouched (SELFTEST OK). All sprites tight-cropped to alpha bbox post-gen (PIL), margins handled by contain-fit at draw time. Patron art is per-queue-slot (idx % 4), matching the old per-slot colour behavior. bg_beach took 4 compositional regens (sunset pier -> palm scene -> high-horizon w/ cliff [accepted] -> diagonal shoreline); the accepted painting includes a sandstone cliff right + grass tuft the negatives didn't suppress, judged in-world. Lesson re-confirmed: version background candidates to distinct files instead of overwriting (gen-3 had to be re-rolled from its seed).",
+    "notes": "Swap strategy: draw_texture*-in-place inside the existing inner-class _draw()s (IconView/NodeBlob/PatronView/CoinView) + full-frame backdrop in Main._draw(); all juice (glow halos, bursts, froth sweep, shake, tweens) stays code. left_primitive justifications: icon_pearl = a plain white sphere fought the diffusion medium across 4 regen attempts (lens/swirl/spot attractors) and the code pearl reads clean at 34-48px; boardwalk_planks = kept as the code-drawn bottom band because the painted backdrop's shoreline composition had no boardwalk and the code planks anchor the shop/UI zone; ui_chrome_panels_buttons = canonical code-chrome case (panels/buttons/bars need symmetry + variable sizes diffusion can't deliver). View-only layout remap: gather nodes now map far->painted sea band (y 380-640) and near->wet shoreline (y 764-856) to sit on the painted bands; ShopState logic untouched (SELFTEST OK). All sprites tight-cropped to alpha bbox post-gen (PIL), margins handled by contain-fit at draw time. Patron art is per-queue-slot (idx % 4), matching the old per-slot colour behavior. bg_beach took 4 compositional regens (sunset pier -> palm scene -> high-horizon w/ cliff [accepted] -> diagonal shoreline); the accepted painting includes a sandstone cliff right + grass tuft the negatives didn't suppress, judged in-world. Lesson re-confirmed: version background candidates to distinct files instead of overwriting (gen-3 had to be re-rolled from its seed). POST-AUDIT (visual-audit, 6 lenses + fresh re-audit, 15/16 confirmed): icon_pearl became raster after all — CROPPED from the painted pearl_ring art via PIL (no standalone gen ever landed); pendant inter-chain grey matte + driftwood fiber sliver cleared via PIL alpha edits; project default_texture_filter=2 (Linear Mipmap) activated the mipmaps. Deferred owner items: themed font asset (engine fallback font everywhere), craft full-screen panel -> bottom-sheet composition, icon register unification (sticker-gloss icons vs flat-cartoon world), CTA cream-on-coral/teal label contrast (~2.2-2.8:1, conventional), patron_c orange hands, pearl-chip pink blotch touch-up, seaglass icon detail. Logic-note for deepen: gather-node spawner has no min-distance constraint (view relaxes overlaps as a workaround).",
     "recipes": [
       {
         "name": "bg_beach",
