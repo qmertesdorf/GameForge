@@ -2,7 +2,7 @@
   "id": "shopkeep-0001",
   "name": "Tide & Tally",
   "created_at": "2026-06-11T01:03:00.419Z",
-  "updated_at": "2026-06-11T04:06:25.300Z",
+  "updated_at": "2026-06-11T04:31:09.740Z",
   "status": "playable",
   "concept": {
     "theme": {
@@ -53,8 +53,8 @@
     {
       "type": "sprite",
       "name": "beach_backdrop",
-      "source": "placeholder",
-      "origin": "primitive"
+      "source": "art/bg_beach.png",
+      "origin": "raster"
     },
     {
       "type": "sprite",
@@ -65,26 +65,32 @@
     {
       "type": "sprite",
       "name": "gather_node_pool",
-      "source": "placeholder",
-      "origin": "primitive"
+      "source": "art/gather_node_pool.png",
+      "origin": "raster"
+    },
+    {
+      "type": "sprite",
+      "name": "gather_node_pool_far",
+      "source": "art/gather_node_pool_far.png",
+      "origin": "raster"
     },
     {
       "type": "sprite",
       "name": "icon_shell",
-      "source": "placeholder",
-      "origin": "primitive"
+      "source": "art/icon_shell.png",
+      "origin": "raster"
     },
     {
       "type": "sprite",
       "name": "icon_driftwood",
-      "source": "placeholder",
-      "origin": "primitive"
+      "source": "art/icon_driftwood.png",
+      "origin": "raster"
     },
     {
       "type": "sprite",
       "name": "icon_seaglass",
-      "source": "placeholder",
-      "origin": "primitive"
+      "source": "art/icon_seaglass.png",
+      "origin": "raster"
     },
     {
       "type": "sprite",
@@ -95,50 +101,68 @@
     {
       "type": "sprite",
       "name": "icon_shell_charm",
-      "source": "placeholder",
-      "origin": "primitive"
+      "source": "art/icon_shell_charm.png",
+      "origin": "raster"
     },
     {
       "type": "sprite",
       "name": "icon_driftwood_frame",
-      "source": "placeholder",
-      "origin": "primitive"
+      "source": "art/icon_driftwood_frame.png",
+      "origin": "raster"
     },
     {
       "type": "sprite",
       "name": "icon_seaglass_pendant",
-      "source": "placeholder",
-      "origin": "primitive"
+      "source": "art/icon_seaglass_pendant.png",
+      "origin": "raster"
     },
     {
       "type": "sprite",
       "name": "icon_wind_chime",
-      "source": "placeholder",
-      "origin": "primitive"
+      "source": "art/icon_wind_chime.png",
+      "origin": "raster"
     },
     {
       "type": "sprite",
       "name": "icon_pearl_ring",
-      "source": "placeholder",
-      "origin": "primitive"
+      "source": "art/icon_pearl_ring.png",
+      "origin": "raster"
     },
     {
       "type": "sprite",
       "name": "icon_tide_lantern",
-      "source": "placeholder",
-      "origin": "primitive"
+      "source": "art/icon_tide_lantern.png",
+      "origin": "raster"
     },
     {
       "type": "sprite",
-      "name": "patron_blob",
-      "source": "placeholder",
-      "origin": "primitive"
+      "name": "patron_a",
+      "source": "art/patron_a.png",
+      "origin": "raster"
+    },
+    {
+      "type": "sprite",
+      "name": "patron_b",
+      "source": "art/patron_b.png",
+      "origin": "raster"
+    },
+    {
+      "type": "sprite",
+      "name": "patron_c",
+      "source": "art/patron_c.png",
+      "origin": "raster"
+    },
+    {
+      "type": "sprite",
+      "name": "patron_d",
+      "source": "art/patron_d.png",
+      "origin": "raster"
     },
     {
       "type": "sprite",
       "name": "coin",
-      "source": "placeholder",
-      "origin": "primitive"
+      "source": "art/coin.png",
+      "origin": "raster"
     },
     {
       "type": "sprite",
@@ -157,5 +181,338 @@
     "compliance": null,
     "store": null,
     "maintenance": null
+  },
+  "asset_pass": {
+    "method": "raster",
+    "visual_system": {
+      "world_bible": "One sun-bleached folktale beach town at bright summer mid-morning: a small wooden boardwalk curiosity shop above turquoise tide pools (theme.setting). Every asset is an inhabitant of that one world: natural beach materials (scallop shell, driftwood branch, frosted sea glass, pearl), the handcrafted trinkets made FROM those same materials (charm, frame, pendant, chime, ring, lantern), and cheerful plump blob-bodied beach-villager patrons. No metal/industrial/fantasy-magic registers; gold appears only as warm trinket/coin accents.",
+      "palette": [
+        "#f2e3c2 sand-cream (base/background)",
+        "#2fa6a0 sea-teal (primary)",
+        "#ff7b54 coral-orange (accent)",
+        "#8a5a3b driftwood-brown (structure)",
+        "#2b3a42 ink (outlines)",
+        "#f4c542 gold (coin/price accents)"
+      ],
+      "stroke": "checkpoint-native thick clean cartoon outlines (Cartoon Arcadia XL); no hand-authored stroke",
+      "form": "rounded chunky shapes, minimal interior detail, one signature silhouette per item (shell fan-ribs, driftwood gnarl, seaglass facet, chime dangles, lantern pane); patrons are one plump blob-villager family distinguished by colour + one accessory each (straw hat / sailor cap / sunglasses / bow)",
+      "shading": "flat vibrant cel shading with one soft top-light highlight per object; glow halos and all motion feedback stay code-drawn juice",
+      "scale": "sprites tight-cropped to alpha bbox post-gen, contain-fit at draw time (icons into 34-80px square footprints from 512 masters; patrons into a 144x190 zone from 1024 masters; pools squashed into 88x66 for perspective); background opaque full-frame 720x1280 drawn 1:1 under everything",
+      "prompt_scaffold": "shared style fragment 'flat bold cartoon, clean thick outlines, vibrant cel shading' + per-asset subject + 'sticker style, whole object fully visible and centered with empty margins, clean transparent background' for sprites. Shared negatives: anti-crop/anti-scene (cropped, close-up, cut off, abstract, waves, ocean, scene, landscape, multiple objects/characters, frame, border, ground, floor, shadow) + anti-realism (photorealistic, hyperrealistic, 3d render, octane render) + Western-not-anime (anime, manga) + IP guards (logo, watermark, text, trademarked character, brand, celebrity likeness).",
+      "style": {
+        "checkpoint": "cartoonArcadiaXL_v2",
+        "loras": [],
+        "style_prompt": "flat bold cartoon, clean thick outlines, vibrant cel shading, sunny seaside storybook"
+      }
+    },
+    "reskinned": [
+      "beach_backdrop",
+      "gather_node_pool",
+      "gather_node_pool_far",
+      "icon_shell",
+      "icon_driftwood",
+      "icon_seaglass",
+      "icon_shell_charm",
+      "icon_driftwood_frame",
+      "icon_seaglass_pendant",
+      "icon_wind_chime",
+      "icon_pearl_ring",
+      "icon_tide_lantern",
+      "patron_a",
+      "patron_b",
+      "patron_c",
+      "patron_d",
+      "coin"
+    ],
+    "left_primitive": [
+      "icon_pearl",
+      "boardwalk_planks",
+      "ui_chrome_panels_buttons"
+    ],
+    "art_path": "games/shopkeep-0001/art/",
+    "notes": "Swap strategy: draw_texture*-in-place inside the existing inner-class _draw()s (IconView/NodeBlob/PatronView/CoinView) + full-frame backdrop in Main._draw(); all juice (glow halos, bursts, froth sweep, shake, tweens) stays code. left_primitive justifications: icon_pearl = a plain white sphere fought the diffusion medium across 4 regen attempts (lens/swirl/spot attractors) and the code pearl reads clean at 34-48px; boardwalk_planks = kept as the code-drawn bottom band because the painted backdrop's shoreline composition had no boardwalk and the code planks anchor the shop/UI zone; ui_chrome_panels_buttons = canonical code-chrome case (panels/buttons/bars need symmetry + variable sizes diffusion can't deliver). View-only layout remap: gather nodes now map far->painted sea band (y 380-640) and near->wet shoreline (y 764-856) to sit on the painted bands; ShopState logic untouched (SELFTEST OK). All sprites tight-cropped to alpha bbox post-gen (PIL), margins handled by contain-fit at draw time. Patron art is per-queue-slot (idx % 4), matching the old per-slot colour behavior. bg_beach took 4 compositional regens (sunset pier -> palm scene -> high-horizon w/ cliff [accepted] -> diagonal shoreline); the accepted painting includes a sandstone cliff right + grass tuft the negatives didn't suppress, judged in-world. Lesson re-confirmed: version background candidates to distinct files instead of overwriting (gen-3 had to be re-rolled from its seed).",
+    "recipes": [
+      {
+        "name": "bg_beach",
+        "checkpoint": "cartoonArcadiaXL_v2",
+        "prompt": "vertical mobile game background of a sunny seaside beach at bright midday, flat bold cartoon, clean simple shapes, vibrant cel shading, sunny storybook style, flat horizontal layered composition viewed straight on, high horizon line: only a thin strip of warm blue sky with a small bright sun at the very top, a calm flat band of turquoise sea just below it, then a huge wide empty bright cream-yellow sandy beach with a few wet shiny patches filling the middle and bottom",
+        "negative": "pier, dock, jetty, path, road, bridge, sunset, dusk, orange sky, big sky, perspective, vanishing point, palm tree, plants, people, characters, animals, boats, rocks, cliffs, text, logo, watermark, photorealistic, 3d render, anime, manga, trademarked character, brand",
+        "seed": 621,
+        "sampler": "euler",
+        "steps": 24,
+        "cfg": 7,
+        "width": 720,
+        "height": 1280,
+        "layerdiffuse": false,
+        "note": "opaque full-frame (no LayerDiffuse), exact 720x1280 viewport aspect",
+        "import_settings": {
+          "mipmaps": true,
+          "filter": "linear",
+          "compression": "lossless"
+        }
+      },
+      {
+        "name": "icon_shell",
+        "checkpoint": "cartoonArcadiaXL_v2",
+        "prompt": "scaffold + a single scallop seashell game item icon, fan-shaped shell with radiating ridges, peach and cream colored",
+        "seed": 102,
+        "sampler": "euler",
+        "steps": 24,
+        "cfg": 7,
+        "master_resolution": 512,
+        "layerdiffuse": true,
+        "note": "style-lock gate sprite",
+        "import_settings": {
+          "mipmaps": true,
+          "filter": "linear",
+          "compression": "lossless"
+        }
+      },
+      {
+        "name": "icon_driftwood",
+        "checkpoint": "cartoonArcadiaXL_v2",
+        "prompt": "scaffold + a single piece of gnarled driftwood game item icon, weathered smooth tan-brown curved wood branch with knots",
+        "seed": 201,
+        "sampler": "euler",
+        "steps": 24,
+        "cfg": 7,
+        "master_resolution": 512,
+        "layerdiffuse": true,
+        "import_settings": {
+          "mipmaps": true,
+          "filter": "linear",
+          "compression": "lossless"
+        }
+      },
+      {
+        "name": "icon_seaglass",
+        "checkpoint": "cartoonArcadiaXL_v2",
+        "prompt": "scaffold + a single frosted sea glass pebble game item icon, smooth rounded teal-green frosted glass gem with soft sheen",
+        "seed": 202,
+        "sampler": "euler",
+        "steps": 24,
+        "cfg": 7,
+        "master_resolution": 512,
+        "layerdiffuse": true,
+        "import_settings": {
+          "mipmaps": true,
+          "filter": "linear",
+          "compression": "lossless"
+        }
+      },
+      {
+        "name": "coin",
+        "checkpoint": "cartoonArcadiaXL_v2",
+        "prompt": "scaffold + a single shiny golden coin game item icon, bright yellow gold metal, round coin face with a small scallop shell stamped in the center, thick dark outline (negative += purple, plate, dish, silver, copper)",
+        "seed": 214,
+        "sampler": "euler",
+        "steps": 24,
+        "cfg": 7,
+        "master_resolution": 512,
+        "layerdiffuse": true,
+        "note": "first attempt rendered a purple plate; colour negatives fixed it",
+        "import_settings": {
+          "mipmaps": true,
+          "filter": "linear",
+          "compression": "lossless"
+        }
+      },
+      {
+        "name": "icon_shell_charm",
+        "checkpoint": "cartoonArcadiaXL_v2",
+        "prompt": "scaffold + a single small seashell charm necklace game item icon, one orange scallop shell hanging from a simple golden chain loop above it (negative += corn, rope, washed out, pale)",
+        "seed": 311,
+        "sampler": "euler",
+        "steps": 24,
+        "cfg": 7,
+        "master_resolution": 512,
+        "layerdiffuse": true,
+        "import_settings": {
+          "mipmaps": true,
+          "filter": "linear",
+          "compression": "lossless"
+        }
+      },
+      {
+        "name": "icon_driftwood_frame",
+        "checkpoint": "cartoonArcadiaXL_v2",
+        "prompt": "scaffold + a single rustic driftwood picture frame game item icon, square frame of tan weathered wood sticks holding a tiny painted picture of a sailboat on the sea (anti-scene negatives relaxed so the inner painting could render)",
+        "seed": 312,
+        "sampler": "euler",
+        "steps": 24,
+        "cfg": 7,
+        "master_resolution": 512,
+        "layerdiffuse": true,
+        "note": "an EMPTY frame fails twice over: the model fills the hole and LayerDiffuse can't cut it; putting a tiny picture IN the frame is more readable and solves both",
+        "import_settings": {
+          "mipmaps": true,
+          "filter": "linear",
+          "compression": "lossless"
+        }
+      },
+      {
+        "name": "icon_seaglass_pendant",
+        "checkpoint": "cartoonArcadiaXL_v2",
+        "prompt": "scaffold + a single sea glass pendant necklace game item icon, teardrop of frosted teal sea glass on a fine golden chain",
+        "seed": 303,
+        "sampler": "euler",
+        "steps": 24,
+        "cfg": 7,
+        "master_resolution": 512,
+        "layerdiffuse": true,
+        "note": "minor grey matte smudge between the chains, invisible at 34-80px display sizes",
+        "import_settings": {
+          "mipmaps": true,
+          "filter": "linear",
+          "compression": "lossless"
+        }
+      },
+      {
+        "name": "icon_wind_chime",
+        "checkpoint": "cartoonArcadiaXL_v2",
+        "prompt": "scaffold + a single wind chime game item icon, three orange scallop seashells dangling on strings beneath a horizontal piece of driftwood (negative += paddle, spoon, utensil, knife, pendant)",
+        "seed": 324,
+        "sampler": "euler",
+        "steps": 24,
+        "cfg": 7,
+        "master_resolution": 512,
+        "layerdiffuse": true,
+        "note": "took 3 attempts; 'three X dangling' kept collapsing to one blob until the shells were the explicit repeated subject",
+        "import_settings": {
+          "mipmaps": true,
+          "filter": "linear",
+          "compression": "lossless"
+        }
+      },
+      {
+        "name": "icon_pearl_ring",
+        "checkpoint": "cartoonArcadiaXL_v2",
+        "prompt": "scaffold + a single gold ring game item icon, jewelry, shiny golden band with one round white pearl mounted on top, upright (negative += shoe, boot, leather, black, hat)",
+        "seed": 315,
+        "sampler": "euler",
+        "steps": 24,
+        "cfg": 7,
+        "master_resolution": 512,
+        "layerdiffuse": true,
+        "import_settings": {
+          "mipmaps": true,
+          "filter": "linear",
+          "compression": "lossless"
+        }
+      },
+      {
+        "name": "icon_tide_lantern",
+        "checkpoint": "cartoonArcadiaXL_v2",
+        "prompt": "scaffold + a single rustic lantern game item icon, small driftwood-framed lantern with a warm glowing golden light pane and a rope handle",
+        "seed": 306,
+        "sampler": "euler",
+        "steps": 24,
+        "cfg": 7,
+        "master_resolution": 512,
+        "layerdiffuse": true,
+        "import_settings": {
+          "mipmaps": true,
+          "filter": "linear",
+          "compression": "lossless"
+        }
+      },
+      {
+        "name": "gather_node_pool",
+        "checkpoint": "cartoonArcadiaXL_v2",
+        "prompt": "scaffold + a single small shallow tide pool game item icon seen from above, rounded sandy rock rim around clear sparkling turquoise water (negative += deep, dark)",
+        "seed": 401,
+        "sampler": "euler",
+        "steps": 24,
+        "cfg": 7,
+        "master_resolution": 512,
+        "layerdiffuse": true,
+        "import_settings": {
+          "mipmaps": true,
+          "filter": "linear",
+          "compression": "lossless"
+        }
+      },
+      {
+        "name": "gather_node_pool_far",
+        "checkpoint": "cartoonArcadiaXL_v2",
+        "prompt": "scaffold + a single small deep tide pool game item icon seen from above, dark wet rock rim around deep dark teal water with ripples (negative += bright, sandy)",
+        "seed": 402,
+        "sampler": "euler",
+        "steps": 24,
+        "cfg": 7,
+        "master_resolution": 512,
+        "layerdiffuse": true,
+        "import_settings": {
+          "mipmaps": true,
+          "filter": "linear",
+          "compression": "lossless"
+        }
+      },
+      {
+        "name": "patron_a",
+        "checkpoint": "cartoonArcadiaXL_v2",
+        "prompt": "scaffold + a single cheerful very plump round blob-shaped beach villager character, bright coral-orange round body, simple black dot eyes and a happy smile, small straw sun hat, stubby little arms, empty hands, full body (negative += broom, stick, mop, holding object, thin, skinny, stick figure, gray, grey)",
+        "seed": 521,
+        "sampler": "euler",
+        "steps": 24,
+        "cfg": 7,
+        "master_resolution": 1024,
+        "layerdiffuse": true,
+        "note": "3 attempts (gray blob -> stick figure with broom -> accepted teal-bodied villager; the coral colour word never landed, judged acceptable within the family)",
+        "import_settings": {
+          "mipmaps": true,
+          "filter": "linear",
+          "compression": "lossless"
+        }
+      },
+      {
+        "name": "patron_b",
+        "checkpoint": "cartoonArcadiaXL_v2",
+        "prompt": "scaffold + a single cheerful round blob-shaped beach villager character, plump teal round body, simple black dot eyes and a big happy smile, wearing a small white sailor cap, stubby little arms, no legs, full body",
+        "seed": 502,
+        "sampler": "euler",
+        "steps": 24,
+        "cfg": 7,
+        "master_resolution": 1024,
+        "layerdiffuse": true,
+        "import_settings": {
+          "mipmaps": true,
+          "filter": "linear",
+          "compression": "lossless"
+        }
+      },
+      {
+        "name": "patron_c",
+        "checkpoint": "cartoonArcadiaXL_v2",
+        "prompt": "scaffold + a single cheerful round blob-shaped beach villager character, plump sandy-yellow round body, simple black dot eyes and a big happy smile, wearing round black sunglasses, stubby little arms, no legs, full body",
+        "seed": 503,
+        "sampler": "euler",
+        "steps": 24,
+        "cfg": 7,
+        "master_resolution": 1024,
+        "layerdiffuse": true,
+        "import_settings": {
+          "mipmaps": true,
+          "filter": "linear",
+          "compression": "lossless"
+        }
+      },
+      {
+        "name": "patron_d",
+        "checkpoint": "cartoonArcadiaXL_v2",
+        "prompt": "scaffold + a single cheerful round blob-shaped beach villager character, plump lavender-purple round body, simple black dot eyes and a big happy smile, with a small red bow on top, stubby little arms, no legs, full body",
+        "seed": 504,
+        "sampler": "euler",
+        "steps": 24,
+        "cfg": 7,
+        "master_resolution": 1024,
+        "layerdiffuse": true,
+        "import_settings": {
+          "mipmaps": true,
+          "filter": "linear",
+          "compression": "lossless"
+        }
+      }
+    ]
   }
 }

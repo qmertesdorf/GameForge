@@ -7,6 +7,9 @@ const ItemDB := preload("res://data/ItemDB.gd")
 const UpgradeDB := preload("res://data/UpgradeDB.gd")
 const MetaSave := preload("res://MetaSave.gd")
 
+# Painted full-frame backdrop (raster asset pass); waves/froth/boardwalk stay code.
+const TEX_BG := preload("res://art/bg_beach.png")
+
 # --- palette (concept.art_direction: sunny flat-cartoon seaside) ---
 const SAND := Color("#f2e3c2")
 const SAND_DARK := Color("#dcc69c")
@@ -30,8 +33,6 @@ const RES_COLORS: Dictionary = {
 	"seaglass": Color("#6fd6c2"),
 	"pearl": Color("#f5edf3"),
 }
-const PATRON_COLORS: Array = [Color("#ff8f6b"), Color("#6bbab4"), Color("#e0b36a"), Color("#9b7fb8")]
-
 const PHASE_TITLES: Dictionary = {
 	ShopState.Phase.GATHER: "Low Tide",
 	ShopState.Phase.CRAFT: "The Workbench",
@@ -44,7 +45,6 @@ var S: RefCounted
 var ui: Control
 var vfx_rng := RandomNumberGenerator.new()
 var bg_time: float = 0.0
-var speckles: Array = []
 
 # shake
 var shake_t: float = 0.0
@@ -80,7 +80,6 @@ var toast_slot: int = 0
 
 func _ready() -> void:
 	vfx_rng.randomize()
-	_precompute_speckles()
 	ui = Control.new()
 	ui.position = Vector2.ZERO
 	ui.size = Vector2(720, 1280)
@@ -90,13 +89,6 @@ func _ready() -> void:
 	S.setup(int(Time.get_ticks_usec()) % 2147483647, MetaSave.read())
 	_handle_events(S.start_day())
 	_rebuild_ui()
-
-
-func _precompute_speckles() -> void:
-	var r := RandomNumberGenerator.new()
-	r.seed = 4
-	for i in range(70):
-		speckles.append(Vector3(r.randf_range(16.0, 704.0), r.randf_range(650.0, 1075.0), r.randf_range(1.5, 3.5)))
 
 
 func _process(delta: float) -> void:
@@ -116,43 +108,23 @@ func _process(delta: float) -> void:
 # ============================================================ background ====
 
 func _draw() -> void:
-	# Sky: warm vertical gradient.
-	var sky_top := Color("#9fd9d4")
-	var sky_bot := Color("#ffe9c4")
-	var bands: int = 8
-	for i in range(bands):
-		var t: float = float(i) / float(bands - 1)
-		var col: Color = sky_top.lerp(sky_bot, t)
-		draw_rect(Rect2(0, float(i) * 30.0, 720, 31.0), col)
-	# Sun with glow halo (glow recipe: oversized low-alpha halos behind).
-	draw_circle(Vector2(596, 96), 96.0, Color(1.0, 0.85, 0.5, 0.12))
-	draw_circle(Vector2(596, 96), 66.0, Color(1.0, 0.85, 0.5, 0.25))
-	draw_circle(Vector2(596, 96), 44.0, Color("#ffd98a"))
-	# Sea band.
-	draw_rect(Rect2(0, 240, 720, 320), SEA)
-	draw_rect(Rect2(0, 240, 720, 26), SEA_DEEP)
-	# Drifting wave scallops (slow parallax: upper rows drift slower).
+	# Painted beach backdrop (sky ~0-320, sea ~320-760, sand ~760-1280).
+	draw_texture_rect(TEX_BG, Rect2(0, 0, 720, 1280), false)
+	# Drifting wave scallops over the painted sea (slow parallax: upper rows drift slower).
 	for row in range(4):
-		var wy: float = 300.0 + float(row) * 64.0
+		var wy: float = 400.0 + float(row) * 80.0
 		var speed: float = 8.0 + float(row) * 7.0
 		var off: float = fmod(bg_time * speed + float(row) * 41.0, 96.0)
-		var wcol := Color(SEA_LIGHT.r, SEA_LIGHT.g, SEA_LIGHT.b, 0.55)
 		var x: float = -96.0 + off
 		while x < 740.0:
-			draw_arc(Vector2(x, wy), 26.0, PI, TAU, 10, wcol, 3.0)
+			draw_arc(Vector2(x, wy), 26.0, PI, TAU, 10, Color(1, 1, 1, 0.30), 3.0)
 			x += 96.0
-	# Wet sand + froth edge.
-	draw_rect(Rect2(0, 560, 720, 84), SAND_WET)
+	# Animated froth edge along the painted waterline.
 	var foff: float = fmod(bg_time * 14.0, 72.0)
 	var fx: float = -72.0 + foff
 	while fx < 740.0:
-		draw_arc(Vector2(fx, 562.0), 20.0, 0.0, PI, 10, Color(1, 1, 1, 0.7), 4.0)
+		draw_arc(Vector2(fx, 764.0), 20.0, 0.0, PI, 10, Color(1, 1, 1, 0.45), 4.0)
 		fx += 72.0
-	# Dry sand with speckles.
-	draw_rect(Rect2(0, 644, 720, 444), SAND)
-	for sp in speckles:
-		var v: Vector3 = sp
-		draw_circle(Vector2(v.x, v.y), v.z, Color(SAND_DARK.r, SAND_DARK.g, SAND_DARK.b, 0.6))
 	# Boardwalk planks.
 	draw_rect(Rect2(0, 1088, 720, 192), WOOD_DARK)
 	var py: float = 1092.0
@@ -335,7 +307,14 @@ func _build_gather() -> void:
 		var res: String = nd["res"]
 		var box := TapBox.new()
 		box.size = Vector2(88, 88)
-		box.position = Vector2(24.0 + pos.x * 600.0, 180.0 + pos.y * 700.0)
+		# Map normalized engine pos onto the painted bands: far pools float in the
+		# sea (~380-640), near pools dot the wet shoreline (~764-856).
+		var ny: float
+		if nd["far"]:
+			ny = 380.0 + clampf((pos.y - 0.04) / 0.38, 0.0, 1.0) * 260.0
+		else:
+			ny = 764.0 + clampf((pos.y - 0.56) / 0.40, 0.0, 1.0) * 92.0
+		box.position = Vector2(24.0 + pos.x * 600.0, ny)
 		var blob := NodeBlob.new()
 		blob.res = res
 		blob.far = nd["far"]
@@ -658,7 +637,7 @@ func _refresh_patrons() -> void:
 		var pv := PatronView.new()
 		pv.position = Vector2(20.0 + float(i) * 172.0, patrons_y)
 		pv.size = Vector2(164, 330)
-		pv.body_color = PATRON_COLORS[i % PATRON_COLORS.size()]
+		pv.idx = i
 		pv.pivot_offset = Vector2(82, 300)
 		# Want bubble.
 		var bubble := _panel(Rect2(46, 30, 72, 72), CREAM, INK, 2, 16)
@@ -934,7 +913,7 @@ func _coin_arc(from_pos: Vector2) -> void:
 func _froth_sweep() -> void:
 	var froth := ColorRect.new()
 	froth.color = Color(1, 1, 1, 0.75)
-	froth.position = Vector2(0, 240)
+	froth.position = Vector2(0, 320)
 	froth.size = Vector2(720, 200)
 	froth.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	ui.add_child(froth)
@@ -1028,13 +1007,14 @@ class TapBox extends Control:
 
 
 class CoinView extends Control:
+	const TEX_COIN := preload("res://art/coin.png")
 	var radius: float = 12.0
 
 	func _draw() -> void:
-		var c := Vector2(radius, radius)
-		draw_circle(c, radius, Color("#c79a2e"))
-		draw_circle(c, radius * 0.8, Color("#f4c542"))
-		draw_circle(c - Vector2(radius * 0.3, radius * 0.35), radius * 0.22, Color(1, 1, 1, 0.7))
+		var ts: Vector2 = TEX_COIN.get_size()
+		var k: float = minf(size.x / ts.x, size.y / ts.y)
+		var ds: Vector2 = ts * k
+		draw_texture_rect(TEX_COIN, Rect2((size - ds) * 0.5, ds), false)
 
 
 class PipsView extends Control:
@@ -1052,16 +1032,16 @@ class PipsView extends Control:
 
 
 class NodeBlob extends Control:
+	const TEX_POOL := preload("res://art/gather_node_pool.png")
+	const TEX_POOL_FAR := preload("res://art/gather_node_pool_far.png")
 	var res: String = "shell"
 	var far: bool = false
 
 	func _draw() -> void:
 		var c := Vector2(44, 44)
-		var base: Color = Color("#1d7d7c") if far else Color("#d4bd92")
-		# Pool / hollow.
-		draw_set_transform(Vector2(44, 52), 0.0, Vector2(1.0, 0.55))
-		draw_circle(Vector2.ZERO, 38.0, Color(base.r, base.g, base.b, 0.55))
-		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		# Painted tide pool, gently squashed for perspective.
+		var pool: Texture2D = TEX_POOL_FAR if far else TEX_POOL
+		draw_texture_rect(pool, Rect2(0, 20, 88, 66), false)
 		# Glow halo behind the goodie (glow recipe).
 		var rc: Color = Color("#f7cfa3")
 		match res:
@@ -1074,9 +1054,15 @@ class NodeBlob extends Control:
 
 
 class PatronView extends Control:
+	const TEXES: Array = [
+		preload("res://art/patron_a.png"),
+		preload("res://art/patron_b.png"),
+		preload("res://art/patron_c.png"),
+		preload("res://art/patron_d.png"),
+	]
 	signal tapped
 	var selected: bool = false
-	var body_color: Color = Color("#ff8f6b")
+	var idx: int = 0
 
 	func _gui_input(event: InputEvent) -> void:
 		var hit: bool = false
@@ -1089,129 +1075,55 @@ class PatronView extends Control:
 			tapped.emit()
 
 	func _draw() -> void:
-		var bx := Vector2(82, 240)
 		# Feet shadow.
 		draw_set_transform(Vector2(82, 296), 0.0, Vector2(1.0, 0.3))
 		draw_circle(Vector2.ZERO, 44.0, Color(0, 0, 0, 0.15))
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		# Painted villager, contain-fit in the body zone under the want bubble.
+		var t: Texture2D = TEXES[idx % TEXES.size()]
+		var zone := Rect2(10, 108, 144, 190)
+		var ts: Vector2 = t.get_size()
+		var k: float = minf(zone.size.x / ts.x, zone.size.y / ts.y)
+		var ds: Vector2 = ts * k
+		var dpos := Vector2(zone.position.x + (zone.size.x - ds.x) * 0.5, zone.end.y - ds.y)
 		if selected:
-			draw_arc(bx, 62.0, 0.0, TAU, 32, Color("#ff7b54"), 6.0)
-		# Body blob + head.
-		draw_circle(bx, 46.0, body_color)
-		draw_circle(bx - Vector2(0, 58), 32.0, body_color)
-		# Face.
-		var head := bx - Vector2(0, 58)
-		draw_circle(head + Vector2(-10, -2), 4.0, Color("#2b3a42"))
-		draw_circle(head + Vector2(10, -2), 4.0, Color("#2b3a42"))
-		draw_arc(head + Vector2(0, 8), 7.0, 0.2, PI - 0.2, 10, Color("#2b3a42"), 2.5)
-		# Belly highlight.
-		draw_circle(bx + Vector2(0, 8), 28.0, Color(1, 1, 1, 0.18))
+			# Coral highlight ring at the feet + soft glow behind the body.
+			draw_set_transform(Vector2(82, 296), 0.0, Vector2(1.0, 0.3))
+			draw_arc(Vector2.ZERO, 52.0, 0.0, TAU, 32, Color("#ff7b54"), 6.0)
+			draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+			draw_texture_rect(t, Rect2(dpos - ds * 0.04, ds * 1.08), false, Color(1.0, 0.55, 0.35, 0.55))
+		draw_texture_rect(t, Rect2(dpos, ds), false)
 
 
 class IconView extends Control:
+	# Raster item icons (asset pass). The pearl stays a code primitive: a plain
+	# white sphere fought the diffusion medium across 4 regen attempts.
+	const TEXES: Dictionary = {
+		"shell": preload("res://art/icon_shell.png"),
+		"driftwood": preload("res://art/icon_driftwood.png"),
+		"seaglass": preload("res://art/icon_seaglass.png"),
+		"shell_charm": preload("res://art/icon_shell_charm.png"),
+		"driftwood_frame": preload("res://art/icon_driftwood_frame.png"),
+		"seaglass_pendant": preload("res://art/icon_seaglass_pendant.png"),
+		"wind_chime": preload("res://art/icon_wind_chime.png"),
+		"pearl_ring": preload("res://art/icon_pearl_ring.png"),
+		"tide_lantern": preload("res://art/icon_tide_lantern.png"),
+	}
 	var kind: String = "shell"
 
 	func _draw() -> void:
 		var s: float = minf(size.x, size.y)
 		var c: Vector2 = size * 0.5
-		match kind:
-			"shell":
-				_shell(c, s * 0.5)
-			"driftwood":
-				_driftwood(c, s * 0.5)
-			"seaglass":
-				_seaglass(c, s * 0.5)
-			"pearl":
-				_pearl(c, s * 0.32)
-			"shell_charm":
-				_shell(c + Vector2(0, s * 0.08), s * 0.38)
-				draw_arc(c - Vector2(0, s * 0.3), s * 0.12, 0.0, TAU, 16, Color("#c79a2e"), 3.0)
-			"driftwood_frame":
-				var o: float = s * 0.38
-				draw_rect(Rect2(c.x - o, c.y - o, o * 2.0, o * 2.0), Color("#8a5a3b"))
-				var inn: float = o * 0.55
-				draw_rect(Rect2(c.x - inn, c.y - inn, inn * 2.0, inn * 2.0), Color("#f2e3c2"))
-				draw_circle(Vector2(c.x - o + 4.0, c.y - o + 4.0), 2.0, Color("#6e4527"))
-				draw_circle(Vector2(c.x + o - 4.0, c.y - o + 4.0), 2.0, Color("#6e4527"))
-				draw_circle(Vector2(c.x - o + 4.0, c.y + o - 4.0), 2.0, Color("#6e4527"))
-				draw_circle(Vector2(c.x + o - 4.0, c.y + o - 4.0), 2.0, Color("#6e4527"))
-			"seaglass_pendant":
-				draw_arc(c - Vector2(0, s * 0.18), s * 0.3, PI + 0.4, TAU - 0.4, 12, Color("#c79a2e"), 2.5)
-				draw_circle(c - Vector2(0, s * 0.12), s * 0.07, Color("#c79a2e"))
-				_seaglass(c + Vector2(0, s * 0.16), s * 0.3)
-			"wind_chime":
-				draw_rect(Rect2(c.x - s * 0.35, c.y - s * 0.42, s * 0.7, s * 0.12), Color("#8a5a3b"))
-				var roots: Array = [-0.22, 0.0, 0.22]
-				for i in range(3):
-					var rx: float = roots[i]
-					var x: float = c.x + rx * s
-					var ln: float = s * (0.45 + 0.12 * float(i % 2))
-					draw_line(Vector2(x, c.y - s * 0.3), Vector2(x, c.y - s * 0.3 + ln), Color("#2b3a42"), 1.5)
-					if i == 0:
-						_shell(Vector2(x, c.y - s * 0.3 + ln + 5.0), s * 0.14)
-					elif i == 1:
-						_seaglass(Vector2(x, c.y - s * 0.3 + ln + 5.0), s * 0.16)
-					else:
-						draw_circle(Vector2(x, c.y - s * 0.3 + ln + 4.0), s * 0.09, Color("#f5edf3"))
-			"pearl_ring":
-				draw_arc(c + Vector2(0, s * 0.12), s * 0.26, 0.0, TAU, 24, Color("#c79a2e"), 4.5)
-				_pearl(c - Vector2(0, s * 0.2), s * 0.16)
-			"tide_lantern":
-				var w: float = s * 0.3
-				var h: float = s * 0.38
-				draw_arc(c - Vector2(0, h + s * 0.06), s * 0.14, PI, TAU, 12, Color("#6e4527"), 3.0)
-				draw_circle(c, s * 0.42, Color(0.96, 0.77, 0.26, 0.25))
-				draw_rect(Rect2(c.x - w, c.y - h, w * 2.0, h * 2.0), Color("#6e4527"))
-				draw_rect(Rect2(c.x - w * 0.7, c.y - h * 0.75, w * 1.4, h * 1.5), Color("#bfe8df"))
-				draw_circle(c, s * 0.12, Color("#f4c542"))
-			_:
-				draw_circle(c, s * 0.3, Color("#ff7b54"))
-
-	func _shell(c: Vector2, r: float) -> void:
-		var apex: Vector2 = c + Vector2(0, r * 0.9)
-		var pts := PackedVector2Array()
-		pts.append(apex)
-		var steps: int = 10
-		for i in range(steps + 1):
-			var a: float = PI + 0.35 + (PI - 0.7) * float(i) / float(steps)
-			pts.append(c + Vector2(cos(a), sin(a)) * r)
-		draw_colored_polygon(pts, Color("#f7cfa3"))
-		for i in range(3):
-			var a2: float = PI + 0.7 + (PI - 1.4) * float(i) / 2.0
-			draw_line(apex, c + Vector2(cos(a2), sin(a2)) * r * 0.92, Color("#d49a66"), 2.0)
-		draw_arc(c, r, PI + 0.35, TAU - 0.35, 14, Color("#d49a66"), 2.5)
-
-	func _driftwood(c: Vector2, r: float) -> void:
-		var dirv := Vector2(1, -0.35).normalized()
-		var n := Vector2(-dirv.y, dirv.x)
-		var hl: float = r * 0.95
-		var hw: float = r * 0.3
-		var pts := PackedVector2Array([
-			c - dirv * hl + n * hw * 0.6,
-			c - dirv * hl * 0.7 + n * hw,
-			c + dirv * hl * 0.8 + n * hw * 0.8,
-			c + dirv * hl + n * 0.0,
-			c + dirv * hl * 0.8 - n * hw * 0.8,
-			c - dirv * hl * 0.7 - n * hw,
-		])
-		draw_colored_polygon(pts, Color("#8a5a3b"))
-		draw_circle(c - dirv * r * 0.3, r * 0.12, Color("#6e4527"))
-		draw_line(c - dirv * hl * 0.6 + n * hw * 0.3, c + dirv * hl * 0.6 + n * hw * 0.2, Color("#a8754e"), 1.8)
-
-	func _seaglass(c: Vector2, r: float) -> void:
-		var pts := PackedVector2Array([
-			c + Vector2(0, -r),
-			c + Vector2(r * 0.85, r * 0.55),
-			c + Vector2(0.0, r * 0.8),
-			c + Vector2(-r * 0.85, r * 0.45),
-		])
-		draw_colored_polygon(pts, Color("#6fd6c2"))
-		var inner := PackedVector2Array()
-		for p in pts:
-			var pv: Vector2 = p
-			inner.append(c + (pv - c) * 0.55)
-		draw_colored_polygon(inner, Color(1, 1, 1, 0.35))
-		draw_line(c + Vector2(-r * 0.25, -r * 0.45), c + Vector2(r * 0.1, -r * 0.1), Color(1, 1, 1, 0.8), 2.0)
+		if TEXES.has(kind):
+			var t: Texture2D = TEXES[kind]
+			var ts: Vector2 = t.get_size()
+			var k: float = minf(size.x / ts.x, size.y / ts.y)
+			var ds: Vector2 = ts * k
+			draw_texture_rect(t, Rect2((size - ds) * 0.5, ds), false)
+		elif kind == "pearl":
+			_pearl(c, s * 0.32)
+		else:
+			draw_circle(c, s * 0.3, Color("#ff7b54"))
 
 	func _pearl(c: Vector2, r: float) -> void:
 		draw_circle(c, r * 1.35, Color(0.96, 0.93, 0.95, 0.3))
