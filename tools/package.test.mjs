@@ -3,7 +3,7 @@ import { iconSizeTable, sizeBudget, pngSize, exportPresetCfg, parsePresetCfg, at
 import { parseHexLead, resolveIconBg } from "./package.mjs";
 import { iconCompositionRole } from "./package.mjs";
 import { parseScreenshotArgs } from "./package.mjs";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, appendFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -268,6 +268,10 @@ describe("verify (packaging gate)", () => {
       writePng(join(iconsDir, `${e.name}.png`), e.px, e.px);
       return { name: e.name, px: e.px, kind: e.kind, source: `store/icons/${e.name}.png` };
     });
+    // adaptive fg and bg were written with the same writePng call (same dimensions →
+    // identical bytes). Append one extra byte to the background so the guard's
+    // byte-equality check passes (they are now legitimately distinct).
+    appendFileSync(join(iconsDir, "ic_adaptive_background.png"), Buffer.from([0x00]));
     writePng(join(game, "store", "atlas.png"), 256, 256);
     writeFileSync(join(game, "store", "atlas.json"), JSON.stringify({ placements: [{ name: "a" }, { name: "b" }] }));
     const { w, h } = splashSize();
@@ -382,6 +386,27 @@ describe("verify (packaging gate)", () => {
       const r = verify("fix-0001", { gamesDir: dir, manifest: manifestFor(sp) });
       expect(r.issues.join(" ")).toMatch(/build_artifact.*format|format/);
     });
+  });
+
+  test("flags byte-identical adaptive foreground and background", () => {
+    const dir = mkdtempSync(join(tmpdir(), "gf-adp-"));
+    const id = "adp-0001";
+    const store = join(dir, id, "store", "icons");
+    mkdirSync(store, { recursive: true });
+    // a real 1x1 PNG (any valid PNG) — same bytes written to both adaptive icons
+    const onePx = Buffer.from(
+      "89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4" +
+      "890000000d49444154789c6360000002000100ffff03000006000557bfabd400" +
+      "00000049454e44ae426082", "hex");
+    writeFileSync(join(store, "ic_adaptive_foreground.png"), onePx);
+    writeFileSync(join(store, "ic_adaptive_background.png"), onePx);
+    const manifest = { status: "scored", asset_pass: {}, audio_pass: {}, store_pass: { icons: [
+      { name: "ic_adaptive_foreground", source: "store/icons/ic_adaptive_foreground.png" },
+      { name: "ic_adaptive_background", source: "store/icons/ic_adaptive_background.png" },
+    ] } };
+    const r = verify(id, { gamesDir: dir, manifest });
+    expect(r.issues.some((s) => /adaptive foreground and background are identical/i.test(s))).toBe(true);
+    rmSync(dir, { recursive: true, force: true });
   });
 });
 

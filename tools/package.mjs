@@ -499,6 +499,20 @@ export function verify(id, { gamesDir = GAMES_DIR, manifest } = {}) {
     if (w !== want.px || h !== want.px) issues.push(`icon ${want.name} is ${w}x${h}, expected ${want.px}x${want.px}`);
   }
 
+  // 1b. adaptive foreground and background must differ (the old single-master
+  // path wrote identical files — not a valid adaptive icon).
+  const fgRec = (sp.icons || []).find((i) => i.name === "ic_adaptive_foreground");
+  const bgRec = (sp.icons || []).find((i) => i.name === "ic_adaptive_background");
+  if (fgRec && bgRec) {
+    const fgAbs = join(gamesDir, id, fgRec.source);
+    const bgAbs = join(gamesDir, id, bgRec.source);
+    if (existsSync(fgAbs) && existsSync(bgAbs)) {
+      if (readFileSync(fgAbs).equals(readFileSync(bgAbs))) {
+        issues.push("adaptive foreground and background are identical — not a valid adaptive icon (packager/icon_compose)");
+      }
+    }
+  }
+
   // 2. atlas sheet exists and its map covers every member sprite
   if (sp.atlas) {
     const sheetAbs = join(gamesDir, id, sp.atlas.sheet);
