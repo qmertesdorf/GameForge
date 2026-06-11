@@ -41,7 +41,7 @@ func _initialize() -> void:
 	canvas.fill(bg)
 	var ox := int((w - tw) / 2.0)
 	var oy := int((h - th) / 2.0)
-	canvas.blit_rect(scaled, Rect2i(0, 0, tw, th), Vector2i(ox, oy))
+	canvas.blend_rect(scaled, Rect2i(0, 0, tw, th), Vector2i(ox, oy))
 
 	var serr := canvas.save_png(out_path)
 	if serr != OK:
