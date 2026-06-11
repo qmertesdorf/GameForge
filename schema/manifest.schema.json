@@ -81,6 +81,7 @@
         "opens_in_editor": { "type": "boolean" },
         "runs": { "type": "boolean" },
         "core_loop_functional": { "type": "boolean" },
+        "interaction_functional": { "type": "boolean" },
         "issues": { "type": "array", "items": { "type": "string" } }
       }
     },

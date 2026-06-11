@@ -36,6 +36,12 @@ describe("validate", () => {
     expect(validate(validManifest())).toEqual({ valid: true, errors: [] });
   });
 
+  test("accepts validation.interaction_functional (uitest gate)", () => {
+    const m = validManifest();
+    m.validation.interaction_functional = true;
+    expect(validate(m)).toEqual({ valid: true, errors: [] });
+  });
+
   test("rejects an unknown status", () => {
     const m = validManifest();
     m.status = "shipped";
