@@ -77,11 +77,16 @@ var patron_skin_next: int = 0
 
 var toast_slot: int = 0
 
+# --- audio (audio_pass) ---
+var _audio_players: Dictionary = {}      # event -> AudioStreamPlayer
+var audio_play_counts: Dictionary = {}   # event -> int (validator/selftest play-spy hook)
+
 
 # ================================================================= boot ====
 
 func _ready() -> void:
 	vfx_rng.randomize()
+	_setup_audio()
 	ui = Control.new()
 	ui.position = Vector2.ZERO
 	ui.size = Vector2(720, 1280)
@@ -163,17 +168,21 @@ func _handle_events(events: Array) -> void:
 			"node_collected":
 				var idx: int = ev["idx"]
 				var res: String = ev["res"]
+				_play_sfx("pick")
 				_pop_gather_node(idx, res)
 			"haul_full":
+				_play_sfx("error")
 				_toast("Basket full — bank it!", RED)
 				if carried_label != null:
 					_pulse(carried_label, 1.25)
 			"banked":
+				_play_sfx("bank")
 				var n: int = ev["count"]
 				_toast("+%d banked" % n, SEA_DEEP)
 				if banked_label != null:
 					_pulse(banked_label, 1.3)
 			"tide_returned":
+				_play_sfx("tide")
 				var lost: int = ev["lost_count"]
 				_froth_sweep()
 				_shake(0.35, 9.0)
@@ -182,24 +191,30 @@ func _handle_events(events: Array) -> void:
 				else:
 					_toast("The tide rolls in.", SEA_DEEP)
 			"crafted":
+				_play_sfx("craft")
 				var rid: String = ev["recipe"]
 				_toast("Crafted: %s" % ItemDB.recipe_name(rid), GREEN)
 				_rebuild_ui()
 			"craft_failed":
+				_play_sfx("error")
 				_toast("Not enough materials", RED)
 			"stocked":
+				_play_sfx("craft")
 				_rebuild_ui()
 			"shelves_full":
+				_play_sfx("error")
 				_toast("Shelves are full!", RED)
 			"shop_opened":
 				pass
 			"patron_arrived":
 				_refresh_patrons()
 			"patron_left":
+				_play_sfx("walkout")
 				_toast("A patron stormed off!", RED)
 				_shake(0.15, 4.0)
 				_refresh_patrons()
 			"sale":
+				_play_sfx("sale")
 				var amt: int = ev["amount"]
 				var bonus: bool = ev["bonus"]
 				if bonus:
@@ -211,21 +226,86 @@ func _handle_events(events: Array) -> void:
 				_refresh_shelves()
 				_refresh_patrons()
 			"wrong_item":
+				_play_sfx("error")
 				_toast("\"That's not what I want!\"", RED)
 			"day_complete":
+				_play_sfx("bank")
 				pass
 			"day_failed":
+				_play_sfx("walkout")
 				pass
 			"upgrade_bought":
+				_play_sfx("bank")
 				var track: String = ev["track"]
 				var tr: Dictionary = UpgradeDB.track(track)
 				var tname: String = tr["name"]
 				_toast("Upgraded: %s" % tname, GREEN)
 				_rebuild_ui()
 			"upgrade_too_poor":
+				_play_sfx("error")
 				_toast("Not enough gold", RED)
 			"upgrade_maxed":
+				_play_sfx("error")
 				_toast("Already maxed out", INK)
+
+
+# ================================================================ audio ====
+# SFX + a looping music bed (audio_pass). Audio only ADDS players + play()
+# calls at existing event points; it owns no rule and never touches ShopState.
+
+func _setup_audio() -> void:
+	if not _audio_players.is_empty():
+		return   # idempotent
+	# One-shots: kalimba/marimba warm-wood timbre (concept.theme -> sonic_character).
+	_make_player("pick", "res://audio/pick.wav", false)        # node collected
+	_make_player("bank", "res://audio/bank.wav", false)        # haul banked / purchase / day done
+	_make_player("craft", "res://audio/craft.wav", false)      # crafted / shelved
+	_make_player("sale", "res://audio/sale.wav", false)        # the register beat (the hook)
+	_make_player("tide", "res://audio/tide.wav", false)        # tide sweeps the haul (negative)
+	_make_player("walkout", "res://audio/walkout.wav", false)  # patron leaves / day failed (negative)
+	_make_player("error", "res://audio/error.wav", false)      # soft deny (full/can't/wrong)
+	# Looping bed: fingerpicked nylon-guitar seaside lullaby (autoplay on tree entry).
+	_make_player("bgm", "res://audio/bgm.wav", true)
+
+
+func _make_player(event_name: String, path: String, looping: bool) -> void:
+	var p: AudioStreamPlayer = AudioStreamPlayer.new()
+	# Node name (PascalCase) is what audio_pass.events[].node references.
+	p.name = "Sfx" + event_name.capitalize() if event_name != "bgm" else "MusicAmbient"
+	var stream: Resource = load(path)
+	if looping and stream is AudioStreamWAV:
+		# A long IMPORTED AudioStreamWAV silently refuses to play() (playing stays
+		# false); a freshly-CONSTRUCTED one from the SAME PCM data plays. Rebuild
+		# the bed and loop the whole sample.
+		var src: AudioStreamWAV = stream
+		var w := AudioStreamWAV.new()
+		w.format = src.format
+		w.mix_rate = src.mix_rate
+		w.stereo = src.stereo
+		w.data = src.data
+		w.loop_mode = AudioStreamWAV.LOOP_FORWARD
+		w.loop_begin = 0
+		w.loop_end = src.data.size() / (4 if src.stereo else 2)  # 16-bit frames
+		stream = w
+	if stream != null:
+		p.stream = stream
+	if looping:
+		# Start on tree entry (autoplay set BEFORE add_child).
+		p.autoplay = true
+		# Bed mixed UNDER the SFX (which play at 0 dB). The lullaby came back at
+		# ~RMS 0.057 vs the SFX event level ~0.13 (~7 dB under raw); a small cut
+		# seats it comfortably below the one-shots while staying audible.
+		p.volume_db = -2.0
+	add_child(p)
+	_audio_players[event_name] = p
+
+
+func _play_sfx(event_name: String) -> void:
+	# Count first so the play-spy is robust even if a stream failed to load.
+	audio_play_counts[event_name] = int(audio_play_counts.get(event_name, 0)) + 1
+	var p: AudioStreamPlayer = _audio_players.get(event_name)
+	if p != null and p.stream != null and p.is_inside_tree():
+		p.play()
 
 
 # ================================================================== HUD ====

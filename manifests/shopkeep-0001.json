@@ -2,8 +2,8 @@
   "id": "shopkeep-0001",
   "name": "Tide & Tally",
   "created_at": "2026-06-11T01:03:00.419Z",
-  "updated_at": "2026-06-11T18:52:01.716Z",
-  "status": "styled",
+  "updated_at": "2026-06-11T20:33:09.489Z",
+  "status": "scored",
   "concept": {
     "theme": {
       "premise": "a breezy seaside-boardwalk folktale of a young beachcomber who runs a tiny curiosity shop — combing the tide pools at dawn for shells, sea glass and driftwood, crafting them into trinkets, and ringing up a queue of cheerful seaside patrons by afternoon",
@@ -172,7 +172,9 @@
     }
   ],
   "validation": {
-    "issues": [],
+    "issues": [
+      "audio (Method 4) PASS: 8 clips import clean; 7 Sfx* players + MusicAmbient reference valid streams (bed loop=true, playing=true with advancing position on the real driver); SFX play-spy registers; sizes mobile-OK (SFX 145-255KB, BGM 5.0MB WAV, <=48kHz); IP-safe (no artist/track names, music excludes vocals); cross-modal cohesion OK (warm kalimba/marimba + fingerpicked nylon-guitar seaside audio reads as one world with the sunny flat-cartoon seaside visuals). Regression: selftest SELFTEST OK, uitest UITEST OK, run-clean exit 0 (audio only ADDED players + play() calls; ShopState untouched). OWNER EAR A/B CONFIRMED 2026-06-11 (owner: audio is great) -> scored gate fully passed."
+    ],
     "opens_in_editor": true,
     "runs": true,
     "core_loop_functional": true,
@@ -515,5 +517,208 @@
         }
       }
     ]
+  },
+  "audio_pass": {
+    "method": "audio",
+    "audio_system": {
+      "model": "stable-audio-open-1.0",
+      "mood_prompt": "warm, sunny, breezy seaside-boardwalk atmosphere, gentle and handcrafted",
+      "style_descriptors": [
+        "acoustic",
+        "warm",
+        "folk",
+        "breezy"
+      ],
+      "sonic_character": "warm wooden KALIMBA / thumb-piano pluck + soft MARIMBA tap (concept.theme: handcrafted seaside) — rounded organic notes, a gentle hand-bell ding for the register beat, light watery plips for the tide pools; NO electronic/synth transients, NO explosive or harsh metallic 'tings'. The SFX draw their material from this vocabulary (audio sibling of the visual world_bible); comfy.mjs envelopeSfxWav shapes loudness and steps 55 (not 8) keeps the tone clean instead of broadband-noisy (verified by ZCR 579-3839/s, all well below noise)."
+    },
+    "recipes": [
+      {
+        "name": "pick",
+        "kind": "sfx",
+        "format": "wav",
+        "loop": false,
+        "sampler": "dpmpp_3m_sde_gpu",
+        "steps": 55,
+        "cfg": 6,
+        "seed": 1101,
+        "duration_s": 1,
+        "prompt": "warm, sunny, breezy seaside-boardwalk atmosphere, gentle and handcrafted. a single soft kalimba pluck with a gentle watery plip, a small seashell picked up from a tide pool, one short bright cheerful note. warm wooden kalimba thumb-piano pluck, soft marimba tap, no electronic transients, no harsh metallic ting",
+        "negative": "music, melody, voice, speech, explosion, harsh, distortion, aggressive, electronic, gunshot, noise burst",
+        "import_settings": {
+          "loop": false,
+          "loop_offset": 0
+        }
+      },
+      {
+        "name": "bank",
+        "kind": "sfx",
+        "format": "wav",
+        "loop": false,
+        "sampler": "dpmpp_3m_sde_gpu",
+        "steps": 55,
+        "cfg": 6,
+        "seed": 1102,
+        "duration_s": 1.2,
+        "prompt": "warm, sunny, breezy seaside-boardwalk atmosphere, gentle and handcrafted. a short warm wooden confirmation chime, two soft kalimba notes rising, a satisfying gentle hand-bell ding, cheerful handcrafted tone. warm wooden kalimba thumb-piano pluck, soft marimba tap, no electronic transients, no harsh metallic ting",
+        "negative": "music, melody, voice, speech, explosion, harsh, distortion, aggressive, electronic, gunshot, noise burst",
+        "import_settings": {
+          "loop": false,
+          "loop_offset": 0
+        }
+      },
+      {
+        "name": "craft",
+        "kind": "sfx",
+        "format": "wav",
+        "loop": false,
+        "sampler": "dpmpp_3m_sde_gpu",
+        "steps": 55,
+        "cfg": 6,
+        "seed": 1103,
+        "duration_s": 1,
+        "prompt": "warm, sunny, breezy seaside-boardwalk atmosphere, gentle and handcrafted. a short handcrafted woody tap-tap, two soft wooden knocks of a tool working driftwood, a gentle marimba click finishing a trinket. warm wooden kalimba thumb-piano pluck, soft marimba tap, no electronic transients, no harsh metallic ting",
+        "negative": "music, melody, voice, speech, explosion, harsh, distortion, aggressive, electronic, gunshot, noise burst",
+        "import_settings": {
+          "loop": false,
+          "loop_offset": 0
+        }
+      },
+      {
+        "name": "sale",
+        "kind": "sfx",
+        "format": "wav",
+        "loop": false,
+        "sampler": "dpmpp_3m_sde_gpu",
+        "steps": 55,
+        "cfg": 6,
+        "seed": 1104,
+        "duration_s": 1.3,
+        "prompt": "warm, sunny, breezy seaside-boardwalk atmosphere, gentle and handcrafted. a cheerful cozy shop cash-register ding, a bright warm hand-bell chime with a soft single coin jingle, a satisfying happy sale chime. warm wooden kalimba thumb-piano pluck, soft marimba tap, no electronic transients, no harsh metallic ting",
+        "negative": "music, melody, voice, speech, explosion, harsh, distortion, aggressive, electronic, gunshot, noise burst",
+        "import_settings": {
+          "loop": false,
+          "loop_offset": 0
+        }
+      },
+      {
+        "name": "tide",
+        "kind": "sfx",
+        "format": "wav",
+        "loop": false,
+        "sampler": "dpmpp_3m_sde_gpu",
+        "steps": 55,
+        "cfg": 6,
+        "seed": 1105,
+        "duration_s": 1.5,
+        "prompt": "warm, sunny, breezy seaside-boardwalk atmosphere, gentle and handcrafted. a soft ocean wave washing over sand, a gentle smooth water whoosh sweeping in, calm rolling sea foam, mellow and rounded. warm wooden kalimba thumb-piano pluck, soft marimba tap, no electronic transients, no harsh metallic ting",
+        "negative": "music, melody, voice, speech, explosion, harsh, distortion, aggressive, electronic, gunshot, noise burst",
+        "import_settings": {
+          "loop": false,
+          "loop_offset": 0
+        }
+      },
+      {
+        "name": "walkout",
+        "kind": "sfx",
+        "format": "wav",
+        "loop": false,
+        "sampler": "dpmpp_3m_sde_gpu",
+        "steps": 55,
+        "cfg": 6,
+        "seed": 1106,
+        "duration_s": 1,
+        "prompt": "warm, sunny, breezy seaside-boardwalk atmosphere, gentle and handcrafted. a short gentle descending wooden tone, a soft disappointed marimba note falling, a quiet light-comic woodblock sigh. warm wooden kalimba thumb-piano pluck, soft marimba tap, no electronic transients, no harsh metallic ting",
+        "negative": "music, melody, voice, speech, explosion, harsh, distortion, aggressive, electronic, gunshot, noise burst",
+        "import_settings": {
+          "loop": false,
+          "loop_offset": 0
+        }
+      },
+      {
+        "name": "error",
+        "kind": "sfx",
+        "format": "wav",
+        "loop": false,
+        "sampler": "dpmpp_3m_sde_gpu",
+        "steps": 55,
+        "cfg": 6,
+        "seed": 1107,
+        "duration_s": 1,
+        "prompt": "warm, sunny, breezy seaside-boardwalk atmosphere, gentle and handcrafted. a soft low muted wooden thunk, a gentle dull marimba block, a quiet short negative nope blip, rounded and not harsh. warm wooden kalimba thumb-piano pluck, soft marimba tap, no electronic transients, no harsh metallic ting",
+        "negative": "music, melody, voice, speech, explosion, harsh, distortion, aggressive, electronic, gunshot, noise burst",
+        "import_settings": {
+          "loop": false,
+          "loop_offset": 0
+        }
+      },
+      {
+        "name": "bgm",
+        "kind": "music",
+        "format": "wav",
+        "loop": true,
+        "sampler": "dpmpp_3m_sde_gpu",
+        "steps": 50,
+        "cfg": 8,
+        "seed": 1200,
+        "duration_s": 30,
+        "prompt": "warm, sunny, breezy seaside-boardwalk atmosphere, gentle and handcrafted. A gentle fingerpicked nylon acoustic guitar seaside lullaby, a simple warm low repeating melody, relaxed cozy folk tune with a steady plucked rhythm, light handcrafted boardwalk feel, mellow and looping",
+        "negative": "drone, pad, sustained, monotone, single note, held note, atmosphere, texture, ambient, high pitched, shrill, tinny, bright, harsh, voice, speech, lyrics, vocals",
+        "import_settings": {
+          "loop": true,
+          "loop_offset": 0
+        }
+      }
+    ],
+    "events": [
+      {
+        "event": "node_collected",
+        "clip": "pick",
+        "node": "SfxPick",
+        "signal": "tap_node -> node_collected"
+      },
+      {
+        "event": "banked",
+        "clip": "bank",
+        "node": "SfxBank",
+        "signal": "bank -> banked (also upgrade_bought, day_complete)"
+      },
+      {
+        "event": "crafted",
+        "clip": "craft",
+        "node": "SfxCraft",
+        "signal": "craft -> crafted (also stock_shelf -> stocked)"
+      },
+      {
+        "event": "sale",
+        "clip": "sale",
+        "node": "SfxSale",
+        "signal": "serve -> sale (the register hook)"
+      },
+      {
+        "event": "tide_returned",
+        "clip": "tide",
+        "node": "SfxTide",
+        "signal": "tick_gather -> tide_returned (negative)"
+      },
+      {
+        "event": "patron_left",
+        "clip": "walkout",
+        "node": "SfxWalkout",
+        "signal": "tick_sell -> patron_left (also day_failed; negative)"
+      },
+      {
+        "event": "deny",
+        "clip": "error",
+        "node": "SfxError",
+        "signal": "haul_full / craft_failed / wrong_item / shelves_full / upgrade_too_poor / upgrade_maxed"
+      },
+      {
+        "event": "music",
+        "clip": "bgm",
+        "node": "MusicAmbient",
+        "signal": "_setup_audio autoplay, loops continuously"
+      }
+    ],
+    "notes": "Audio identity for the sunny seaside-boardwalk shopkeeper sim (concept.theme), generated locally via Stable Audio Open. 7 SFX + 1 looping bed. SONIC: cozy/organic -> kalimba/marimba warm-wood timbre (sonic_character) threaded into every SFX prompt + theme-aware negatives (explosion/harsh/electronic/gunshot); the register 'sale' beat is the loudest/brightest cue (the cashier hook). All SFX generated at steps 55 (clean tone, not the steps-8 explosive-noise failure); the deterministic comfy.mjs envelope auto-shapes loudness (trim/normalize/fade). Measured clips: SFX ZCR 579-3839/s (all clean, far below noise); BGM rms 0.057. BGM = fingerpicked nylon-guitar low/warm repeating melody with anti-drone + anti-high-pitch negatives + cfg 8 (avoids the ambient-pad-collapses-to-drone failure). WIRING: audio only ADDS AudioStreamPlayer nodes + play() at existing _handle_events points; ShopState logic untouched (SELFTEST OK). The long imported bed is REBUILT in code from its PCM data (bgm.wav.import compress/mode=0) + looped + autoplay-before-add_child (the imported-long-WAV-won't-play gotcha); probe confirms MusicAmbient.playing=true with advancing get_playback_position(). LEVELS: bed volume_db=-2.0 -- the lullaby came back ~RMS 0.057 vs the SFX event level ~0.13 (~7 dB under raw), a small cut seats it audible-but-under the one-shots. Event map: node_collected->pick, banked/upgrade_bought/day_complete->bank, crafted/stocked->craft, sale->sale, tide_returned->tide, patron_left/day_failed->walkout, all deny beats->error. IP-safe: no artist/track names; music negative excludes vocals/lyrics. STATUS ADVANCED to scored (audio pass produced + technically verified); owner ear-judgment A/B still the human gate before packaging."
   }
 }
