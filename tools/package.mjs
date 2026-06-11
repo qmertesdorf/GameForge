@@ -321,18 +321,20 @@ function runGodot(args, label) {
   }
 }
 
-// Resize the icon master into every iconSizeTable() entry under games/<id>/store/icons/.
-export function generateIcons(id, { gamesDir = GAMES_DIR } = {}) {
+// Compose the Android icon set from a transparent focal (store_pass.icon_master)
+// over a themed 2-stop gradient: distinct adaptive fg/bg + composited legacy/Play.
+export function generateIcons(id, { gamesDir = GAMES_DIR, bg } = {}) {
   const m = readManifest(id);
-  const master = m?.store_pass?.icon_master;
-  if (!master) throw new Error(`package: generateIcons needs store_pass.icon_master in manifests/${id}.json`);
-  const masterAbs = join(gamesDir, id, master);
-  if (!existsSync(masterAbs)) throw new Error(`package: icon master not found at ${masterAbs}`);
+  const focal = m?.store_pass?.icon_master;
+  if (!focal) throw new Error(`package: generateIcons needs store_pass.icon_master (a transparent focal PNG) in manifests/${id}.json`);
+  const focalAbs = join(gamesDir, id, focal);
+  if (!existsSync(focalAbs)) throw new Error(`package: icon focal not found at ${focalAbs}`);
+  const { top, bottom } = resolveIconBg({ bgArg: bg, manifest: m });
   const outdir = join(gamesDir, id, "store", "icons");
-  const specs = iconSizeTable().map((e) => `${e.name}:${e.px}`).join(",");
-  const out = runGodot(["--headless", "--path", GODOT_DIR, "--script", "res://icon_resize.gd", "--", masterAbs, outdir, specs], "icon_resize");
-  if (!out.includes("ICON_RESIZE OK")) throw new Error(`package: icon_resize did not report OK:\n${out}`);
-  return { outdir, icons: iconSizeTable().map((e) => ({ ...e, source: `store/icons/${e.name}.png` })) };
+  const specs = iconSizeTable().map((e) => `${e.name}:${e.px}:${e.kind}`).join(",");
+  const out = runGodot(["--headless", "--path", GODOT_DIR, "--script", "res://icon_compose.gd", "--", focalAbs, outdir, specs, top, bottom], "icon_compose");
+  if (!out.includes("ICON_COMPOSE OK")) throw new Error(`package: icon_compose did not report OK:\n${out}`);
+  return { outdir, bg: { top, bottom }, icons: iconSizeTable().map((e) => ({ ...e, source: `store/icons/${e.name}.png` })) };
 }
 
 // Build the atlas layout from the game's raster sprites, write the map JSON, render the sheet.
@@ -594,7 +596,12 @@ async function cli(argv) {
   const id = rest[0];
   if (!id) { console.error(USAGE); process.exit(2); }
   switch (cmd) {
-    case "icons": console.log(JSON.stringify(generateIcons(id), null, 2)); return;
+    case "icons": {
+      const bi = rest.indexOf("--bg");
+      const bg = bi >= 0 ? rest[bi + 1] : undefined;
+      console.log(JSON.stringify(generateIcons(id, { bg }), null, 2));
+      return;
+    }
     case "atlas": console.log(JSON.stringify(generateAtlas(id), null, 2)); return;
     case "screenshot": console.log(JSON.stringify(captureScreenshot(id, rest[1] || "screen-1", { frames: Number(rest[2] || 220) }), null, 2)); return;
     case "splash": console.log(JSON.stringify(generateSplash(id, { bg: rest[1] || "#000000ff" }), null, 2)); return;
