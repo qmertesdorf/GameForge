@@ -455,7 +455,22 @@ export function generateIcons(id, { gamesDir = GAMES_DIR, bg, bgStyle } = {}) {
   const specs = iconSizeTable().map((e) => `${e.name}:${e.px}:${e.kind}`).join(",");
   const out = runGodot(["--headless", "--path", GODOT_DIR, "--script", "res://icon_compose.gd", "--", focalAbs, outdir, specs, top, bottom, style], "icon_compose");
   if (!out.includes("ICON_COMPOSE OK")) throw new Error(`package: icon_compose did not report OK:\n${out}`);
-  return { outdir, bg: { top, bottom }, bg_style: style, subject_hex: subjectHex, icons: iconSizeTable().map((e) => ({ ...e, source: `store/icons/${e.name}.png` })) };
+  const legibility = checkIconLegibility(id, { gamesDir });   // ASO 48px legibility gate (advisory)
+  return { outdir, bg: { top, bottom }, bg_style: style, subject_hex: subjectHex, legibility, icons: iconSizeTable().map((e) => ({ ...e, source: `store/icons/${e.name}.png` })) };
+}
+
+// Downscale the composed Play icon to ~48px and check the subject still pops off
+// its plate (ASO rules 6 & 9 — legibility at thumbnail size). Advisory: returns
+// { ok, warning, metrics }; ok=false is a WARN the packager surfaces in notes, not
+// a hard failure. Tolerant of a missing/odd Godot result (ok=true, metrics=null).
+export function checkIconLegibility(id, { gamesDir = GAMES_DIR, iconName = "ic_play_store" } = {}) {
+  const iconAbs = join(gamesDir, id, "store", "icons", `${iconName}.png`);
+  if (!existsSync(iconAbs)) throw new Error(`package: checkIconLegibility needs ${iconAbs} (run \`icons\` first)`);
+  const out = runGodot(["--headless", "--path", GODOT_DIR, "--script", "res://icon_legibility.gd", "--", iconAbs], "icon_legibility");
+  const mj = out.match(/ICON_LEGIBILITY (\{.*\})/);
+  const metrics = mj ? JSON.parse(mj[1]) : null;
+  const warn = out.match(/LEGIBILITY WARN: (.*)/);
+  return { icon: iconName, ok: !warn, warning: warn ? warn[1].trim() : null, metrics };
 }
 
 // Build the atlas layout from the game's raster sprites, write the map JSON, render the sheet.
@@ -722,7 +737,7 @@ export function parseScreenshotArgs(args) {
   return { mode: "boot", name: args[0] || "screen-1", frames: Number(args[1] || 220) };
 }
 
-const USAGE = "usage: node tools/package.mjs <icons|atlas|screenshot|splash|budget|preset|build|verify|verify-build|--check> <id> ...";
+const USAGE = "usage: node tools/package.mjs <icons|legibility|atlas|screenshot|splash|budget|preset|build|verify|verify-build|--check> <id> ...";
 
 async function cli(argv) {
   const [cmd, ...rest] = argv;
@@ -745,6 +760,7 @@ async function cli(argv) {
       console.log(JSON.stringify(generateIcons(id, { bg, bgStyle }), null, 2));
       return;
     }
+    case "legibility": console.log(JSON.stringify(checkIconLegibility(id), null, 2)); return;
     case "atlas": console.log(JSON.stringify(generateAtlas(id), null, 2)); return;
     case "screenshot": {
       const a = parseScreenshotArgs(rest.slice(1));
