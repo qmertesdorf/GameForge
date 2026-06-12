@@ -1,6 +1,6 @@
 import { test, expect, describe } from "vitest";
 import { iconSizeTable, sizeBudget, pngSize, exportPresetCfg, parsePresetCfg, atlasLayout, splashSize, bootSplashCfg, verify, budgetReport, exportPresetsFile, buildArtifactPlan, androidToolchainPresent, buildArtifact, verifyBuildArtifact, packageNameFor } from "./package.mjs";
-import { parseHexLead, resolveIconBg } from "./package.mjs";
+import { parseHexLead, resolveIconBg, conditionIconBg, complementaryBg, srgbLuminance, hueDelta, iconHue } from "./package.mjs";
 import { iconCompositionRole } from "./package.mjs";
 import { parseScreenshotArgs } from "./package.mjs";
 import { mkdtempSync, mkdirSync, writeFileSync, appendFileSync, rmSync } from "node:fs";
@@ -650,18 +650,91 @@ describe("resolveIconBg", () => {
     const manifest = { store_pass: { icon_bg: "#0a0b0c,#1a1b1c" } };
     expect(resolveIconBg({ manifest })).toEqual({ top: "#0a0b0c", bottom: "#1a1b1c" });
   });
-  test("derives from the asset_pass palette's first two hexes", () => {
+  test("palette path is conditioned: survives light+dark chrome with radial depth", () => {
     const manifest = { asset_pass: { visual_system: { palette: [
       "#2fa6a0 sea-teal (primary)", "#ff7b54 coral (accent)", "#8a5a3b wood"
     ] } } };
-    expect(resolveIconBg({ manifest })).toEqual({ top: "#2fa6a0", bottom: "#ff7b54" });
+    const bg = resolveIconBg({ manifest });
+    expect(bg.top).not.toBe("#2fa6a0");                         // conditioned, not raw
+    expect(srgbLuminance(bg.top)).toBeGreaterThan(srgbLuminance(bg.bottom)); // centre glow brighter than rim
+    expect(srgbLuminance(bg.top)).toBeLessThan(0.62);           // survives white store chrome
+    expect(srgbLuminance(bg.bottom)).toBeGreaterThan(0.01);     // survives black store chrome
+    expect(iconHue(bg.top)).toBeCloseTo(iconHue("#2fa6a0"), 0); // hue preserved (teal stays teal)
   });
-  test("single-hex palette uses it for both stops", () => {
+  test("single-hex palette still yields a conditioned radial plate", () => {
     const manifest = { asset_pass: { visual_system: { palette: ["#2fa6a0 only"] } } };
-    expect(resolveIconBg({ manifest })).toEqual({ top: "#2fa6a0", bottom: "#2fa6a0" });
+    const bg = resolveIconBg({ manifest });
+    expect(srgbLuminance(bg.top)).toBeGreaterThan(srgbLuminance(bg.bottom));
+    expect(iconHue(bg.top)).toBeCloseTo(iconHue("#2fa6a0"), 0);
+  });
+  test("subjectHex that clashes with the palette bg rotates the bg to the complement", () => {
+    const manifest = { asset_pass: { visual_system: { palette: ["#d98a3a warm-amber"] } } };
+    // amber subject on an amber bg = a clash → bg rotates ~180° away
+    const bg = resolveIconBg({ manifest, subjectHex: "#e8702a" });
+    expect(hueDelta(iconHue(bg.top), iconHue("#e8702a"))).toBeGreaterThan(120);
+  });
+  test("subjectHex that already contrasts the palette bg leaves the hue alone", () => {
+    const manifest = { asset_pass: { visual_system: { palette: ["#2fa6a0 sea-teal"] } } };
+    const bg = resolveIconBg({ manifest, subjectHex: "#e8702a" }); // orange subject vs teal bg already pops
+    expect(iconHue(bg.top)).toBeCloseTo(iconHue("#2fa6a0"), 0);    // still teal
+  });
+  test("store_pass.icon_subject_hex drives the complement when no param is passed", () => {
+    const manifest = {
+      asset_pass: { visual_system: { palette: ["#d98a3a warm-amber"] } },
+      store_pass: { icon_subject_hex: "#e8702a" }
+    };
+    const bg = resolveIconBg({ manifest });
+    expect(hueDelta(iconHue(bg.top), iconHue("#e8702a"))).toBeGreaterThan(120);
+  });
+  test("explicit --bg is respected verbatim even when a subjectHex would clash", () => {
+    expect(resolveIconBg({ bgArg: "#d98a3a", subjectHex: "#e8702a" }))
+      .toEqual({ top: "#d98a3a", bottom: "#d98a3a" });
   });
   test("absent everything → neutral default", () => {
     expect(resolveIconBg({ manifest: {} })).toEqual({ top: "#202830", bottom: "#202830" });
+  });
+});
+
+describe("conditionIconBg", () => {
+  test("darkens a too-light pair into the chrome-survival band", () => {
+    const bg = conditionIconBg({ top: "#ffffff", bottom: "#ffffff" });
+    expect(srgbLuminance(bg.top)).toBeLessThan(0.62);           // no longer vanishes on white
+    expect(srgbLuminance(bg.bottom)).toBeGreaterThan(0.01);     // not pure black either
+    expect(srgbLuminance(bg.top)).toBeGreaterThan(srgbLuminance(bg.bottom)); // radial depth
+  });
+  test("gives an equal-colour pair radial depth (centre brighter than rim)", () => {
+    const bg = conditionIconBg({ top: "#2fa6a0", bottom: "#2fa6a0" });
+    expect(srgbLuminance(bg.top)).toBeGreaterThan(srgbLuminance(bg.bottom));
+    expect(iconHue(bg.top)).toBeCloseTo(iconHue("#2fa6a0"), 0); // hue preserved
+  });
+  test("leaves a true grey uncolourised", () => {
+    const bg = conditionIconBg({ top: "#808080", bottom: "#808080" });
+    const { r, g, b } = { r: parseInt(bg.top.slice(1, 3), 16), g: parseInt(bg.top.slice(3, 5), 16), b: parseInt(bg.top.slice(5, 7), 16) };
+    expect(Math.max(r, g, b) - Math.min(r, g, b)).toBeLessThanOrEqual(2); // still grey
+  });
+});
+
+describe("complementaryBg", () => {
+  test("rotates a clashing background to the subject's complement", () => {
+    const bg = complementaryBg("#e8702a", { top: "#d98a3a", bottom: "#d98a3a" });
+    expect(hueDelta(iconHue(bg.top), iconHue("#e8702a"))).toBeGreaterThan(120);
+    expect(hueDelta(iconHue(bg.bottom), iconHue("#e8702a"))).toBeGreaterThan(120);
+  });
+  test("leaves an already-contrasting background unchanged", () => {
+    expect(complementaryBg("#e8702a", { top: "#2fa6a0", bottom: "#2fa6a0" }))
+      .toEqual({ top: "#2fa6a0", bottom: "#2fa6a0" });
+  });
+  test("a near-neutral subject (no clear hue) is a no-op", () => {
+    expect(complementaryBg("#888888", { top: "#d98a3a", bottom: "#d98a3a" }))
+      .toEqual({ top: "#d98a3a", bottom: "#d98a3a" });
+  });
+});
+
+describe("hueDelta", () => {
+  test("is circular (0..180)", () => {
+    expect(hueDelta(10, 350)).toBe(20);
+    expect(hueDelta(0, 180)).toBe(180);
+    expect(hueDelta(200, 200)).toBe(0);
   });
 });
 

@@ -270,10 +270,101 @@ export function parseHexLead(s) {
   return m ? `#${m[1].toLowerCase()}` : null;
 }
 
-// Decide the two-stop vertical gradient for the icon background, in priority order:
-// --bg arg ("#top,#bottom" or "#solid") > store_pass.icon_bg > asset_pass palette's
-// first two hexes > neutral default. Pure (manifest is a plain object).
-export function resolveIconBg({ bgArg, manifest = {} } = {}) {
+// --- Icon background colour math (pure; encodes ASO icon rule 3 — contrast &
+// chrome survival) -------------------------------------------------------------
+
+// "#rrggbb" -> {r,g,b} 0..255. Assumes a validated 6-hex string.
+function hexToRgb(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+}
+const clamp01 = (x) => Math.min(1, Math.max(0, x));
+
+// {r,g,b} 0..255 -> {h:0..360, s:0..1, l:0..1}.
+function rgbToHsl({ r, g, b }) {
+  r /= 255; g /= 255; b /= 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2, d = max - min;
+  let h = 0, s = 0;
+  if (d > 1e-6) {
+    s = d / (1 - Math.abs(2 * l - 1));
+    if (max === r) h = ((g - b) / d) % 6;
+    else if (max === g) h = (b - r) / d + 2;
+    else h = (r - g) / d + 4;
+    h = (h * 60 + 360) % 360;
+  }
+  return { h, s, l };
+}
+
+// {h,s,l} -> "#rrggbb".
+function hslToHex({ h, s, l }) {
+  h = ((h % 360) + 360) % 360;
+  const c = (1 - Math.abs(2 * l - 1)) * s, x = c * (1 - Math.abs(((h / 60) % 2) - 1)), m = l - c / 2;
+  let r = 0, g = 0, b = 0;
+  if (h < 60) [r, g, b] = [c, x, 0];
+  else if (h < 120) [r, g, b] = [x, c, 0];
+  else if (h < 180) [r, g, b] = [0, c, x];
+  else if (h < 240) [r, g, b] = [0, x, c];
+  else if (h < 300) [r, g, b] = [x, 0, c];
+  else [r, g, b] = [c, 0, x];
+  const to = (v) => Math.round((v + m) * 255).toString(16).padStart(2, "0");
+  return `#${to(r)}${to(g)}${to(b)}`;
+}
+
+// WCAG relative luminance 0..1 — how an icon background reads against store chrome.
+export function srgbLuminance(hex) {
+  const { r, g, b } = hexToRgb(hex);
+  const lin = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
+  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+}
+// Smallest circular distance between two hues, 0..180.
+export function hueDelta(a, b) {
+  const d = Math.abs((((a % 360) + 360) % 360) - (((b % 360) + 360) % 360));
+  return Math.min(d, 360 - d);
+}
+// Hue (0..360) of a "#rrggbb".
+export function iconHue(hex) { return rgbToHsl(hexToRgb(hex)).h; }
+
+// Condition a palette-derived icon background so it reads as a deep, saturated
+// plate that survives BOTH light and dark store chrome and carries radial depth
+// (centre/top brighter than edge/bottom). Pure. ASO rule 3's computable half —
+// the "opaque colour plate, survives light & dark" guarantee. Applied ONLY to the
+// auto (palette-derived) path; explicit/recorded backgrounds are respected verbatim.
+const BG_L_FLOOR = 0.16;   // not so dark it dies on black chrome / swallows the subject
+const BG_L_CEIL = 0.56;    // not so light it vanishes on white store chrome
+const BG_S_FLOOR = 0.30;   // keep the plate saturated, not muddy
+const BG_DEPTH = 0.14;     // centre-vs-edge luminance gap so the radial glow reads
+export function conditionIconBg({ top, bottom }) {
+  const a = rgbToHsl(hexToRgb(top));
+  const b = rgbToHsl(hexToRgb(bottom));
+  if (a.s > 0.08) a.s = Math.max(a.s, BG_S_FLOOR);  // saturate hues; never colourize a true grey
+  if (b.s > 0.08) b.s = Math.max(b.s, BG_S_FLOOR);
+  const mid = clamp01((a.l + b.l) / 2);
+  const midC = Math.min(BG_L_CEIL - BG_DEPTH / 2, Math.max(BG_L_FLOOR + BG_DEPTH / 2, mid));
+  a.l = midC + BG_DEPTH / 2;   // top = radial centre = brighter glow
+  b.l = midC - BG_DEPTH / 2;   // bottom = rim = deeper vignette
+  return { top: hslToHex(a), bottom: hslToHex(b) };
+}
+
+// If the palette-derived background hue sits too close to the subject's hue (a
+// low-contrast clash), rotate the background to the subject's complement so the
+// subject pops. Pure; no-op when the subject is ~neutral or already contrasts.
+const BG_CLASH_DEG = 45;
+export function complementaryBg(subjectHex, { top, bottom }) {
+  const subj = rgbToHsl(hexToRgb(subjectHex));
+  if (subj.s < 0.20) return { top, bottom };                      // no clear subject hue to oppose
+  if (hueDelta(subj.h, iconHue(top)) >= BG_CLASH_DEG) return { top, bottom };  // already contrasts
+  const comp = (subj.h + 180) % 360;
+  const rot = (hex) => { const c = rgbToHsl(hexToRgb(hex)); c.h = comp; return hslToHex(c); };
+  return { top: rot(top), bottom: rot(bottom) };
+}
+
+// Decide the two-stop icon background, in priority order:
+// --bg arg ("#top,#bottom" or "#solid") > store_pass.icon_bg > asset_pass palette
+// (auto: complement vs the subject hue, then condition for chrome survival + depth)
+// > neutral default. `subjectHex` (the focal's dominant opaque hue, probed by
+// generateIcons or recorded as store_pass.icon_subject_hex) drives the complement.
+// Explicit/recorded/default backgrounds are deliberate → returned verbatim. Pure.
+export function resolveIconBg({ bgArg, manifest = {}, subjectHex } = {}) {
   const fromSpec = (spec) => {
     if (typeof spec !== "string" || !spec.trim()) return null;
     const parts = spec.split(",").map((p) => parseHexLead(p)).filter(Boolean);
@@ -281,16 +372,20 @@ export function resolveIconBg({ bgArg, manifest = {} } = {}) {
     return { top: parts[0], bottom: parts[1] || parts[0] };
   };
   const fromArg = fromSpec(bgArg);
-  if (fromArg) return fromArg;
+  if (fromArg) return fromArg;                              // explicit override: verbatim
   const fromManifest = fromSpec(manifest?.store_pass?.icon_bg);
-  if (fromManifest) return fromManifest;
+  if (fromManifest) return fromManifest;                    // recorded choice: verbatim
+  const subj = subjectHex || parseHexLead(manifest?.store_pass?.icon_subject_hex);
   const palette = manifest?.asset_pass?.visual_system?.palette;
   if (Array.isArray(palette)) {
     const hexes = palette.map(parseHexLead).filter(Boolean);
-    if (hexes.length >= 2) return { top: hexes[0], bottom: hexes[1] };
-    if (hexes.length === 1) return { top: hexes[0], bottom: hexes[0] };
+    if (hexes.length >= 1) {
+      let bg = { top: hexes[0], bottom: hexes[1] || hexes[0] };
+      if (subj) bg = complementaryBg(subj, bg);             // fix a subject↔bg hue clash
+      return conditionIconBg(bg);                           // guarantee chrome survival + radial depth
+    }
   }
-  return { top: "#202830", bottom: "#202830" };
+  return { top: "#202830", bottom: "#202830" };             // neutral default: already chrome-safe
 }
 
 // Icon background style: "radial" (default — a bright glow behind the subject +
@@ -330,22 +425,37 @@ function runGodot(args, label) {
   }
 }
 
+// Probe the focal's dominant opaque hue (drives the auto complementary background).
+// Tolerant: returns null on any failure so a hue probe never blocks icon generation.
+function probeFocalHue(focalAbs) {
+  try {
+    const out = runGodot(["--headless", "--path", GODOT_DIR, "--script", "res://focal_hue.gd", "--", focalAbs], "focal_hue");
+    const m = out.match(/FOCAL_HUE\s+(#[0-9a-fA-F]{6})/);
+    return m ? m[1].toLowerCase() : null;
+  } catch {
+    return null;
+  }
+}
+
 // Compose the Android icon set from a transparent focal (store_pass.icon_master)
-// over a themed 2-stop gradient: distinct adaptive fg/bg + composited legacy/Play.
+// over a themed background: distinct adaptive fg/bg + composited legacy/Play. The
+// palette-derived background is auto-complemented against the focal's hue + chrome-
+// conditioned (resolveIconBg); explicit --bg / store_pass.icon_bg bypass that.
 export function generateIcons(id, { gamesDir = GAMES_DIR, bg, bgStyle } = {}) {
   const m = readManifest(id);
   const focal = m?.store_pass?.icon_master;
   if (!focal) throw new Error(`package: generateIcons needs store_pass.icon_master (a transparent focal PNG) in manifests/${id}.json`);
   const focalAbs = join(gamesDir, id, focal);
   if (!existsSync(focalAbs)) throw new Error(`package: icon focal not found at ${focalAbs}`);
-  const { top, bottom } = resolveIconBg({ bgArg: bg, manifest: m });
+  const subjectHex = probeFocalHue(focalAbs);
+  const { top, bottom } = resolveIconBg({ bgArg: bg, manifest: m, subjectHex });
   const style = parseIconBgStyle(bgStyle);
   for (const e of iconSizeTable()) iconCompositionRole(e.kind); // validate kinds up front: a clearer JS error than a Godot stderr dump if the table gains an unmapped kind
   const outdir = join(gamesDir, id, "store", "icons");
   const specs = iconSizeTable().map((e) => `${e.name}:${e.px}:${e.kind}`).join(",");
   const out = runGodot(["--headless", "--path", GODOT_DIR, "--script", "res://icon_compose.gd", "--", focalAbs, outdir, specs, top, bottom, style], "icon_compose");
   if (!out.includes("ICON_COMPOSE OK")) throw new Error(`package: icon_compose did not report OK:\n${out}`);
-  return { outdir, bg: { top, bottom }, bg_style: style, icons: iconSizeTable().map((e) => ({ ...e, source: `store/icons/${e.name}.png` })) };
+  return { outdir, bg: { top, bottom }, bg_style: style, subject_hex: subjectHex, icons: iconSizeTable().map((e) => ({ ...e, source: `store/icons/${e.name}.png` })) };
 }
 
 // Build the atlas layout from the game's raster sprites, write the map JSON, render the sheet.
