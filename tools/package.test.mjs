@@ -709,3 +709,21 @@ describe("parseScreenshotArgs", () => {
     expect(() => parseScreenshotArgs(["--script", "--frames"])).toThrow();
   });
 });
+
+import { parseIconBgStyle } from "./package.mjs";
+
+describe("parseIconBgStyle", () => {
+  test("defaults to radial (the premium app-store look)", () => {
+    expect(parseIconBgStyle()).toBe("radial");
+    expect(parseIconBgStyle(undefined)).toBe("radial");
+  });
+  test("accepts linear", () => {
+    expect(parseIconBgStyle("linear")).toBe("linear");
+  });
+  test("accepts radial", () => {
+    expect(parseIconBgStyle("radial")).toBe("radial");
+  });
+  test("throws on an unknown style", () => {
+    expect(() => parseIconBgStyle("glow")).toThrow();
+  });
+});

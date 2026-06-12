@@ -293,6 +293,15 @@ export function resolveIconBg({ bgArg, manifest = {} } = {}) {
   return { top: "#202830", bottom: "#202830" };
 }
 
+// Icon background style: "radial" (default — a bright glow behind the subject +
+// a soft drop shadow under it, the premium app-store look) or "linear" (the flat
+// 2-stop vertical gradient). Pure; defaults to radial, throws on anything else.
+export function parseIconBgStyle(arg) {
+  const v = arg || "radial";
+  if (v !== "linear" && v !== "radial") throw new Error(`package: --bg-style must be "linear" or "radial", got ${JSON.stringify(arg)}`);
+  return v;
+}
+
 // Map an iconSizeTable kind to how icon_compose.gd renders it.
 // focal = transparent subject inside the adaptive safe zone; background = gradient
 // fill; composite = focal alpha-blended over the gradient, opaque. Pure.
@@ -323,19 +332,20 @@ function runGodot(args, label) {
 
 // Compose the Android icon set from a transparent focal (store_pass.icon_master)
 // over a themed 2-stop gradient: distinct adaptive fg/bg + composited legacy/Play.
-export function generateIcons(id, { gamesDir = GAMES_DIR, bg } = {}) {
+export function generateIcons(id, { gamesDir = GAMES_DIR, bg, bgStyle } = {}) {
   const m = readManifest(id);
   const focal = m?.store_pass?.icon_master;
   if (!focal) throw new Error(`package: generateIcons needs store_pass.icon_master (a transparent focal PNG) in manifests/${id}.json`);
   const focalAbs = join(gamesDir, id, focal);
   if (!existsSync(focalAbs)) throw new Error(`package: icon focal not found at ${focalAbs}`);
   const { top, bottom } = resolveIconBg({ bgArg: bg, manifest: m });
+  const style = parseIconBgStyle(bgStyle);
   for (const e of iconSizeTable()) iconCompositionRole(e.kind); // validate kinds up front: a clearer JS error than a Godot stderr dump if the table gains an unmapped kind
   const outdir = join(gamesDir, id, "store", "icons");
   const specs = iconSizeTable().map((e) => `${e.name}:${e.px}:${e.kind}`).join(",");
-  const out = runGodot(["--headless", "--path", GODOT_DIR, "--script", "res://icon_compose.gd", "--", focalAbs, outdir, specs, top, bottom], "icon_compose");
+  const out = runGodot(["--headless", "--path", GODOT_DIR, "--script", "res://icon_compose.gd", "--", focalAbs, outdir, specs, top, bottom, style], "icon_compose");
   if (!out.includes("ICON_COMPOSE OK")) throw new Error(`package: icon_compose did not report OK:\n${out}`);
-  return { outdir, bg: { top, bottom }, icons: iconSizeTable().map((e) => ({ ...e, source: `store/icons/${e.name}.png` })) };
+  return { outdir, bg: { top, bottom }, bg_style: style, icons: iconSizeTable().map((e) => ({ ...e, source: `store/icons/${e.name}.png` })) };
 }
 
 // Build the atlas layout from the game's raster sprites, write the map JSON, render the sheet.
@@ -620,7 +630,9 @@ async function cli(argv) {
     case "icons": {
       const bi = rest.indexOf("--bg");
       const bg = bi >= 0 ? rest[bi + 1] : undefined;
-      console.log(JSON.stringify(generateIcons(id, { bg }), null, 2));
+      const si = rest.indexOf("--bg-style");
+      const bgStyle = si >= 0 ? rest[si + 1] : undefined;
+      console.log(JSON.stringify(generateIcons(id, { bg, bgStyle }), null, 2));
       return;
     }
     case "atlas": console.log(JSON.stringify(generateAtlas(id), null, 2)); return;
