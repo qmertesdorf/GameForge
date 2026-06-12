@@ -2,7 +2,7 @@
   "id": "shopkeep-0001",
   "name": "Tide & Tally",
   "created_at": "2026-06-11T01:03:00.419Z",
-  "updated_at": "2026-06-11T23:20:54.083Z",
+  "updated_at": "2026-06-12T03:57:16.864Z",
   "status": "packaged",
   "concept": {
     "theme": {
@@ -801,7 +801,7 @@
       "sprite_count": 18
     },
     "size_budget": {
-      "total_bytes": 7933837,
+      "total_bytes": 7574272,
       "budget_bytes": 52428800,
       "pass": true,
       "per_file": [
@@ -819,7 +819,7 @@
         },
         {
           "path": "store/icons/ic_adaptive_background.png",
-          "bytes": 1838
+          "bytes": 54476
         },
         {
           "path": "store/icons/ic_adaptive_background.png.import",
@@ -827,7 +827,7 @@
         },
         {
           "path": "store/icons/ic_adaptive_foreground.png",
-          "bytes": 64752
+          "bytes": 87989
         },
         {
           "path": "store/icons/ic_adaptive_foreground.png.import",
@@ -835,7 +835,7 @@
         },
         {
           "path": "store/icons/ic_launcher_hdpi.png",
-          "bytes": 4270
+          "bytes": 8038
         },
         {
           "path": "store/icons/ic_launcher_hdpi.png.import",
@@ -843,7 +843,7 @@
         },
         {
           "path": "store/icons/ic_launcher_mdpi.png",
-          "bytes": 2248
+          "bytes": 4165
         },
         {
           "path": "store/icons/ic_launcher_mdpi.png.import",
@@ -851,7 +851,7 @@
         },
         {
           "path": "store/icons/ic_launcher_xhdpi.png",
-          "bytes": 6744
+          "bytes": 12609
         },
         {
           "path": "store/icons/ic_launcher_xhdpi.png.import",
@@ -859,7 +859,7 @@
         },
         {
           "path": "store/icons/ic_launcher_xxhdpi.png",
-          "bytes": 13290
+          "bytes": 24987
         },
         {
           "path": "store/icons/ic_launcher_xxhdpi.png.import",
@@ -867,7 +867,7 @@
         },
         {
           "path": "store/icons/ic_launcher_xxxhdpi.png",
-          "bytes": 21438
+          "bytes": 40007
         },
         {
           "path": "store/icons/ic_launcher_xxxhdpi.png.import",
@@ -875,7 +875,7 @@
         },
         {
           "path": "store/icons/ic_play_store.png",
-          "bytes": 115056
+          "bytes": 220774
         },
         {
           "path": "store/icons/ic_play_store.png.import",
@@ -883,15 +883,11 @@
         },
         {
           "path": "store/icon_focal.png",
-          "bytes": 841536
+          "bytes": 314524
         },
         {
-          "path": "store/icon_master.png",
-          "bytes": 170146
-        },
-        {
-          "path": "store/icon_master.png.import",
-          "bytes": 943
+          "path": "store/icon_focal.png.import",
+          "bytes": 940
         },
         {
           "path": "store/screenshots/craft.png",
@@ -919,7 +915,7 @@
         },
         {
           "path": "store/splash.png",
-          "bytes": 272955
+          "bytes": 387142
         },
         {
           "path": "store/splash.png.import",
@@ -932,7 +928,7 @@
       "platform": "android",
       "package": "com.gameforge.shopkeep_0001"
     },
-    "notes": "packager v2 re-package: icon is now a bespoke ComfyUI transparent focal (store/icon_focal.png, coral scallop, LayerDiffuse seed 7) composed by icon_compose.gd into correct adaptive layers (transparent fg in 66% safe zone + sea-teal code-gradient bg #2fa6a0->#1c7d78 + composited legacy/Play) — replaces the v1 flat shell-on-flat-teal and fixes the adaptive fg==bg bug. Screenshots re-captured via the committed _shots.gd through the new package.mjs screenshot --script runner. Splash composites the transparent focal (blend_rect). DEFERRED owner gates: final icon/splash aesthetic A/B + real Play submission.",
+    "notes": "packager v3 icon-research re-package: icon is now a bespoke CHARACTER focal (store/icon_focal.png) — a cheerful beach-villager shopkeeper bust (ComfyUI cartoonArcadiaXL_v2.safetensors, LayerDiffuse seed 70, glossy dimensional 3D-style cartoon), salvage-cropped from a full-body gen to a head-and-shoulders bust per ASO rule 2 (a face with emotion + gaze out-reads an object and fills the frame). Composed by icon_compose.gd into adaptive layers over a radial WARM-HALO background (icon_bg #f7b06a warm centre -> #1c7d78 teal rim) + soft drop shadow; 48px legibility CIELAB ΔE 50.5 (>22 floor). Replaces the v2 coral-shell icon, whose subject the research lens flagged as generic (off-message 'beach' motif) and under-filled. Splash recomposed with the character master on sea-teal. DEFERRED owner gates: final icon/splash aesthetic A/B + real Play submission.",
     "build_artifact": {
       "format": "apk",
       "build_type": "debug",
@@ -940,6 +936,6 @@
       "bytes": 43222641,
       "package": "com.gameforge.shopkeep_0001"
     },
-    "icon_bg": "#2fa6a0,#1c7d78"
+    "icon_bg": "#f7b06a,#1c7d78"
   }
 }
