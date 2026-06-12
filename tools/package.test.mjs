@@ -800,3 +800,104 @@ describe("parseIconBgStyle", () => {
     expect(() => parseIconBgStyle("glow")).toThrow();
   });
 });
+
+import { labDeltaE, scoreIconLegibility } from "./package.mjs";
+
+describe("labDeltaE", () => {
+  test("identical colours → 0", () => {
+    expect(labDeltaE([255, 31, 174], [255, 31, 174])).toBeCloseTo(0, 5);
+  });
+  test("black vs white → ~100 (the CIELAB L* span)", () => {
+    const d = labDeltaE([0, 0, 0], [255, 255, 255]);
+    expect(d).toBeGreaterThan(95);
+    expect(d).toBeLessThan(101);
+  });
+  test("two saturated but distinct hues read as high contrast", () => {
+    // coral vs teal: near-equal luminance, far apart chromatically (the case plain
+    // luminance misses and ΔE catches)
+    expect(labDeltaE([255, 123, 84], [47, 166, 160])).toBeGreaterThan(22);
+  });
+});
+
+describe("scoreIconLegibility", () => {
+  // Build an n×n aligned grid: a centred opaque square of `subj` on a field of `bg`.
+  // rgb = packed 0xRRGGBB composite; alpha = subject mask (255 inside, 0 outside).
+  function squareGrid(n, subj, bg, { box = 0.5 } = {}) {
+    const rgb = new Array(n * n);
+    const alpha = new Array(n * n);
+    const lo = Math.floor((n * (1 - box)) / 2);
+    const hi = n - lo;
+    for (let y = 0; y < n; y++) {
+      for (let x = 0; x < n; x++) {
+        const i = y * n + x;
+        const inside = x >= lo && x < hi && y >= lo && y < hi;
+        const c = inside ? subj : bg;
+        rgb[i] = (c[0] << 16) | (c[1] << 8) | c[2];
+        alpha[i] = inside ? 255 : 0;
+      }
+    }
+    return { n, rgb, alpha };
+  }
+
+  test("white subject on a black plate is legible (high silhouette ΔE)", () => {
+    const r = scoreIconLegibility(squareGrid(16, [255, 255, 255], [0, 0, 0]));
+    expect(r.delta_e).toBeGreaterThan(22);
+    expect(r.ok).toBe(true);
+  });
+
+  test("a subject sharing the plate colour blends (silhouette ΔE ≈ 0 → not ok)", () => {
+    const r = scoreIconLegibility(squareGrid(16, [255, 31, 174], [255, 31, 174]));
+    expect(r.delta_e).toBeLessThan(5);
+    expect(r.ok).toBe(false);
+  });
+
+  test("scores the silhouette, not the centre: a dark-centred subject on a bright same-hue plate still fails", () => {
+    // The old center-vs-corner metric scored THIS high; the edge metric must catch
+    // that the subject's bright rim blends into the bright plate.
+    const n = 16;
+    const rgb = new Array(n * n);
+    const alpha = new Array(n * n);
+    const lo = 4, hi = 12;
+    for (let y = 0; y < n; y++) {
+      for (let x = 0; x < n; x++) {
+        const i = y * n + x;
+        const inside = x >= lo && x < hi && y >= lo && y < hi;
+        // subject: dark core, but its outer ring matches the plate colour
+        const onRing = inside && (x === lo || x === hi - 1 || y === lo || y === hi - 1);
+        const plate = [240, 30, 200];
+        const c = !inside ? plate : (onRing ? plate : [10, 8, 20]);
+        rgb[i] = (c[0] << 16) | (c[1] << 8) | c[2];
+        alpha[i] = inside ? 255 : 0;
+      }
+    }
+    const r = scoreIconLegibility({ n, rgb, alpha });
+    expect(r.ok).toBe(false);
+  });
+
+  test("one blended arc fails it even when the rest contrasts (perimeter-wide, not averaged)", () => {
+    // bg black on the left, white on the right; a white subject → its right arc blends.
+    const n = 16;
+    const rgb = new Array(n * n);
+    const alpha = new Array(n * n);
+    const lo = 4, hi = 12;
+    for (let y = 0; y < n; y++) {
+      for (let x = 0; x < n; x++) {
+        const i = y * n + x;
+        const inside = x >= lo && x < hi && y >= lo && y < hi;
+        const bg = x < n / 2 ? [0, 0, 0] : [255, 255, 255];
+        const c = inside ? [255, 255, 255] : bg;
+        rgb[i] = (c[0] << 16) | (c[1] << 8) | c[2];
+        alpha[i] = inside ? 255 : 0;
+      }
+    }
+    const r = scoreIconLegibility({ n, rgb, alpha });
+    expect(r.ok).toBe(false);
+  });
+
+  test("no subject mask → ok with a null score (nothing to judge)", () => {
+    const n = 8;
+    const r = scoreIconLegibility({ n, rgb: new Array(n * n).fill(0), alpha: new Array(n * n).fill(0) });
+    expect(r.ok).toBe(true);
+    expect(r.delta_e).toBeNull();
+  });
+});

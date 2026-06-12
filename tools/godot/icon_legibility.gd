@@ -1,88 +1,70 @@
 extends SceneTree
 
-# Judge whether a composed launcher/Play icon still reads at thumbnail size
-# (~48 px) — ASO rules 6 & 9 ("if it doesn't communicate at ~48 px it's too
-# complicated"). Loads the opaque composite icon, downscales to 48², and measures
-# the perceptual colour distance (CIELAB ΔE76) between the centred subject region
-# and the corner (background) regions. Our icons are always a centred subject on a
-# plate, so a low centre-vs-corner ΔE means the subject no longer separates from
-# the plate at thumbnail size (mush). ΔE (not plain luminance) is deliberate: a
-# complementary pairing like coral-on-teal reads as high contrast yet has nearly
-# equal luminance — only a chromatic metric scores it correctly. Advisory — prints
-# a WARN, never fails the build.
-#   godot --headless --path tools/godot/ --script res://icon_legibility.gd -- <icon.png>
-# Prints "ICON_LEGIBILITY {json}" then "LEGIBILITY OK" or "LEGIBILITY WARN: ...".
+# Emit an aligned thumbnail grid for the pure-JS legibility scorer
+# (package.mjs scoreIconLegibility). Loads the composed Play icon + the transparent
+# focal, downscales the composite to N², and builds an N² subject MASK by contain-
+# fitting the focal's alpha into the SAME COMPOSITE_SAFE box icon_compose uses — so
+# the mask lands exactly where the subject sits in the composite. Prints one line:
+#   ICON_LEGIBILITY_GRID {"n":48,"rgb":[...packed 0xRRGGBB...],"alpha":[...0..255...]}
+# Scoring + the WARN/OK verdict live in JS (the testable seam, like the rest of the
+# pure package.mjs functions); this script only decodes pixels — there is no Godot
+# unit test for it, same as icon_compose.gd / atlas_render.gd.
+#   godot --headless --path tools/godot/ --script res://icon_legibility.gd -- <composite.png> <focal.png>
+#
+# Why a SILHOUETTE mask and not centre-vs-corner (the metric this replaces): the old
+# gate compared the icon's centre box to its corners, so a dark-cored subject on a
+# bright same-hue plate scored "high contrast" even while its rim melted into the
+# plate. The mask lets JS measure the subject's OUTLINE against the plate right
+# behind it — the contrast that actually decides whether it reads at thumbnail size.
 
 const N := 48
-const DELTAE_MIN := 22.0   # subject-vs-plate CIELAB ΔE76 floor at 48 px (noticeably distinct)
-
-# sRGB (0..1) channel -> linear.
-func _lin(c: float) -> float:
-	return c / 12.92 if c <= 0.04045 else pow((c + 0.055) / 1.055, 2.4)
-
-# Mean sRGB Color -> CIELAB (D65).
-func _lab(c: Color) -> Vector3:
-	var r := _lin(c.r)
-	var g := _lin(c.g)
-	var b := _lin(c.b)
-	var x := (0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047
-	var y := (0.2126 * r + 0.7152 * g + 0.0722 * b) / 1.0
-	var z := (0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883
-	var fx := _f(x)
-	var fy := _f(y)
-	var fz := _f(z)
-	return Vector3(116.0 * fy - 16.0, 500.0 * (fx - fy), 200.0 * (fy - fz))
-
-func _f(t: float) -> float:
-	return pow(t, 1.0 / 3.0) if t > 0.008856 else 7.787 * t + 16.0 / 116.0
-
-func _mean(img: Image, x0: int, y0: int, x1: int, y1: int) -> Color:
-	var rs := 0.0
-	var gs := 0.0
-	var bs := 0.0
-	var n := 0
-	for y in range(y0, y1):
-		for x in range(x0, x1):
-			var c := img.get_pixel(x, y)
-			rs += c.r; gs += c.g; bs += c.b; n += 1
-	n = max(1, n)
-	return Color(rs / n, gs / n, bs / n, 1.0)
+const COMPOSITE_SAFE := 0.80   # MUST match icon_compose.gd's launcher/Play focal placement
 
 func _initialize() -> void:
 	var args := OS.get_cmdline_user_args()
-	if args.size() < 1:
-		push_error("icon_legibility: usage -- <icon.png>")
+	if args.size() < 2:
+		push_error("icon_legibility: usage -- <composite.png> <focal.png>")
 		quit(1); return
-	var img := Image.load_from_file(args[0])
-	if img == null:
-		push_error("icon_legibility: failed to load %s" % args[0])
+	var comp := Image.load_from_file(args[0])
+	if comp == null:
+		push_error("icon_legibility: failed to load composite %s" % args[0])
 		quit(1); return
-	if img.get_format() != Image.FORMAT_RGBA8:
-		img.convert(Image.FORMAT_RGBA8)
-	img.resize(N, N, Image.INTERPOLATE_LANCZOS)
+	var focal := Image.load_from_file(args[1])
+	if focal == null:
+		push_error("icon_legibility: failed to load focal %s" % args[1])
+		quit(1); return
+	if comp.get_format() != Image.FORMAT_RGBA8:
+		comp.convert(Image.FORMAT_RGBA8)
+	if focal.get_format() != Image.FORMAT_RGBA8:
+		focal.convert(Image.FORMAT_RGBA8)
+	comp.resize(N, N, Image.INTERPOLATE_LANCZOS)
 
-	# centre region = central 40% box (where the subject sits)
-	var c0: int = int(N * 0.30)
-	var c1: int = int(N * 0.70)
-	var center := _mean(img, c0, c0, c1, c1)
-	# background = the four corner boxes (15% each), averaged
-	var k: int = int(N * 0.15)
-	var cr := 0.0
-	var cg := 0.0
-	var cb := 0.0
-	for cy in [0, N - k]:
-		for cx in [0, N - k]:
-			var m := _mean(img, cx, cy, cx + k, cy + k)
-			cr += m.r; cg += m.g; cb += m.b
-	var corner := Color(cr / 4.0, cg / 4.0, cb / 4.0, 1.0)
+	# Subject mask: contain-fit the focal into COMPOSITE_SAFE of N², centered —
+	# identical geometry to icon_compose._blend_focal — copied with alpha intact.
+	var box := int(N * COMPOSITE_SAFE)
+	var fw := focal.get_width()
+	var fh := focal.get_height()
+	var scale := float(box) / float(max(fw, fh))
+	var tw: int = max(1, int(round(fw * scale)))
+	var th: int = max(1, int(round(fh * scale)))
+	var scaled := focal.duplicate() as Image
+	scaled.resize(tw, th, Image.INTERPOLATE_LANCZOS)
+	var mask := Image.create(N, N, false, Image.FORMAT_RGBA8)  # fully transparent
+	var ox := int((N - tw) / 2.0)
+	var oy := int((N - th) / 2.0)
+	mask.blit_rect(scaled, Rect2i(0, 0, tw, th), Vector2i(ox, oy))
 
-	var lab_c := _lab(center)
-	var lab_k := _lab(corner)
-	var de := (lab_c - lab_k).length()
-	var json := '{"px":%d,"delta_e":%.1f,"delta_e_min":%.1f,"center_L":%.1f,"corner_L":%.1f}' % [N, de, DELTAE_MIN, lab_c.x, lab_k.x]
-	print("ICON_LEGIBILITY %s" % json)
-	if de < DELTAE_MIN:
-		print("LEGIBILITY WARN: subject barely separates from the plate at %dpx (ΔE %.1f < %.1f) — make the subject larger or its colour contrast the background more" % [N, de, DELTAE_MIN])
-	else:
-		print("LEGIBILITY OK")
+	var rgb := PackedInt32Array()
+	var alpha := PackedInt32Array()
+	rgb.resize(N * N)
+	alpha.resize(N * N)
+	for y in range(N):
+		for x in range(N):
+			var c := comp.get_pixel(x, y)
+			var r := int(round(c.r * 255.0))
+			var g := int(round(c.g * 255.0))
+			var b := int(round(c.b * 255.0))
+			rgb[y * N + x] = (r << 16) | (g << 8) | b
+			alpha[y * N + x] = int(round(mask.get_pixel(x, y).a * 255.0))
+	print("ICON_LEGIBILITY_GRID %s" % JSON.stringify({"n": N, "rgb": rgb, "alpha": alpha}))
 	quit(0)

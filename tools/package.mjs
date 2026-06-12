@@ -459,18 +459,92 @@ export function generateIcons(id, { gamesDir = GAMES_DIR, bg, bgStyle } = {}) {
   return { outdir, bg: { top, bottom }, bg_style: style, subject_hex: subjectHex, legibility, icons: iconSizeTable().map((e) => ({ ...e, source: `store/icons/${e.name}.png` })) };
 }
 
-// Downscale the composed Play icon to ~48px and check the subject still pops off
-// its plate (ASO rules 6 & 9 — legibility at thumbnail size). Advisory: returns
-// { ok, warning, metrics }; ok=false is a WARN the packager surfaces in notes, not
-// a hard failure. Tolerant of a missing/odd Godot result (ok=true, metrics=null).
+// --- Icon legibility scoring (pure) --------------------------------------
+// CIELAB ΔE76 between two sRGB colours given as [r,g,b] 0..255. ΔE (not plain
+// luminance) is deliberate: a complementary pairing like coral-on-teal reads as
+// high contrast yet has near-equal luminance — only a chromatic metric scores it.
+function srgbToLinear(c) {
+  const x = c / 255;
+  return x <= 0.04045 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4);
+}
+function rgbToLab([r, g, b]) {
+  const rl = srgbToLinear(r), gl = srgbToLinear(g), bl = srgbToLinear(b);
+  const x = (0.4124 * rl + 0.3576 * gl + 0.1805 * bl) / 0.95047;
+  const y = (0.2126 * rl + 0.7152 * gl + 0.0722 * bl) / 1.0;
+  const z = (0.0193 * rl + 0.1192 * gl + 0.9505 * bl) / 1.08883;
+  const f = (t) => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116);
+  const fx = f(x), fy = f(y), fz = f(z);
+  return [116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)];
+}
+export function labDeltaE(a, b) {
+  const [l1, a1, b1] = rgbToLab(a);
+  const [l2, a2, b2] = rgbToLab(b);
+  return Math.hypot(l1 - l2, a1 - a2, b1 - b2);
+}
+
+// Score figure/ground legibility from an aligned thumbnail grid:
+//   n     – grid edge length (the gate uses 48)
+//   rgb   – n*n packed 0xRRGGBB of the COMPOSITE icon (subject already over plate)
+//   alpha – n*n subject mask 0..255 (the focal's silhouette, placed where the
+//           subject sits in the composite)
+// Walks the SILHOUETTE (inside pixels adjacent to plate pixels) and measures the
+// CIELAB ΔE between the subject side and the plate just outside it. Reports the
+// 10th-percentile ΔE — the WORST-reading arc of the outline, not the average: a
+// subject can contrast the plate on three sides yet melt into it on the fourth, and
+// that fourth side is what kills it at thumbnail size. Sampling the silhouette (not
+// the centre) is the whole point: a dark-cored subject on a bright same-hue plate
+// scores high centre-vs-corner yet blends along its rim — the bug this replaces.
+export function scoreIconLegibility({ n, rgb, alpha, deltaEMin = 22 }) {
+  const IN = 128;
+  const inside = (x, y) => alpha[y * n + x] >= IN;
+  const unpack = (p) => [(p >> 16) & 255, (p >> 8) & 255, p & 255];
+  const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  const samples = [];
+  for (let y = 0; y < n; y++) {
+    for (let x = 0; x < n; x++) {
+      if (!inside(x, y)) continue;
+      const subj = unpack(rgb[y * n + x]);
+      for (const [dx, dy] of dirs) {
+        const nx = x + dx, ny = y + dy;
+        if (nx < 0 || ny < 0 || nx >= n || ny >= n) continue;
+        if (inside(nx, ny)) continue; // neighbour is plate → (x,y) is on the silhouette
+        // step one more pixel outward (if still plate + in-bounds) to clear the AA fringe
+        let bx = nx, by = ny;
+        const fx = nx + dx, fy = ny + dy;
+        if (fx >= 0 && fy >= 0 && fx < n && fy < n && !inside(fx, fy)) { bx = fx; by = fy; }
+        samples.push(labDeltaE(subj, unpack(rgb[by * n + bx])));
+      }
+    }
+  }
+  if (samples.length === 0) return { ok: true, delta_e: null, delta_e_min: deltaEMin, edge_samples: 0 };
+  samples.sort((p, q) => p - q);
+  const de = samples[Math.min(Math.floor(samples.length * 0.1), samples.length - 1)];
+  return { ok: de >= deltaEMin, delta_e: Math.round(de * 10) / 10, delta_e_min: deltaEMin, edge_samples: samples.length };
+}
+
+// Check the subject still pops off its plate at ~48px (ASO rules 6 & 9 —
+// legibility at thumbnail size). The Godot side (icon_legibility.gd) emits an
+// aligned thumbnail grid (composite RGB + the focal's silhouette mask); the SCORING
+// — silhouette-edge vs adjacent plate, worst-arc ΔE — lives in pure JS
+// (scoreIconLegibility), the testable seam. Advisory: returns { ok, warning,
+// metrics }; ok=false is a WARN the packager surfaces in notes, not a hard failure.
+// Tolerant of a missing/odd Godot result (ok=true, metrics=null).
 export function checkIconLegibility(id, { gamesDir = GAMES_DIR, iconName = "ic_play_store" } = {}) {
   const iconAbs = join(gamesDir, id, "store", "icons", `${iconName}.png`);
   if (!existsSync(iconAbs)) throw new Error(`package: checkIconLegibility needs ${iconAbs} (run \`icons\` first)`);
-  const out = runGodot(["--headless", "--path", GODOT_DIR, "--script", "res://icon_legibility.gd", "--", iconAbs], "icon_legibility");
-  const mj = out.match(/ICON_LEGIBILITY (\{.*\})/);
-  const metrics = mj ? JSON.parse(mj[1]) : null;
-  const warn = out.match(/LEGIBILITY WARN: (.*)/);
-  return { icon: iconName, ok: !warn, warning: warn ? warn[1].trim() : null, metrics };
+  const m = readManifest(id);
+  const focal = m?.store_pass?.icon_master;
+  if (!focal) throw new Error(`package: checkIconLegibility needs store_pass.icon_master (the focal silhouette) in manifests/${id}.json`);
+  const focalAbs = join(gamesDir, id, focal);
+  if (!existsSync(focalAbs)) throw new Error(`package: icon focal not found at ${focalAbs}`);
+  const out = runGodot(["--headless", "--path", GODOT_DIR, "--script", "res://icon_legibility.gd", "--", iconAbs, focalAbs], "icon_legibility");
+  const gj = out.match(/ICON_LEGIBILITY_GRID (\{.*\})/);
+  if (!gj) return { icon: iconName, ok: true, warning: null, metrics: null };
+  const grid = JSON.parse(gj[1]);
+  const score = scoreIconLegibility({ n: grid.n, rgb: grid.rgb, alpha: grid.alpha });
+  const warning = score.ok ? null
+    : `subject barely separates from the plate at ${grid.n}px (worst-arc ΔE ${score.delta_e} < ${score.delta_e_min}) — enlarge the subject or push its colour off the background`;
+  return { icon: iconName, ok: score.ok, warning, metrics: { px: grid.n, delta_e: score.delta_e, delta_e_min: score.delta_e_min, edge_samples: score.edge_samples } };
 }
 
 // Build the atlas layout from the game's raster sprites, write the map JSON, render the sheet.
