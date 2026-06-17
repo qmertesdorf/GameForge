@@ -1,4 +1,4 @@
-# GameForge (POC)
+# GameForge
 
 An AI pipeline that turns a one-line prompt into a playable mobile game, built as Claude Agent Skills. A chain of eight skills — `concept → builder → validator → deepen → asset → visual-audit → audio → packager` — drives a manifest-based design "spine" from idea to a buildable Godot project. The real deliverable is **better skills**, not the games themselves.
 
