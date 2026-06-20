@@ -21,6 +21,20 @@ prompt → concept → builder → validator → playtest → ( deepen → valid
 validator. It does **not** advance status — a deeper game is the same status, just
 bigger.
 
+## When `deepen` is REQUIRED (the `*` is not zero)
+
+The loop writes `( deepen → validator → playtest )*`, and the POC read the `*` as
+"optional" — so it ran **once across eleven titles** (only `deckbuilder-0001` has a
+`depth_pass`). That is the single biggest reason the catalogue plays "weak": every other
+game shipped at *first-playable depth* — a thin prototype with a solved loop and a content
+ceiling a minute in. **A `playable` game is not a finished game; it is a prototype that
+proved its loop runs.** At least **one** depth pass is REQUIRED before a title is a
+candidate for `asset`/polish — the `asset` skill now gates on the presence of a
+`depth_pass` and bounces a never-deepened game back here. Spend iterations *deepening one
+good loop*, not restarting near-duplicates (the match3-survival 0001→0002→0003 churn re-
+attempted a flawed concept three times instead of deepening one). Run `deepen` until the
+**content-ceiling** and **dominant-strategy** tests below both pass at least once.
+
 ## Inputs
 - A game at status ≥ `validated` with a working `games/<id>/selftest.gd`.
 - A chosen depth axis + scope (spec-given, or assessed per the method below).
@@ -31,8 +45,35 @@ bigger.
 
 ## The method
 
-1. **Assess depth.** Name the axis the game is thinnest on and the single
-   highest-leverage expansion. Don't widen three axes at once.
+1. **Assess depth — diagnose *where* it's shallow before choosing what to add.** Run
+   these two tests on the current game; they pinpoint the leak nearly every weak GameForge
+   title shares:
+   - **Content-ceiling test:** play (or read the loop) and ask *"on what beat does the game
+     stop introducing anything new?"* — the last new mechanic, enemy, recipe, or rule the
+     player meets. Both shipped POC games hit their ceiling early (shopkeep introduces nothing
+     after day 4; match3-survival's only escalation is a shrinking timer on one static threat).
+     Everything past the ceiling is the same system replayed — that's the "weak" the player
+     feels. Your job is to push the ceiling out: stage in newness over the session.
+   - **Dominant-strategy test:** name the single move a skilled player repeats every beat. If
+     it's strictly best (most reward *and* safest), the loop is **solved** and no amount of
+     content fixes it — you must add a **cost / tradeoff** that makes the dominant move
+     situational (this is the systemic axis, and the inverse of `concept`'s tradeoff gate:
+     when `concept` let a solved loop through, `deepen` is where it gets repaired). match3
+     -survival shipped solved (purge = both the safe move and the high-score move); fixing that
+     is higher-leverage than any new content on top.
+   Then pick **ONE axis** — the one that addresses the leak the tests found — and the single
+   highest-leverage expansion on it. Don't widen three axes at once. Per-axis playbook:
+   - **systemic** (fixes a *solved/shallow* loop): add an *interacting* mechanic that creates a
+     new decision — a cost on the dominant move, a second resource that contends with the first,
+     a threat/opportunity that rewards a *different* response than the default. The test: after
+     it lands, the dominant-strategy test must no longer have a single answer.
+   - **content** (fixes a *low* ceiling on a loop that's *already* a real decision): more of the
+     same *kind* — new recipes/enemies/cards/tiles — **staged in over the session**, not all at
+     start, so the ceiling moves. Only reach for this once the dominant-strategy test passes;
+     piling content onto a solved loop just makes a longer solved loop.
+   - **run-meta** (fixes *"no reason to start run 2"*): a wrapper that makes sessions differ and
+     accrue — a map/event/economy/unlock track, escalating modifiers, a persisted best or
+     prestige. Gives the loop somewhere to *go* across plays.
 2. **Decompose into sub-systems.** Each one purpose, with a clean interface
    (data layer + logic + screen). Find the **extension seams**: where the existing code
    already supports growth (e.g. a static-func data table) vs. where you must
