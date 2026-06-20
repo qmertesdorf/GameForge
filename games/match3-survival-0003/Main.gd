@@ -158,6 +158,18 @@ var blight_purged := 0
 var max_combo := 0
 var elapsed := 0.0
 
+# --- deepen (systemic): the STREAK stake ---
+# A cross-move multiplier that rewards aggressive matching (greed) but is WIPED by
+# a wall breach. This is what makes purging a real tradeoff instead of strictly
+# dominant: a purge spends the swap you could have used on a bigger combo, but it
+# prevents the breach that would zero your hard-built multiplier. Reward (streak +
+# big combos) now pulls against safety (purge to protect the wall AND the streak).
+var streak := 0
+var streak_best := 0
+var streak_pop := 0.0
+const STREAK_TIERS: Array = [3, 7, 12]          # streak counts that step the multiplier up
+const STREAK_MULTS: Array = [1.0, 1.5, 2.0, 3.0]  # multiplier per tier (index 0 = below first tier)
+
 # --- juice ---
 var shake_amt := 0.0
 var shake_decay := 6.0
@@ -228,6 +240,9 @@ func _new_game() -> void:
 	score = 0
 	blight_purged = 0
 	max_combo = 0
+	streak = 0
+	streak_best = 0
+	streak_pop = 0.0
 	combo = 0
 	combo_display = 0
 	elapsed = 0.0
@@ -304,6 +319,7 @@ func _update(delta: float) -> void:
 	combo_pulse = max(0.0, combo_pulse - 3.0 * delta)
 	score_pop = max(0.0, score_pop - 3.0 * delta)
 	blight_count_pop = max(0.0, blight_count_pop - 3.0 * delta)
+	streak_pop = max(0.0, streak_pop - 2.5 * delta)
 	surge_flash = max(0.0, surge_flash - 1.5 * delta)
 	for c in range(COLS):
 		seg_break_flash[c] = max(0.0, seg_break_flash[c] - 2.5 * delta)
@@ -415,6 +431,10 @@ func _check_breaches() -> void:
 			shake_amt = max(shake_amt, 5.0)
 			flash_col = COL_ROT
 			flash_alpha = max(flash_alpha, 0.30)
+			# deepen: a breach WIPES the streak multiplier — the cost of letting blight
+			# reach the wall instead of purging it. This is the other half of the
+			# tradeoff: greed (chasing combos) risks the breach that zeroes your stake.
+			streak = 0
 			if before > 0.0 and wall_seg_hp[c] <= 0.0:
 				# segment destroyed
 				segments_alive -= 1
@@ -511,12 +531,27 @@ func _find_matches() -> Array:
 # ------------------------------------------------------------
 # Resolve loop: clear -> fall/refill -> rescan
 # ------------------------------------------------------------
+# The streak multiplier — rises with consecutive scoring resolves, wiped by a breach.
+func streak_mult() -> float:
+	var tier: int = 0
+	for t in STREAK_TIERS:
+		if streak >= int(t):
+			tier += 1
+	var idx: int = clamp(tier, 0, STREAK_MULTS.size() - 1)
+	var m: float = STREAK_MULTS[idx]
+	return m
+
 func _start_clear(matches: Array) -> void:
 	combo += 1
 	if combo > max_combo:
 		max_combo = combo
+	# A scoring resolve builds the streak; its multiplier scales the points (greed).
+	streak += 1
+	if streak > streak_best:
+		streak_best = streak
+	streak_pop = 1.0
 	var cleared: int = matches.size()
-	score += cleared * 10 * combo
+	score += int(round(float(cleared * 10 * combo) * streak_mult()))
 	score_pop = 1.0
 
 	# THE FUSION: count blighted cells inside this match BEFORE clearing — those
@@ -557,7 +592,11 @@ func _apply_match_purge(matches: Array) -> int:
 	if purged > 0:
 		blight_purged += purged
 		blight_count_pop = 1.0
-		score += purged * 50 * combo          # purging is worth more than plain clears
+		# deepen: purging no longer out-scores a plain clear. The purged cells are
+		# already counted in _start_clear's `cleared` total; the old `+ purged*50*combo`
+		# bonus made purge strictly dominant (safe AND the high-score move), which
+		# killed the triage decision. Purge's reward is now SURVIVAL — it protects the
+		# wall and therefore the streak multiplier — not raw points.
 		flash_col = COL_WHITE
 		shake_amt = max(shake_amt, 3.0 + float(purged))
 	return purged
@@ -1039,6 +1078,16 @@ func _draw_hud() -> void:
 	_draw_text(font, Vector2(VIEW_W * 0.5 - 60, 70), "SCORE", 22, Color(1, 1, 1, 0.55))
 	var sc_size: int = int(48 * (1.0 + score_pop * 0.35))
 	_draw_text(font, Vector2(VIEW_W * 0.5 - 70, 122), str(score), sc_size, COL_WHITE)
+
+	# STREAK multiplier (under the score) — the stake a breach wipes. Brighter/larger
+	# as the tier climbs so the player feels what they stand to lose by not purging.
+	var smult: float = streak_mult()
+	if smult > 1.0:
+		var st_size: int = int((26 + (smult - 1.0) * 10.0) * (1.0 + streak_pop * 0.4))
+		var st_col := Color(1.0, 0.85, 0.30, clamp(0.7 + streak_pop * 0.3, 0.0, 1.0))
+		_draw_text(font, Vector2(VIEW_W * 0.5 - 78, 168), "STREAK  x%.1f" % smult, st_size, st_col)
+	elif streak >= 1:
+		_draw_text(font, Vector2(VIEW_W * 0.5 - 78, 168), "STREAK  %d" % streak, 22, Color(1, 1, 1, 0.45))
 
 	# BLIGHT count (top-left) with a pop when it drops on a purge
 	_draw_text(font, Vector2(30, 56), "BLIGHT", 20, Color(1, 1, 1, 0.5))

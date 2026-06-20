@@ -2,7 +2,7 @@
   "id": "match3-survival-0003",
   "name": "Aegis Grid III",
   "created_at": "2026-05-31T03:26:08.471Z",
-  "updated_at": "2026-05-31T03:36:57.264Z",
+  "updated_at": "2026-06-20T22:42:51.896Z",
   "status": "playable",
   "concept": {
     "genre": "match-3 survival (fusion)",
@@ -130,5 +130,15 @@
     "compliance": null,
     "store": null,
     "maintenance": null
+  },
+  "depth_pass": {
+    "axis": "systemic",
+    "systems_added": [
+      "removed purge score-dominance: dropped the +purged*50*combo bonus (Main.gd:560) that made a purging match strictly best — safe AND the high-score move — which is why the promised triage was inert (dominant-strategy-test failure)",
+      "cross-move STREAK multiplier (tiered x1->x1.5->x2->x3) built by consecutive scoring resolves and WIPED by a wall breach — so aggressive combo-chasing (greed) raises a rising stake that letting blight reach the wall destroys, while purging protects it (safety). Reward and safety now genuinely oppose.",
+      "streak/multiplier HUD readout under the score"
+    ],
+    "selftest_assertions_added": 3,
+    "notes": "systemic-axis deepen on foreign code (a game built before these skills) to repair a SOLVED loop, applying the upgraded deepen playbook. Diagnostic: content-ceiling test flagged one blight behavior / one counter ~60-90s in; dominant-strategy test FAILED — purging scored 5x a plain clear AND removed the threat, so 'triage' had no cost. Systemic fix = add an interacting mechanic (the streak stake) so the dominant move becomes situational: now the question each swap is 'take the big combo for the rising multiplier, or break to purge the blight creeping toward a breach that would zero it'. Surfaced frozen-logic change (surface-don't-swallow): scoring behavior changed deliberately — purge no longer adds its own score; purged cells score only as the normal clear they already are (counted in _start_clear). selftest Tests 7-9 are the new proof/regression assertions; the original 6 (match/purge/spread/surge/breach/game-over) still pass as the regression guard. No uitest.gd exists for this title (swap-driven, predates the uitest requirement); the headless boot run gates the new HUD/parse. status unchanged (playable) — deepen does not advance status."
   }
 }

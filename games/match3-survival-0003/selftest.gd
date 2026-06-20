@@ -201,4 +201,72 @@ func _init() -> void:
 		return
 	m.queue_free()
 
+	# ===================== deepen (systemic) =====================
+
+	# ---- Test 7: purging is NO LONGER score-dominant ----
+	# _apply_match_purge must not add score directly (the old +purged*50*combo
+	# bonus is gone). Scoring lives only in _start_clear; purge's reward is survival.
+	m = _make()
+	_clear_board(m)
+	m.board[2][0] = 0
+	m.board[2][1] = 0
+	m.board[2][2] = 0
+	m.blight[2][1] = true
+	m.combo = 3
+	m.score = 1000
+	var t7_purged: int = m._apply_match_purge([Vector2i(0, 2), Vector2i(1, 2), Vector2i(2, 2)])
+	if t7_purged != 1:
+		_fail("test7: expected 1 purge, got %d" % t7_purged)
+		return
+	if m.score != 1000:
+		_fail("test7: purge still changed score directly (%d != 1000) — purge is dominant again" % m.score)
+		return
+	m.queue_free()
+
+	# ---- Test 8: the STREAK multiplier builds and scales score ----
+	m = _make()
+	_clear_board(m)
+	# multiplier is monotonic non-decreasing as streak climbs through the tiers
+	m.streak = 0
+	var t8_m0: float = m.streak_mult()
+	m.streak = m.STREAK_TIERS[m.STREAK_TIERS.size() - 1]   # top tier
+	var t8_mtop: float = m.streak_mult()
+	if not (t8_mtop > t8_m0):
+		_fail("test8: streak multiplier did not rise across tiers (%f -> %f)" % [t8_m0, t8_mtop])
+		return
+	# a scoring resolve increments the streak and applies the multiplier
+	var t8_cells: Array = [Vector2i(0, 5), Vector2i(1, 5), Vector2i(2, 5)]
+	m.streak = 0
+	m.combo = 0
+	m.score = 0
+	m._start_clear(t8_cells)
+	var t8_low: int = m.score
+	if m.streak != 1:
+		_fail("test8: a scoring resolve did not increment streak (streak=%d)" % m.streak)
+		return
+	m.streak = m.STREAK_TIERS[m.STREAK_TIERS.size() - 1] - 1   # next resolve reaches the top tier
+	m.combo = 0
+	m.score = 0
+	m._start_clear(t8_cells)
+	var t8_high: int = m.score
+	if not (t8_high > t8_low):
+		_fail("test8: high-streak resolve did not out-score a streak-0 resolve (%d <= %d)" % [t8_high, t8_low])
+		return
+	m.queue_free()
+
+	# ---- Test 9: a wall breach WIPES the streak ----
+	m = _make()
+	_clear_board(m)
+	for r9 in range(m.ROWS):
+		for c9 in range(m.COLS):
+			m.blight[r9][c9] = false
+	m.streak = 8
+	var t9_br: int = m.ROWS - 1
+	m.blight[t9_br][2] = true        # bottom-row blight -> breach this column on the pass
+	m._check_breaches()
+	if m.streak != 0:
+		_fail("test9: a breach did not wipe the streak (streak=%d)" % m.streak)
+		return
+	m.queue_free()
+
 	_ok()
