@@ -6,6 +6,7 @@ extends SceneTree
 # Prints exactly "SELFTEST OK" + exit 0, or "SELFTEST FAIL: <reason>" + exit 1.
 
 const DiveStateC := preload("res://DiveState.gd")
+const MetaSaveRef := preload("res://MetaSave.gd")
 
 func _init() -> void:
 	var fails: Array = []
@@ -16,7 +17,8 @@ func _init() -> void:
 	s1.start_dive()
 	if not s1.active: fails.append("start_dive did not set active")
 	if s1.depth != 0.0: fails.append("start_dive depth not 0")
-	if s1.air != DiveStateC.MAX_AIR: fails.append("start_dive air not full")
+	if s1.air != s1.max_air: fails.append("start_dive air not full")
+	if s1.max_air != DiveStateC.BASE_MAX_AIR: fails.append("start_dive max_air not base at zero upgrades")
 	if s1.haul != 0: fails.append("start_dive haul not 0")
 	if not s1.descending: fails.append("start_dive should begin descending")
 
@@ -107,6 +109,71 @@ func _init() -> void:
 	var drain8_deep: float = s8.current_drain()
 	if drain8_deep <= drain8_shallow:
 		fails.append("depth did not increase air drain (tradeoff cost missing)")
+
+	# ===================== deepen run-meta pass =====================
+
+	# --- Stage 9: upgrade purchase deducts banked and raises the level; broke = no-op ---
+	var s9 = DiveStateC.new()
+	s9.seed_rng(9)
+	s9.banked = 200
+	var cost9: int = s9.upgrade_cost("tank")
+	var r9: Dictionary = s9.buy_upgrade("tank")
+	if not r9.get("bought", false): fails.append("affordable upgrade was not bought")
+	if s9.upgrades["tank"] != 1: fails.append("upgrade level did not increment")
+	if s9.banked != 200 - cost9: fails.append("upgrade did not deduct banked score")
+	# unaffordable purchase must be a no-op
+	s9.banked = 0
+	var r9b: Dictionary = s9.buy_upgrade("fins")
+	if r9b.get("bought", false): fails.append("upgrade bought with no banked score")
+	if s9.upgrades["fins"] != 0: fails.append("unaffordable upgrade still incremented level")
+
+	# --- Stage 10: Tank upgrade raises max_air, and the next dive fills to it ---
+	var s10 = DiveStateC.new()
+	s10.seed_rng(10)
+	var air10_base: float = s10.max_air_for()
+	s10.upgrades["tank"] = 2
+	var air10_up: float = s10.max_air_for()
+	if air10_up <= air10_base: fails.append("tank upgrade did not raise max_air_for")
+	s10.start_dive()
+	if s10.max_air != air10_up: fails.append("start_dive did not apply upgraded max_air")
+	if s10.air != air10_up: fails.append("dive did not fill to the upgraded tank")
+
+	# --- Stage 11: Lantern upgrade multiplies collected treasure into the haul ---
+	var s11 = DiveStateC.new()
+	s11.seed_rng(11)
+	s11.start_dive()
+	s11.collect(100)
+	var haul11_base: int = s11.haul        # mult 1.0 at level 0 -> 100
+	var s11b = DiveStateC.new()
+	s11b.seed_rng(111)
+	s11b.upgrades["lamp"] = 2               # +50%
+	s11b.start_dive()
+	s11b.collect(100)
+	if haul11_base != 100: fails.append("base lantern multiplier was not 1.0")
+	if s11b.haul <= haul11_base: fails.append("lantern upgrade did not enrich the haul")
+
+	# --- Stage 12: Fins raise ascend speed; Rebreather lowers drain to a floor ---
+	var s12 = DiveStateC.new()
+	s12.seed_rng(12)
+	var asc12_base: float = s12.ascend_speed()
+	s12.upgrades["fins"] = 3
+	if s12.ascend_speed() <= asc12_base: fails.append("fins did not raise ascend speed")
+	var drain12_base: float = s12.base_drain()
+	s12.upgrades["rebreather"] = 2
+	if s12.base_drain() >= drain12_base: fails.append("rebreather did not lower base drain")
+	s12.upgrades["rebreather"] = 99        # absurd level must still respect the floor
+	if s12.base_drain() < DiveStateC.MIN_DRAIN - 0.001: fails.append("rebreather broke the drain floor")
+
+	# --- Stage 13: PERSISTENCE round-trips banked + upgrades (reset file first) ---
+	MetaSaveRef.clear()
+	MetaSaveRef.write(347, {"tank": 2, "fins": 1, "lamp": 0, "rebreather": 1}, 5)
+	var loaded13: Dictionary = MetaSaveRef.read()
+	if int(loaded13.get("banked", -1)) != 347: fails.append("persistence did not round-trip banked")
+	if int(loaded13.get("dive_num", -1)) != 5: fails.append("persistence did not round-trip dive_num")
+	var up13: Dictionary = loaded13.get("upgrades", {})
+	if int(up13.get("tank", -1)) != 2 or int(up13.get("rebreather", -1)) != 1:
+		fails.append("persistence did not round-trip upgrade levels")
+	MetaSaveRef.clear()
 
 	if fails.is_empty():
 		print("SELFTEST OK")

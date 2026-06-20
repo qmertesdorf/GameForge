@@ -8,6 +8,9 @@ extends SceneTree
 ## exits 0, or "UITEST FAIL: <n> checks failed" and exits 1.
 ## Run: godot --headless --path games/diver-0001/ --script res://uitest.gd
 
+const MetaSaveRef := preload("res://MetaSave.gd")
+const DiveStateC := preload("res://DiveState.gd")
+
 var main: Node2D
 var fail_count: int = 0
 
@@ -43,6 +46,8 @@ func _center(c: Control) -> Vector2:
 
 
 func _run() -> void:
+	# Boot must be deterministic: clear any persisted save before _ready loads it.
+	MetaSaveRef.clear()
 	var scene: PackedScene = load("res://Main.tscn")
 	main = scene.instantiate()
 	root.add_child(main)
@@ -68,16 +73,30 @@ func _run() -> void:
 	await process_frame
 	_check("ascend_button_lands", not S.descending, "descending=%s" % str(S.descending))
 
-	# ---- DIVE AGAIN: when the dive is over, the restart button starts a new dive
+	# ---- SURFACE SHOP: end the dive, then buy an upgrade via a real click ----
 	S.active = false
 	main._refresh_buttons()
 	await process_frame
 	_check("dive_again_visible_when_over", main.dive_again_button.visible and not main.ascend_button.visible)
+	_check("upgrade_buttons_visible_when_over", main.upgrade_buttons["tank"].visible)
+	# Give enough banked score that the Tank upgrade is affordable, then click it.
+	S.banked = 500
+	main._refresh_upgrade_labels()
+	await process_frame
+	var tank_lvl_before: int = S.upgrades["tank"]
+	var bank_before: int = S.banked
+	_click(_center(main.upgrade_buttons["tank"]))
+	await process_frame
+	_check("upgrade_buy_click_lands", S.upgrades["tank"] == tank_lvl_before + 1 and S.banked < bank_before, "tank=%d banked=%d" % [S.upgrades["tank"], S.banked])
+
+	# ---- DIVE AGAIN: the restart button starts a new dive that reflects upgrades
 	var dive_before: int = S.dive_num
 	_click(_center(main.dive_again_button))
 	await process_frame
 	_check("dive_again_starts_new_dive", S.active and S.descending and S.dive_num == dive_before + 1, "active=%s dive=%d" % [str(S.active), S.dive_num])
+	_check("upgraded_tank_applied_to_dive", S.max_air > DiveStateC.BASE_MAX_AIR, "max_air=%.0f" % S.max_air)
 
+	MetaSaveRef.clear()
 	if fail_count == 0:
 		print("UITEST OK")
 		quit(0)

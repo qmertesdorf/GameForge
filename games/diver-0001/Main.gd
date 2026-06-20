@@ -5,6 +5,7 @@ extends Node2D
 # treasures/hazards/diver (play), air bar + counters + buttons (HUD).
 
 const DiveStateC := preload("res://DiveState.gd")
+const MetaSaveRef := preload("res://MetaSave.gd")
 
 const W: float = 720.0
 const H: float = 1280.0
@@ -37,14 +38,50 @@ var _bubble_t: float = 0.0
 
 @onready var ascend_button: Button = $UI/AscendButton
 @onready var dive_again_button: Button = $UI/DiveAgainButton
+@onready var ui_layer: CanvasLayer = $UI
+
+# upgrade-screen buttons, built in code: key -> Button
+var upgrade_buttons: Dictionary = {}
+const UPGRADE_ORDER: Array = ["tank", "fins", "lamp", "rebreather"]
 
 func _ready() -> void:
 	state = DiveStateC.new()
 	state.seed_rng(20240620)
+	_load_meta()
 	_seed_plankton()
 	ascend_button.pressed.connect(_on_ascend_pressed)
 	dive_again_button.pressed.connect(_on_dive_again_pressed)
+	_build_upgrade_buttons()
 	_start_dive()
+
+func _load_meta() -> void:
+	var data: Dictionary = MetaSaveRef.read()
+	if data.is_empty():
+		return
+	state.banked = int(data.get("banked", 0))
+	state.dive_num = int(data.get("dive_num", 1))
+	var up: Dictionary = data.get("upgrades", {})
+	for k in UPGRADE_ORDER:
+		state.upgrades[k] = int(up.get(k, 0))
+
+func _save_meta() -> void:
+	MetaSaveRef.write(state.banked, state.upgrades, state.dive_num)
+
+func _build_upgrade_buttons() -> void:
+	# The between-dive "surface shop" — one button per upgrade, shown only when a
+	# dive is over. Banked score is the currency; buying shifts a dive parameter.
+	var y: float = 430.0
+	for key in UPGRADE_ORDER:
+		var b := Button.new()
+		b.offset_left = 90.0
+		b.offset_top = y
+		b.offset_right = W - 90.0
+		b.offset_bottom = y + 84.0
+		b.add_theme_font_size_override("font_size", 26)
+		b.pressed.connect(_on_upgrade_pressed.bind(key))
+		ui_layer.add_child(b)
+		upgrade_buttons[key] = b
+		y += 96.0
 
 func _seed_plankton() -> void:
 	plankton.clear()
@@ -77,6 +114,31 @@ func _next_dive() -> void:
 func _refresh_buttons() -> void:
 	ascend_button.visible = state.active
 	dive_again_button.visible = not state.active
+	for key in UPGRADE_ORDER:
+		var b: Button = upgrade_buttons[key]
+		b.visible = not state.active
+	if not state.active:
+		_refresh_upgrade_labels()
+
+func _refresh_upgrade_labels() -> void:
+	for key in UPGRADE_ORDER:
+		var b: Button = upgrade_buttons[key]
+		var info: Dictionary = DiveStateC.UPGRADES[key]
+		var lvl: int = state.upgrades[key]
+		var cost: int = state.upgrade_cost(key)
+		if cost < 0:
+			b.text = "%s  Lv%d  •  MAX" % [info["name"], lvl]
+			b.disabled = true
+		else:
+			b.text = "%s  Lv%d  →  %d" % [info["name"], lvl, cost]
+			b.disabled = not state.can_buy(key)
+
+func _on_upgrade_pressed(key: String) -> void:
+	var r: Dictionary = state.buy_upgrade(key)
+	if r.get("bought", false):
+		bank_pulse = 1.0
+		_save_meta()
+		_refresh_upgrade_labels()
 
 # ---------------- input ----------------
 
@@ -196,8 +258,9 @@ func _handle_events(events: Array) -> void:
 			_refresh_buttons()
 		elif t == "air_low":
 			flash = 0.4
-	# active may have flipped to false this tick (banked/forfeit)
+	# active may have flipped to false this tick (banked/forfeit) — persist + surface the shop
 	if not state.active and ascend_button.visible:
+		_save_meta()
 		_refresh_buttons()
 
 func _cull_objects() -> void:
@@ -333,9 +396,12 @@ func _draw_hud() -> void:
 		draw_string(font, Vector2(0.0, 230.0), "ASCENDING…", HORIZONTAL_ALIGNMENT_CENTER, W, 26, Color(0.6, 0.9, 1.0))
 
 	if not state.active:
-		var msg: String = "DIVE OVER"
-		if state.banked > 0:
-			msg = "BANKED %d  •  TAP TO DIVE" % state.banked
-		draw_string(font, Vector2(0.0, 700.0), msg, HORIZONTAL_ALIGNMENT_CENTER, W, 30, Color(0.85, 0.92, 1.0))
-		if state.haul == 0 and state.max_depth_reached > 0.0:
-			draw_string(font, Vector2(0.0, 660.0), "the deep kept your catch", HORIZONTAL_ALIGNMENT_CENTER, W, 22, Color(0.9, 0.5, 0.6))
+		# outcome line for the dive that just ended
+		if state.max_depth_reached > 0.0:
+			if state.haul == 0 and state.banked >= 0:
+				draw_string(font, Vector2(0.0, 250.0), "the deep kept your catch", HORIZONTAL_ALIGNMENT_CENTER, W, 26, Color(0.95, 0.5, 0.62))
+			else:
+				draw_string(font, Vector2(0.0, 250.0), "catch banked safely", HORIZONTAL_ALIGNMENT_CENTER, W, 26, Color(0.6, 0.95, 0.8))
+		# the surface shop — the run-meta layer
+		draw_string(font, Vector2(0.0, 330.0), "SURFACE — spend pearls", HORIZONTAL_ALIGNMENT_CENTER, W, 34, Color(0.9, 0.94, 1.0))
+		draw_string(font, Vector2(0.0, 380.0), "deeper upgrades shift where it's safe to bank", HORIZONTAL_ALIGNMENT_CENTER, W, 20, Color(0.6, 0.72, 0.85))
