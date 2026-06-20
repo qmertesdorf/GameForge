@@ -1,0 +1,99 @@
+{
+  "id": "diver-0001",
+  "name": "Fathom",
+  "created_at": "2026-06-20T22:19:56.286Z",
+  "updated_at": "2026-06-20T22:26:52.374Z",
+  "status": "validated",
+  "concept": {
+    "theme": {
+      "premise": "a lone free-diver descending a bioluminescent ocean trench at dusk, gathering pearls and sunken relics out of the dark and racing her one held breath back to the surface before the deep keeps her catch",
+      "tone": "serene but breath-held tense — quiet beauty laced with the dread of going too deep; the pull of 'just one more fathom'",
+      "mood_keywords": [
+        "deep",
+        "bioluminescent",
+        "breath-held",
+        "perilous"
+      ],
+      "setting": "a dark vertical ocean trench at dusk: fading teal surface light and godrays up top dimming to inky black, glowing sea life and sunken relics below"
+    },
+    "genre": "push-your-luck arcade diver (one-thumb depth-vs-air)",
+    "core_loop": "The diver sinks continuously while you drag to steer her left/right, grabbing drifting treasures (the deeper ones worth far more) and dodging air-draining hazards; tapping ASCEND reverses her toward the surface, and reaching the surface BANKS the dive's haul into your permanent score. The live decision every second is GREED vs AIR: pushing deeper for richer treasure spends air you will need to climb back, and the long ascent itself costs air, so 'one more relic' gains haul value (A) but gives up the safety margin (B) that gets the whole catch home. Run out of air before surfacing and you forfeit the entire UNBANKED dive. Starts shallow and calm with a generous tank; each completed dive ramps depth reached, hazard density, and air-drain rate up to a hard cap, so the safe banking depth creeps shallower and the greed tax rises.",
+    "mechanics": [
+      "continuous vertical descent with horizontal drag/tap steering (Android touch + desktop mouse)",
+      "air gauge that depletes continuously and faster the deeper you are; the core resource",
+      "drifting treasures spawned by depth band, deeper bands worth multiplicatively more, collected on contact into an UNBANKED dive haul",
+      "hazards (jelly, eel) that drain a chunk of air on contact, denser deeper",
+      "ASCEND action (button + swipe up) that reverses to surfacing; reaching the surface banks the haul into permanent score and starts the next dive",
+      "loss condition: air reaches zero before surfacing -> forfeit the entire unbanked haul (soft per-dive game over), then restart the dive",
+      "HUD: depth meter, air gauge (pulses red when low), current unbanked haul value, banked total score",
+      "per-dive difficulty ramp (start depth band, hazard density, air-drain rate) with MAX_* caps",
+      "persistent banked score across dives"
+    ],
+    "art_direction": "Dark vertical gradient: dim teal surface light + faint godrays at top fading to near-black depths. Bioluminescent accents are the palette — cyan and magenta glowing treasures and jellies, each drawn with the oversized low-alpha halo behind a crisp shape (the glow recipe). The diver is a clean pale silhouette with a small warm headlamp cone. Background never dead: layered depth gradient + slow parallax plankton dots drifting up + faint godrays. Motion/feedback: white flash + short screen shake when a hazard drains air; gold pulse + sparkle particle when a treasure is collected; the air bar pulses red and the vignette tightens as air runs low; rising bubble particles trail the diver. This is the visual expression of the breath-held bioluminescent-trench theme — luminous points in deep dark, not bright arcade neon.",
+    "target_platforms": [
+      "android"
+    ],
+    "differentiation_notes": "Not an endless runner or flappy clone: the hook is the push-your-luck BANKING decision (deep-dive/greed-game lineage) mapped onto a one-thumb portrait diver. Every fathom deeper is a live bet of air against treasure value, and the loss condition forfeits only the unbanked haul — so the tension is self-inflicted greed, not unfair death. The tradeoff is intrinsic to the loop (reward scales with depth, safety scales inversely), which is the differentiator over score-climbing arcade peers."
+  },
+  "build": {
+    "engine": "godot",
+    "engine_version": "4.6.3.stable",
+    "language": "gdscript",
+    "project_path": "games/diver-0001/",
+    "addons": [],
+    "export_presets": [
+      "android"
+    ],
+    "orientation": "portrait"
+  },
+  "assets": [
+    {
+      "type": "sprite",
+      "name": "diver",
+      "source": "placeholder",
+      "origin": "primitive"
+    },
+    {
+      "type": "sprite",
+      "name": "treasure",
+      "source": "placeholder",
+      "origin": "primitive"
+    },
+    {
+      "type": "sprite",
+      "name": "hazard",
+      "source": "placeholder",
+      "origin": "primitive"
+    },
+    {
+      "type": "sprite",
+      "name": "background",
+      "source": "placeholder",
+      "origin": "primitive"
+    },
+    {
+      "type": "sprite",
+      "name": "plankton",
+      "source": "placeholder",
+      "origin": "primitive"
+    },
+    {
+      "type": "sprite",
+      "name": "hud_air_bar",
+      "source": "placeholder",
+      "origin": "primitive"
+    }
+  ],
+  "validation": {
+    "issues": [],
+    "opens_in_editor": true,
+    "runs": true,
+    "core_loop_functional": true,
+    "interaction_functional": true
+  },
+  "_reserved": {
+    "compliance": null,
+    "store": null,
+    "maintenance": null
+  }
+}
