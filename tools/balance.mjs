@@ -272,7 +272,7 @@ function main(argv) {
     console.log("  composite: " + res.best.composite.toFixed(3));
     console.log("  focus-points (penalty / value):");
     for (const k of res.focus)
-      console.log(`    ${k}: penalty ${(res.best.penalties[k] ?? 0).toFixed(3)}  value ${res.best.agg[k]}`);
+      console.log(`    ${k}: penalty ${(res.best.penalties[k] ?? 0).toFixed(3)}  value ${res.best.agg[k] ?? "(n/a)"}`);
     console.log("  clear_rate: " + fmtPct(res.best.agg.clear_rate ?? 0));
   } else {
     console.log("  (no config satisfied the hard constraints — widen the search space)");
