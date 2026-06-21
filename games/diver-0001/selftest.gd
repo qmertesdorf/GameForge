@@ -1,8 +1,8 @@
 extends SceneTree
-# Headless logic self-test for Fathom. Drives the pure DiveState engine with a
-# fixed seed and asserts the push-your-luck economy: descent burns air, treasure
-# only counts once banked, a cautious dive reliably banks (fairness), and a
-# greedy dive that runs out of air forfeits the whole haul (the tradeoff is real).
+# Headless logic self-test for Fathom (deepen v2: depth-as-destination model).
+# Drives the pure DiveState engine with a fixed seed and asserts the economy:
+# zones, the pressure CRUSH gate, the COMMISSION that requires reaching a zone,
+# upgrade coherence (each upgrade changes a real parameter), and persistence.
 # Prints exactly "SELFTEST OK" + exit 0, or "SELFTEST FAIL: <reason>" + exit 1.
 
 const DiveStateC := preload("res://DiveState.gd")
@@ -18,9 +18,7 @@ func _init() -> void:
 	if not s1.active: fails.append("start_dive did not set active")
 	if s1.depth != 0.0: fails.append("start_dive depth not 0")
 	if s1.air != s1.max_air: fails.append("start_dive air not full")
-	if s1.max_air != DiveStateC.BASE_MAX_AIR: fails.append("start_dive max_air not base at zero upgrades")
-	if s1.haul != 0: fails.append("start_dive haul not 0")
-	if not s1.descending: fails.append("start_dive should begin descending")
+	if s1.commission_have != 0: fails.append("start_dive did not reset commission_have")
 
 	# --- Stage 2: descending burns air and increases depth ---
 	var s2 = DiveStateC.new()
@@ -32,147 +30,137 @@ func _init() -> void:
 	if s2.depth <= 0.0: fails.append("descending did not increase depth")
 	if s2.air >= air2_before: fails.append("descending did not burn air")
 
-	# --- Stage 3: collect adds to the UNBANKED haul, banked unchanged ---
+	# --- Stage 3: zone boundaries ---
 	var s3 = DiveStateC.new()
-	s3.seed_rng(3)
-	s3.start_dive()
-	var bank3_before: int = s3.banked
-	s3.collect(15)
-	if s3.haul != 15: fails.append("collect did not add to haul")
-	if s3.banked != bank3_before: fails.append("collect must not bank directly")
+	if s3.zone_for(0.0) != 0: fails.append("zone_for(0) != Shallows")
+	if s3.zone_for(float(DiveStateC.ZONE_BOUNDS[1]) - 1.0) != 0: fails.append("just above Reef boundary not Shallows")
+	if s3.zone_for(float(DiveStateC.ZONE_BOUNDS[1])) != 1: fails.append("Reef boundary not zone 1")
+	if s3.zone_for(float(DiveStateC.ZONE_BOUNDS[2])) != 2: fails.append("Trench boundary not zone 2")
+	if s3.zone_value(2) <= s3.zone_value(0): fails.append("deeper zone is not worth more")
 
-	# --- Stage 4: hitting a hazard drains air ---
+	# --- Stage 4: collect — zone value into haul; only target-zone+ counts to the order ---
 	var s4 = DiveStateC.new()
 	s4.seed_rng(4)
+	s4.commission_zone = 1
 	s4.start_dive()
-	var air4_before: float = s4.air
-	s4.hit_hazard()
-	if s4.air >= air4_before: fails.append("hazard did not drain air")
-	if abs((air4_before - s4.air) - DiveStateC.HAZARD_AIR_COST) > 0.001:
-		fails.append("hazard drained the wrong amount of air")
+	s4.collect(0)                # a Shallows treasure: scores but does NOT count to a Reef order
+	if s4.haul != s4.zone_value(0): fails.append("collect did not add zone value to haul")
+	if s4.commission_have != 0: fails.append("shallow treasure wrongly counted toward a deeper order")
+	s4.collect(1)                # a Reef treasure: counts
+	if s4.commission_have != 1: fails.append("target-zone treasure did not count toward the order")
 
-	# --- Stage 5: FAIRNESS — a cautious dive descends a little then banks ---
+	# --- Stage 5: hazard drains air ---
 	var s5 = DiveStateC.new()
 	s5.seed_rng(5)
 	s5.start_dive()
-	for _i5 in range(8):
-		s5.tick(0.1)          # sink to a modest depth
-	s5.collect(40)
-	var bank5_before: int = s5.banked
-	s5.set_ascending(true)
-	var surfaced5: bool = false
-	for _j5 in range(400):
-		s5.tick(0.05)
-		if not s5.active:
-			surfaced5 = true
-			break
-	if not surfaced5: fails.append("cautious dive never resolved")
-	if s5.banked != bank5_before + 40: fails.append("surfacing did not bank the haul")
-	if s5.haul != 0: fails.append("haul not cleared after banking")
+	var air5_before: float = s5.air
+	s5.hit_hazard()
+	if abs((air5_before - s5.air) - DiveStateC.HAZARD_AIR_COST) > 0.001:
+		fails.append("hazard drained the wrong amount of air")
 
-	# --- Stage 6: GREED — descend until air runs out: the haul is forfeited ---
+	# --- Stage 6: the CRUSH — past max_safe_depth, air burns much faster ---
 	var s6 = DiveStateC.new()
 	s6.seed_rng(6)
 	s6.start_dive()
-	s6.collect(120)
-	var bank6_before: int = s6.banked
-	var forfeited6: bool = false
-	for _j6 in range(2000):
-		s6.tick(0.1)          # keep descending (never ascend) — pure greed
-		if not s6.active:
-			forfeited6 = true
-			break
-	if not forfeited6: fails.append("greedy dive never ended")
-	if s6.air > 0.0: fails.append("greedy dive ended with air to spare")
-	if s6.haul != 0: fails.append("forfeit did not clear the haul")
-	if s6.banked != bank6_before: fails.append("forfeit must not bank anything")
+	s6.upgrades["rig"] = 0
+	s6.depth = s6.max_safe_depth() - 20.0
+	var drain6_safe: float = s6.current_drain()
+	s6.depth = s6.max_safe_depth() + 20.0
+	var drain6_crush: float = s6.current_drain()
+	if not s6.is_crushing(): fails.append("is_crushing false past the safe depth")
+	if drain6_crush <= drain6_safe * 2.0: fails.append("crush did not sharply increase air drain")
 
-	# --- Stage 7: per-dive ramp — drain accelerates across dives, but is capped ---
+	# --- Stage 7: Pressure Rig extends the safe depth (zone access) ---
 	var s7 = DiveStateC.new()
 	s7.seed_rng(7)
-	s7.dive_num = 1
-	var m7_d1: float = s7.drain_mult()
-	s7.dive_num = 2
-	var m7_d2: float = s7.drain_mult()
-	if m7_d2 <= m7_d1: fails.append("drain ramp did not increase on dive 2")
-	s7.dive_num = 99
-	if s7.drain_mult() > DiveStateC.MAX_DRAIN_MULT + 0.001:
-		fails.append("drain ramp exceeded its cap")
+	s7.upgrades["rig"] = 0
+	var safe7_lo: float = s7.max_safe_depth()
+	s7.upgrades["rig"] = 2
+	var safe7_hi: float = s7.max_safe_depth()
+	if safe7_hi <= safe7_lo: fails.append("Pressure Rig did not extend max_safe_depth")
+	# rig 0 can't safely reach the Reef; rig high can reach the Trench
+	if safe7_lo >= float(DiveStateC.ZONE_BOUNDS[1]): fails.append("rig 0 should NOT safely reach the Reef")
+	if safe7_hi < float(DiveStateC.ZONE_BOUNDS[2]): fails.append("upgraded rig should reach the Trench")
 
-	# --- Stage 8: the cost B is depth-driven — deeper drains faster ---
+	# --- Stage 8: COMMISSION fills and pays a bonus on surfacing; the order advances ---
 	var s8 = DiveStateC.new()
 	s8.seed_rng(8)
+	s8.commission_zone = 1
 	s8.start_dive()
-	s8.depth = 0.0
-	var drain8_shallow: float = s8.current_drain()
-	s8.depth = 300.0
-	var drain8_deep: float = s8.current_drain()
-	if drain8_deep <= drain8_shallow:
-		fails.append("depth did not increase air drain (tradeoff cost missing)")
+	s8.collect(1)
+	s8.collect(1)               # commission_have == target
+	if not s8.commission_complete(): fails.append("collecting the target did not complete the order")
+	var bonus8: int = s8.commission_bonus()
+	var expect8: int = s8.haul + bonus8
+	var done8_before: int = s8.commissions_done
+	var zone8_before: int = s8.commission_zone
+	s8.set_ascending(true)
+	var surfaced8: bool = false
+	for _j8 in range(400):
+		s8.tick(0.05)
+		if not s8.active:
+			surfaced8 = true
+			break
+	if not surfaced8: fails.append("commission dive never surfaced")
+	if s8.banked != expect8: fails.append("surfacing did not pay haul + commission bonus")
+	if s8.commissions_done != done8_before + 1: fails.append("commissions_done did not increment")
+	if s8.commission_zone != zone8_before + 1: fails.append("filled order did not advance to a deeper zone")
 
-	# ===================== deepen run-meta pass =====================
-
-	# --- Stage 9: upgrade purchase deducts banked and raises the level; broke = no-op ---
+	# --- Stage 9: GREED — air out deep forfeits the haul AND the order progress ---
 	var s9 = DiveStateC.new()
 	s9.seed_rng(9)
-	s9.banked = 200
-	var cost9: int = s9.upgrade_cost("tank")
-	var r9: Dictionary = s9.buy_upgrade("tank")
-	if not r9.get("bought", false): fails.append("affordable upgrade was not bought")
-	if s9.upgrades["tank"] != 1: fails.append("upgrade level did not increment")
-	if s9.banked != 200 - cost9: fails.append("upgrade did not deduct banked score")
-	# unaffordable purchase must be a no-op
-	s9.banked = 0
-	var r9b: Dictionary = s9.buy_upgrade("fins")
-	if r9b.get("bought", false): fails.append("upgrade bought with no banked score")
-	if s9.upgrades["fins"] != 0: fails.append("unaffordable upgrade still incremented level")
+	s9.commission_zone = 1
+	s9.start_dive()
+	s9.collect(1)
+	s9.collect(1)
+	var bank9_before: int = s9.banked
+	var done9_before: int = s9.commissions_done
+	var forfeited9: bool = false
+	for _j9 in range(3000):
+		s9.tick(0.1)            # keep descending (greed) — the crush eats the air
+		if not s9.active:
+			forfeited9 = true
+			break
+	if not forfeited9: fails.append("greedy dive never ended")
+	if s9.haul != 0: fails.append("forfeit did not clear the haul")
+	if s9.banked != bank9_before: fails.append("forfeit must not bank anything")
+	if s9.commissions_done != done9_before: fails.append("forfeit wrongly credited the commission")
 
-	# --- Stage 10: Tank upgrade raises max_air, and the next dive fills to it ---
+	# --- Stage 10: upgrade purchase deducts banked + raises level; broke = no-op ---
 	var s10 = DiveStateC.new()
 	s10.seed_rng(10)
-	var air10_base: float = s10.max_air_for()
-	s10.upgrades["tank"] = 2
-	var air10_up: float = s10.max_air_for()
-	if air10_up <= air10_base: fails.append("tank upgrade did not raise max_air_for")
-	s10.start_dive()
-	if s10.max_air != air10_up: fails.append("start_dive did not apply upgraded max_air")
-	if s10.air != air10_up: fails.append("dive did not fill to the upgraded tank")
+	s10.banked = 200
+	var cost10: int = s10.upgrade_cost("rig")
+	var r10: Dictionary = s10.buy_upgrade("rig")
+	if not r10.get("bought", false): fails.append("affordable upgrade not bought")
+	if s10.upgrades["rig"] != 1: fails.append("upgrade level did not increment")
+	if s10.banked != 200 - cost10: fails.append("upgrade did not deduct banked")
+	s10.banked = 0
+	var r10b: Dictionary = s10.buy_upgrade("tank")
+	if r10b.get("bought", false): fails.append("upgrade bought with no banked score")
 
-	# --- Stage 11: Lantern upgrade multiplies collected treasure into the haul ---
+	# --- Stage 11: every upgrade changes a real parameter (coherence) ---
 	var s11 = DiveStateC.new()
 	s11.seed_rng(11)
-	s11.start_dive()
-	s11.collect(100)
-	var haul11_base: int = s11.haul        # mult 1.0 at level 0 -> 100
-	var s11b = DiveStateC.new()
-	s11b.seed_rng(111)
-	s11b.upgrades["lamp"] = 2               # +50%
-	s11b.start_dive()
-	s11b.collect(100)
-	if haul11_base != 100: fails.append("base lantern multiplier was not 1.0")
-	if s11b.haul <= haul11_base: fails.append("lantern upgrade did not enrich the haul")
+	var air11: float = s11.max_air_for()
+	s11.upgrades["tank"] = 2
+	if s11.max_air_for() <= air11: fails.append("tank did not raise max air")
+	var asc11: float = s11.ascend_speed()
+	s11.upgrades["fins"] = 2
+	if s11.ascend_speed() <= asc11: fails.append("fins did not raise ascend speed")
+	var lamp11: float = s11.lamp_range()
+	s11.upgrades["lamp"] = 2
+	if s11.lamp_range() <= lamp11: fails.append("lamp did not raise the light range")
 
-	# --- Stage 12: Fins raise ascend speed; Rebreather lowers drain to a floor ---
-	var s12 = DiveStateC.new()
-	s12.seed_rng(12)
-	var asc12_base: float = s12.ascend_speed()
-	s12.upgrades["fins"] = 3
-	if s12.ascend_speed() <= asc12_base: fails.append("fins did not raise ascend speed")
-	var drain12_base: float = s12.base_drain()
-	s12.upgrades["rebreather"] = 2
-	if s12.base_drain() >= drain12_base: fails.append("rebreather did not lower base drain")
-	s12.upgrades["rebreather"] = 99        # absurd level must still respect the floor
-	if s12.base_drain() < DiveStateC.MIN_DRAIN - 0.001: fails.append("rebreather broke the drain floor")
-
-	# --- Stage 13: PERSISTENCE round-trips banked + upgrades (reset file first) ---
+	# --- Stage 12: persistence round-trips banked + upgrades + commission progress ---
 	MetaSaveRef.clear()
-	MetaSaveRef.write(347, {"tank": 2, "fins": 1, "lamp": 0, "rebreather": 1}, 5)
-	var loaded13: Dictionary = MetaSaveRef.read()
-	if int(loaded13.get("banked", -1)) != 347: fails.append("persistence did not round-trip banked")
-	if int(loaded13.get("dive_num", -1)) != 5: fails.append("persistence did not round-trip dive_num")
-	var up13: Dictionary = loaded13.get("upgrades", {})
-	if int(up13.get("tank", -1)) != 2 or int(up13.get("rebreather", -1)) != 1:
-		fails.append("persistence did not round-trip upgrade levels")
+	MetaSaveRef.write(420, {"rig": 2, "tank": 1, "lamp": 0, "fins": 1}, 6, 2, 3)
+	var loaded12: Dictionary = MetaSaveRef.read()
+	if int(loaded12.get("banked", -1)) != 420: fails.append("persistence lost banked")
+	if int(loaded12.get("commission_zone", -1)) != 2: fails.append("persistence lost commission_zone")
+	if int(loaded12.get("commissions_done", -1)) != 3: fails.append("persistence lost commissions_done")
+	var up12: Dictionary = loaded12.get("upgrades", {})
+	if int(up12.get("rig", -1)) != 2: fails.append("persistence lost upgrade levels")
 	MetaSaveRef.clear()
 
 	if fails.is_empty():

@@ -7,7 +7,7 @@ class_name MetaSave
 
 const PATH: String = "user://save.json"
 
-static func write(banked: int, upgrades: Dictionary, dive_num: int) -> void:
+static func write(banked: int, upgrades: Dictionary, dive_num: int, commission_zone: int = 1, commissions_done: int = 0) -> void:
 	var f := FileAccess.open(PATH, FileAccess.WRITE)
 	if f == null:
 		return
@@ -15,6 +15,8 @@ static func write(banked: int, upgrades: Dictionary, dive_num: int) -> void:
 		"banked": banked,
 		"upgrades": upgrades,
 		"dive_num": dive_num,
+		"commission_zone": commission_zone,
+		"commissions_done": commissions_done,
 	}))
 	f.close()
 

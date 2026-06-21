@@ -2,7 +2,7 @@
   "id": "diver-0001",
   "name": "Fathom",
   "created_at": "2026-06-20T22:19:56.286Z",
-  "updated_at": "2026-06-20T22:32:16.068Z",
+  "updated_at": "2026-06-21T03:06:15.324Z",
   "status": "validated",
   "concept": {
     "theme": {
@@ -97,13 +97,15 @@
     "maintenance": null
   },
   "depth_pass": {
-    "axis": "run-meta",
+    "axis": "systemic",
     "systems_added": [
-      "persistent meta save (MetaSave.gd: banked + upgrade levels + dive_num, user://save.json, loaded at boot)",
-      "between-dive upgrade economy (DiveState.buy_upgrade): Tank (+max_air), Fins (+ascend speed), Lantern (+treasure value), Rebreather (-air drain, floored)",
-      "surface-shop upgrade screen between dives (code-built buttons, banked score as currency, buy taps proven by uitest)"
+      "depth ZONES (Shallows/Reef/Trench) with distinct treasure value AND distinct hazard behavior — deep predators HOME on the diver (Main._move_hazards), so deep water plays differently, not just for more points",
+      "pressure CRUSH gate: past max_safe_depth air burns CRUSH_MULT(4x) faster (DiveState.current_drain) — depth is risk, and the Pressure Rig upgrade pushes the crush line deeper (legible on-screen safe-depth line)",
+      "per-dive COMMISSION: an order fillable only by treasures from a target zone (collect counts zone>=commission_zone); banking a filled order pays a bonus and advances the target deeper — a concrete reason to descend, not a multiplier",
+      "lantern darkness: deep zones are dark (Main._light_factor); treasure is unseeable outside lamp_range, so the Lantern upgrade changes what you can do",
+      "repurposed upgrades as decision-changers: Rig (zone access), Lantern (see the deep), Tank (air budget), Fins (sharper steering to dodge homing predators)"
     ],
-    "selftest_assertions_added": 16,
-    "notes": "run-meta layer grown over the intact DiveState push-your-luck engine. Diagnostic (new deepen playbook): content-ceiling test flagged the trench stops introducing newness ~10s in; dominant-strategy test confirmed the moment-to-moment bank-or-push decision is unsolved (concept tradeoff gate held) but nothing made run 2 differ from run 1 -> run-meta axis. Each upgrade SHIFTS where the safe-banking depth sits (more air/faster ascent lets greed reach deeper; the per-dive ramp is the counter-pressure), so the meta deepens the same tradeoff rather than trivializing it. Surfaced behavior-change to previously-frozen logic: const MAX_AIR promoted to a dynamic max_air var fed by the Tank upgrade (at zero upgrades max_air==BASE_MAX_AIR, original behavior preserved); selftest Stage 1 assertion updated to characterize this. selftest Stages 9-13 are the new RED->GREEN proof+regression assertions (purchase economy, tank/fins/lantern/rebreather effects with the drain floor, persistence round-trip); uitest gained upgrade-buy-click + upgraded-tank-applied checks. New screen (surface shop) gated by the headless boot run + uitest, not selftest. Status unchanged (deepen does not advance status)."
+    "selftest_assertions_added": 22,
+    "notes": "RE-DEEPEN that corrects the prior run-meta pass (which bolted an upgrade shop onto a one-decision core — the core-before-meta mistake). Owner playtest rejected v1 as shallow: depth was pure value-multiplier and upgrades barely mattered. Applied the upgraded deepen diagnostic (progression-payoff + upgrade-coherence + core-before-meta) and made depth a DESTINATION: zones gated by the crush, a commission that requires reaching them, darkness the lantern fights, and homing deep predators. INDEPENDENT design-depth audit verdict (required new step, fresh subagent, no knowledge of intent): 'DEEPER, not just bigger — the commission + crush + zone-homing + darkness make depth a destination with distinct verbs, clearing the depth-as-multiplier trap.' The audit caught one real weakness the implementer missed — Fins was a flat ~17% ascend nudge — which was then fixed (Fins now sharpens steering to dodge the deep's homing predators, a felt decision-relevant effect). Surfaced frozen-logic changes (surface-don't-swallow): DiveState.collect signature changed to (zone); treasure value is now zone-based not depth-based; the Rebreather upgrade was replaced by the Rig; MAX_AIR stays dynamic. selftest fully rewritten (12 stages: zones, crush, rig gating, commission fill+forfeit, upgrade coherence, persistence); UITEST OK retained. status unchanged (validated) — deepen does not advance status."
   }
 }
