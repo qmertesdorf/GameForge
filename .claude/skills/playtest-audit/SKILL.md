@@ -116,6 +116,15 @@ resource margin** seen (how close to death a careful player runs), depth/wave/tu
 time-to-first-upgrade, commission/objective fill rate. These numbers are how the owner sets
 difficulty — surface them even when the run passes.
 
+**Machine-readable contract (the tuning signal).** In addition to the human lines and the
+`PLAYTEST OK`/`FAIL` verdict, print exactly one final line `PLAYTEST METRICS {json}` carrying
+the numbers above **plus** the invariant booleans (`solvent`, `first_goal_reachable`,
+`no_death_spiral`, `no_trivial_dominant`) so they coincide with the gate verdict. This line is
+the contract `deepen`'s balance-search (`tools/balance.mjs`) consumes: it aggregates the metrics
+across K seeds, hard-rejects configs whose invariants are false, and scores the rest against
+target bands. The metrics are not just a human dump — they are the tuning oracle. Nothing new is
+simulated to produce the line; it serialises what the bot already computed.
+
 ## Honest reporting
 
 Gate on the winnability invariants; **report** (don't `FAIL`) anything that's a bot-skill

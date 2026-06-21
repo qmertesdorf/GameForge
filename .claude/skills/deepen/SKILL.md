@@ -143,6 +143,42 @@ attempted a flawed concept three times instead of deepening one). Run `deepen` u
      already covered, pin it with a **characterization assertion first** (one that
      passes both before and after the refactor), then refactor. Pure refactors add no
      *new-behavior* assertions.
+
+### Balance tuning (parameter search) — propose a config, don't hand-guess
+
+A pass that changes **tuning** (systemic/run-meta retunes costs, gate depths, drain,
+spawn geometry, the ramp) is exactly what makes a game unwinnable or unfair while every
+logic assertion stays green. Instead of hand-guessing constants and re-running the bot,
+**search** the tuning space against `playtest-audit`'s metrics:
+
+1. **Add the `GF_TUNE`/`GF_SEED` seam** (a `preload`-able `Tune` static, per
+   `games/diver-0001/Tune.gd`): the data layer reads each tunable from `Tune.num(...)`
+   defaulting to its `const`. UNSET env → identical production behavior. Only seam the
+   constants you intend to search.
+2. **Emit the metrics contract:** `playtest.gd` must print one `PLAYTEST METRICS {json}`
+   line (see `playtest-audit`) carrying the numbers it already computes + the invariant
+   booleans.
+3. **Declare a `balance.spec.json`** (search space + objective). The objective HARD-REJECTS
+   any config failing the playtest invariants, then scores survivors by **distance OUTSIDE
+   target BANDS** — never by maximization (maximizing earnings/clear-rate yields a trivially
+   easy game). Use **single-player** metrics + a **retention/engagement proxy** (clear-rate
+   in a *fair* band, low time-to-first-goal, accruing-but-not-instant economy, a smooth
+   difficulty curve). NOT win-rate disparity. The realistic retention bar is top-quartile
+   ~7-8% D7 (GameAnalytics def) — do NOT anchor on the old unverified "20%"; and we do not
+   literally measure D7, so the proxy is a heuristic.
+4. **Run** `node tools/balance.mjs <game-dir> <spec.json>` (each candidate is run across K
+   seeds so "clear-rate" is meaningful and the config isn't seed-lucky).
+5. **READ the per-focus-point breakdown + the non-dominated shortlist and CHOOSE** — weigh
+   the tradeoffs yourself (great pacing vs. borderline economy); do not blindly take the
+   lowest composite. The composite is a heuristic sort key, not a verdict.
+6. **Apply** the chosen config to the defaults, then re-run the **full** gate set
+   (`SELFTEST` / `UITEST` / `PLAYTEST`) with env unset.
+
+**Honesty rule (load-bearing):** the tool **proposes**; the **human playtest decides fun**.
+No validated automated fun proxy exists — the search guarantees winnable/fair/well-paced,
+never *fun*. An owner "this isn't fun" verdict overrides any proxy win. Record the chosen
+config + why in `depth_pass.notes`.
+
 4. **One sub-system at a time**, each independently self-tested and committed. Don't
    batch five then debug the soup. Keep a playable game at every step.
 5. **Grow the UI per system**, reusing established chrome. Hand composited-screen
