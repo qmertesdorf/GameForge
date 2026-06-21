@@ -33,6 +33,13 @@ const ZONE_TREASURE_COL: Array = [
 	Color(0.95, 0.70, 1.0),   # trench: violet relic
 ]
 
+# Claude-authored raster art (asset pass). Null-guarded everywhere: if a texture
+# is missing the primitive draw still runs, so the game never hard-fails headless.
+var tex_bg: Texture2D
+var tex_diver: Texture2D
+var tex_jelly: Texture2D
+var tex_eel: Texture2D
+
 var state: DiveState
 var diver_x: float = W * 0.5
 var target_x: float = W * 0.5
@@ -63,14 +70,32 @@ var _last_bonus: int = 0
 # upgrade-screen buttons, built in code: key -> Button
 var upgrade_buttons: Dictionary = {}
 const UPGRADE_ORDER: Array = ["rig", "tank", "lamp", "fins"]
+# per-gear accent for the shop-row dot icon (scannable identity, code-generated)
+const UPGRADE_ICON_COL: Dictionary = {
+	"rig": Color(1.0, 0.55, 0.25),
+	"tank": Color(0.30, 0.85, 1.0),
+	"lamp": Color(1.0, 0.85, 0.45),
+	"fins": Color(0.55, 0.95, 0.60),
+}
 
 func _ready() -> void:
 	state = DiveStateC.new()
 	state.seed_rng(20240620)
 	_load_meta()
 	_seed_plankton()
+	_load_art()
 	ascend_button.pressed.connect(_on_ascend_pressed)
 	dive_again_button.pressed.connect(_on_dive_again_pressed)
+	ascend_button.add_theme_font_size_override("font_size", 26)
+	dive_again_button.add_theme_font_size_override("font_size", 26)
+	_style_button(ascend_button)
+	_style_button(dive_again_button)
+	# Seat DIVE AGAIN just below the upgrade list, inside the surface panel, so the
+	# primary CTA reads as part of the shop card (not orphaned in the bottom gutter).
+	dive_again_button.offset_left = 70.0
+	dive_again_button.offset_top = 884.0
+	dive_again_button.offset_right = W - 70.0
+	dive_again_button.offset_bottom = 966.0
 	_build_upgrade_buttons()
 	_start_dive()
 
@@ -94,15 +119,63 @@ func _build_upgrade_buttons() -> void:
 	var y: float = 470.0
 	for key in UPGRADE_ORDER:
 		var b := Button.new()
-		b.offset_left = 70.0
+		b.offset_left = 52.0
 		b.offset_top = y
-		b.offset_right = W - 70.0
+		b.offset_right = W - 52.0
 		b.offset_bottom = y + 80.0
-		b.add_theme_font_size_override("font_size", 24)
+		# 18px + clip_text: the longest label (Fins) can no longer run off the
+		# right screen edge — it clips inside the (wider) button rect instead.
+		b.add_theme_font_size_override("font_size", 18)
+		b.clip_text = true
+		_style_button(b)
+		b.icon = _make_dot_icon(UPGRADE_ICON_COL[key])
+		b.add_theme_constant_override("h_separation", 12)
+		var nb: StyleBoxFlat = b.get_theme_stylebox("normal")
+		nb.border_color = Color(1.0, 0.82, 0.4, 0.85)   # affordable rows = warm gold buy-affordance
 		b.pressed.connect(_on_upgrade_pressed.bind(key))
 		ui_layer.add_child(b)
 		upgrade_buttons[key] = b
 		y += 92.0
+
+func _style_button(b: Button) -> void:
+	# Themed bioluminescent chrome (dark teal glass + luminous cyan edge) so the
+	# buttons belong to the painted trench world, not the flat default-Godot register.
+	var normal := StyleBoxFlat.new()
+	normal.bg_color = Color(0.06, 0.13, 0.17, 0.92)
+	normal.set_corner_radius_all(10)
+	normal.set_border_width_all(2)
+	normal.border_color = Color(0.30, 0.78, 0.86, 0.65)
+	normal.content_margin_left = 16.0
+	normal.content_margin_right = 16.0
+	var hover: StyleBoxFlat = normal.duplicate()
+	hover.bg_color = Color(0.10, 0.21, 0.27, 0.95)
+	hover.border_color = Color(0.45, 0.92, 1.0, 0.9)
+	var pressed: StyleBoxFlat = normal.duplicate()
+	pressed.bg_color = Color(0.04, 0.09, 0.12, 0.95)
+	var disabled: StyleBoxFlat = normal.duplicate()
+	disabled.bg_color = Color(0.05, 0.07, 0.09, 0.7)
+	disabled.border_color = Color(0.30, 0.40, 0.44, 0.35)
+	b.add_theme_stylebox_override("normal", normal)
+	b.add_theme_stylebox_override("hover", hover)
+	b.add_theme_stylebox_override("pressed", pressed)
+	b.add_theme_stylebox_override("disabled", disabled)
+	b.add_theme_color_override("font_color", Color(0.88, 0.95, 1.0))
+	b.add_theme_color_override("font_hover_color", Color(1.0, 1.0, 1.0))
+	b.add_theme_color_override("font_disabled_color", Color(0.5, 0.6, 0.66))
+
+func _make_dot_icon(col: Color) -> ImageTexture:
+	# a small soft-edged filled disc in the gear accent colour, for the shop rows
+	var s: int = 30
+	var img := Image.create(s, s, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	var c := Vector2(s * 0.5, s * 0.5)
+	for yy in range(s):
+		for xx in range(s):
+			var d: float = Vector2(xx + 0.5, yy + 0.5).distance_to(c)
+			var a: float = clamp(1.0 - (d - 8.0) / 5.0, 0.0, 1.0)
+			if a > 0.0:
+				img.set_pixel(xx, yy, Color(col.r, col.g, col.b, a))
+	return ImageTexture.create_from_image(img)
 
 func _seed_plankton() -> void:
 	plankton.clear()
@@ -111,6 +184,17 @@ func _seed_plankton() -> void:
 			"x": state.rng.randf_range(0.0, W),
 			"d": state.rng.randf_range(-200.0, 600.0),
 		})
+
+func _load_art() -> void:
+	tex_bg = _try_load("res://art/background.png")
+	tex_diver = _try_load("res://art/diver.png")
+	tex_jelly = _try_load("res://art/hazard_jelly.png")
+	tex_eel = _try_load("res://art/hazard_eel.png")
+
+func _try_load(path: String) -> Texture2D:
+	if ResourceLoader.exists(path):
+		return load(path)
+	return null
 
 func _start_dive() -> void:
 	state.start_dive()
@@ -349,18 +433,31 @@ func _draw() -> void:
 	if shake > 0.0:
 		off = Vector2(state.rng.randf_range(-shake, shake), state.rng.randf_range(-shake, shake))
 	_draw_background(off)
-	_draw_plankton(off)
-	_draw_safe_line(off)
-	_draw_objects(off)
-	_draw_diver(off)
-	_draw_godrays()
-	if state.is_crushing():
-		_draw_crush_vignette()
-	if flash > 0.0:
-		draw_rect(Rect2(0, 0, W, H), Color(flash_col.r, flash_col.g, flash_col.b, clamp(flash * 0.5, 0.0, 0.6)))
+	if state.active:
+		_draw_plankton(off)
+		_draw_safe_line(off)
+		_draw_objects(off)
+		_draw_diver(off)
+		_draw_godrays()
+		if state.is_crushing():
+			_draw_crush_vignette()
+		if flash > 0.0:
+			draw_rect(Rect2(0, 0, W, H), Color(flash_col.r, flash_col.g, flash_col.b, clamp(flash * 0.5, 0.0, 0.6)))
+	else:
+		# Surfaced: darken the trench so the shop reads as a distinct screen — no
+		# gameplay world, diver, or in-dive HUD bleeding under the overlay.
+		draw_rect(Rect2(0, 0, W, H), Color(0.02, 0.03, 0.06, 0.78))
 	_draw_hud()
 
 func _draw_background(off: Vector2) -> void:
+	if tex_bg != null:
+		# Painted trench backdrop (surface-lit top -> inky black bottom), then a
+		# depth-driven darkening overlay so descending still visibly darkens the
+		# water — preserving the gameplay depth-read the old strip gradient gave.
+		draw_texture_rect(tex_bg, Rect2(off, Vector2(W, H)), false)
+		var dk: float = clamp(state.depth / 620.0, 0.0, 1.0)
+		draw_rect(Rect2(off, Vector2(W, H)), Color(0.004, 0.01, 0.03, dk * 0.85))
+		return
 	var strips: int = 32
 	var sh: float = H / float(strips)
 	for i in range(strips):
@@ -417,22 +514,36 @@ func _draw_objects(off: Vector2) -> void:
 		var light: float = _light_factor(Vector2(obj.x, _screen_y(obj.d)), obj.zone)
 		if obj.kind == "treasure":
 			var base: Color = ZONE_TREASURE_COL[clamp(obj.zone, 0, ZONE_TREASURE_COL.size() - 1)]
+			# Value is also encoded by SIZE (deeper zone = bigger = worth more) so the
+			# richness read survives colour-blindness / grayscale — not hue alone.
+			var tr: float = 9.0 + float(obj.zone) * 3.5
 			var c := Color(base.r, base.g, base.b, light)
-			_glow(pos, 24.0 + float(obj.zone) * 6.0, Color(base.r, base.g, base.b, 0.16 * light))
-			draw_circle(pos, 11.0, c)
-			draw_circle(pos, 5.0, Color(1.0, 1.0, 1.0, light))
+			_glow(pos, tr * 2.2 + float(obj.zone) * 3.0, Color(base.r, base.g, base.b, 0.15 * light))
+			draw_circle(pos, tr, c)
+			draw_circle(pos, tr * 0.45, Color(1.0, 1.0, 1.0, light))
 		else:
-			var hc := Color(0.95, 0.20, 0.65)
-			if obj.zone >= 2:
-				hc = Color(0.55, 0.95, 0.55)   # trench predator: sickly green
-			_glow(pos, 30.0, Color(hc.r, hc.g, hc.b, 0.16 * light))
-			draw_circle(pos, 15.0, Color(hc.r, hc.g, hc.b, 0.85 * light))
-			draw_line(pos, pos + Vector2(-7, 22), Color(hc.r, hc.g, hc.b, 0.6 * light), 3.0)
-			draw_line(pos, pos + Vector2(8, 26), Color(hc.r, hc.g, hc.b, 0.6 * light), 3.0)
+			var htex: Texture2D = tex_eel if obj.zone >= 2 else tex_jelly
+			if htex != null:
+				# Jelly in the shallows/reef, sinister eel in the trench. Sized to
+				# the hazard footprint; lantern darkness dims it via modulate alpha
+				# (floored so a hazard is never fully invisible — fairness).
+				var hw: float = 92.0
+				var hh: float = hw * (float(htex.get_height()) / float(htex.get_width()))
+				var hrect := Rect2(pos.x - hw * 0.5, pos.y - hh * 0.5, hw, hh)
+				draw_texture_rect(htex, hrect, false, Color(1, 1, 1, clamp(0.4 + light, 0.0, 1.0)))
+			else:
+				var hc := Color(0.95, 0.20, 0.65)
+				if obj.zone >= 2:
+					hc = Color(0.55, 0.95, 0.55)   # trench predator: sickly green
+				_glow(pos, 30.0, Color(hc.r, hc.g, hc.b, 0.16 * light))
+				draw_circle(pos, 15.0, Color(hc.r, hc.g, hc.b, 0.85 * light))
+				draw_line(pos, pos + Vector2(-7, 22), Color(hc.r, hc.g, hc.b, 0.6 * light), 3.0)
+				draw_line(pos, pos + Vector2(8, 26), Color(hc.r, hc.g, hc.b, 0.6 * light), 3.0)
 
 func _glow(pos: Vector2, r: float, col: Color) -> void:
-	draw_circle(pos, r, Color(col.r, col.g, col.b, col.a))
-	draw_circle(pos, r * 0.66, Color(col.r, col.g, col.b, col.a * 1.4))
+	draw_circle(pos, r, Color(col.r, col.g, col.b, col.a * 0.5))
+	draw_circle(pos, r * 0.7, Color(col.r, col.g, col.b, col.a * 0.9))
+	draw_circle(pos, r * 0.4, Color(col.r, col.g, col.b, col.a * 1.3))
 
 func _draw_diver(off: Vector2) -> void:
 	var p: Vector2 = Vector2(diver_x, DIVER_Y) + off
@@ -445,6 +556,17 @@ func _draw_diver(off: Vector2) -> void:
 	draw_colored_polygon(cone, Color(1.0, 0.92, 0.65, 0.07))
 	for b in bubbles:
 		draw_circle(Vector2(b.x, b.y) + off, b.r, Color(0.8, 0.95, 1.0, 0.25 * clamp(b.life, 0.0, 1.0)))
+	if tex_diver != null:
+		# Painted free-diver, sized well above the hitbox (DIVER_R) so the hero
+		# reads prominently; centered on the diver point, headlamp cone + bubbles
+		# above stay code-drawn juice.
+		var dw: float = 150.0
+		var dh: float = dw * (float(tex_diver.get_height()) / float(tex_diver.get_width()))
+		# Tint darker + cooler with depth so the hero picks up the deep's ambient
+		# instead of reading as a bright pasted render in the dim crush zone.
+		var dt: float = lerp(1.0, 0.52, clamp(state.depth / 480.0, 0.0, 1.0))
+		draw_texture_rect(tex_diver, Rect2(p.x - dw * 0.5, p.y - dh * 0.5, dw, dh), false, Color(dt, dt * 1.02, dt * 1.1))
+		return
 	draw_circle(p, DIVER_R, Color(0.86, 0.93, 0.97, 0.96))
 	draw_circle(p + Vector2(0, 16), 14.0, Color(0.78, 0.88, 0.94, 0.9))
 	var fin := PackedVector2Array([p + Vector2(-18, 22), p + Vector2(18, 22), p + Vector2(0, 44)])
@@ -473,12 +595,17 @@ func _draw_crush_vignette() -> void:
 
 func _draw_hud() -> void:
 	var font: Font = ThemeDB.fallback_font
-	# air bar (top, large, the most important read-out)
+	if not state.active:
+		_draw_surface_screen(font)
+		return
+	# air bar (top) — the survival read-out, the thing you must watch
 	var bar_x: float = 30.0
-	var bar_y: float = 36.0
+	var bar_y: float = 34.0
 	var bar_w: float = W - 60.0
-	var bar_h: float = 34.0
-	draw_rect(Rect2(bar_x, bar_y, bar_w, bar_h), Color(0.0, 0.0, 0.0, 0.45))
+	var bar_h: float = 44.0
+	# styled gauge: dark-glass channel + cyan hairline frame, gradient fill, an
+	# air-valve bubble cap — a first-class HUD gauge, not a flat default bar.
+	draw_rect(Rect2(bar_x, bar_y, bar_w, bar_h), Color(0.04, 0.08, 0.10, 0.85))
 	var af: float = state.air_frac()
 	var low: bool = af <= DiveStateC.AIR_LOW_FRAC
 	var fill := Color(0.2, 0.85, 1.0)
@@ -487,52 +614,70 @@ func _draw_hud() -> void:
 	if low:
 		var pulse: float = 0.5 + 0.5 * sin(float(Time.get_ticks_msec()) * 0.012)
 		fill = Color(1.0, 0.25 + 0.2 * pulse, 0.25)
-	draw_rect(Rect2(bar_x + 2.0, bar_y + 2.0, (bar_w - 4.0) * af, bar_h - 4.0), fill)
-	draw_string(font, Vector2(bar_x + 8.0, bar_y + 25.0), "AIR", HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color(0, 0, 0, 0.7))
+	var fw: float = (bar_w - 6.0) * af
+	draw_rect(Rect2(bar_x + 3.0, bar_y + 3.0, fw, bar_h - 6.0), fill)
+	if fw > 1.0:
+		draw_rect(Rect2(bar_x + 3.0, bar_y + 3.0, fw, (bar_h - 6.0) * 0.42), Color(1.0, 1.0, 1.0, 0.16))
+	draw_rect(Rect2(bar_x, bar_y, bar_w, bar_h), Color(0.32, 0.78, 0.86, 0.7), false, 2.0)
+	draw_circle(Vector2(bar_x + 20.0, bar_y + bar_h * 0.5), 8.0, Color(0.7, 0.95, 1.0, 0.9))
+	draw_circle(Vector2(bar_x + 24.0, bar_y + bar_h * 0.5 - 3.0), 2.5, Color(1, 1, 1, 0.9))
+	draw_string(font, Vector2(bar_x + 39.0, bar_y + 31.0), "AIR", HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color(0, 0, 0, 0.6))
+	draw_string(font, Vector2(bar_x + 38.0, bar_y + 30.0), "AIR", HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color(0.92, 0.98, 1.0, 0.95))
 
 	# depth + zone (left), banked (right)
 	var zname: String = state.zone_name(state.zone_for(state.depth))
-	draw_string(font, Vector2(30.0, 110.0), "%dm · %s" % [int(state.depth), zname], HORIZONTAL_ALIGNMENT_LEFT, -1, 26, Color(0.7, 0.85, 0.95))
+	draw_string(font, Vector2(30.0, 120.0), "%dm · %s" % [int(state.depth), zname], HORIZONTAL_ALIGNMENT_LEFT, -1, 26, Color(0.7, 0.85, 0.95))
 	var score_scale: float = 26.0 + bank_pulse * 12.0
-	draw_string(font, Vector2(W - 250.0, 110.0), "BANKED %d" % state.banked, HORIZONTAL_ALIGNMENT_RIGHT, 220, int(score_scale), Color(1.0, 0.92, 0.6))
+	draw_string(font, Vector2(W - 250.0, 120.0), "BANKED %d" % state.banked, HORIZONTAL_ALIGNMENT_RIGHT, 220, int(score_scale), Color(1.0, 0.92, 0.6))
 
-	if state.is_crushing() and state.active:
-		draw_string(font, Vector2(0.0, 140.0), "⚠ PRESSURE CRUSH — air draining fast", HORIZONTAL_ALIGNMENT_CENTER, W, 22, Color(1.0, 0.5, 0.35))
+	# Backing pill behind the danger warnings so the red alarm text clears WCAG
+	# over the pulsing red crush vignette (measured 4.39:1 without it).
+	if state.is_crushing() or low:
+		draw_rect(Rect2(36.0, 130.0, W - 72.0, 78.0), Color(0.05, 0.04, 0.11, 0.76))
+	if state.is_crushing():
+		draw_string(font, Vector2(0.0, 152.0), "⚠ PRESSURE CRUSH — air draining fast", HORIZONTAL_ALIGNMENT_CENTER, W, 22, Color(1.0, 0.58, 0.45))
+	# explicit non-colour LOW-AIR flag (text cue mirrors the crush warning; the air
+	# state must not rest on the bar's hue alone — it collapses under colour-blindness)
+	if low:
+		var lp: float = 0.5 + 0.5 * sin(float(Time.get_ticks_msec()) * 0.012)
+		draw_string(font, Vector2(0.0, 182.0), "▲ LOW AIR — surface now", HORIZONTAL_ALIGNMENT_CENTER, W, 24, Color(1.0, 0.52 + 0.28 * lp, 0.5))
 
 	# COMMISSION (the reason to descend) — target zone + progress
-	if state.active:
-		var ctz: String = state.zone_name(state.commission_target_zone())
-		var cprog: String = "%d/%d" % [state.commission_have, DiveStateC.COMMISSION_TARGET]
-		var ccol := Color(0.7, 1.0, 0.85) if state.commission_complete() else Color(0.85, 0.9, 0.7)
-		var csize: int = int(24 + commission_flash * 10.0)
-		draw_string(font, Vector2(0.0, 200.0), "ORDER: %d %s relics  %s" % [DiveStateC.COMMISSION_TARGET, ctz, cprog], HORIZONTAL_ALIGNMENT_CENTER, W, csize, ccol)
-		if state.commission_complete():
-			draw_string(font, Vector2(0.0, 232.0), "order filled — surface to cash it in", HORIZONTAL_ALIGNMENT_CENTER, W, 18, Color(0.7, 1.0, 0.85))
+	var ctz: String = state.zone_name(state.commission_target_zone())
+	var cprog: String = "%d/%d" % [state.commission_have, DiveStateC.COMMISSION_TARGET]
+	var ccol := Color(0.7, 1.0, 0.85) if state.commission_complete() else Color(0.85, 0.9, 0.7)
+	var csize: int = int(24 + commission_flash * 10.0)
+	draw_string(font, Vector2(0.0, 210.0), "ORDER: %d %s relics  %s" % [DiveStateC.COMMISSION_TARGET, ctz, cprog], HORIZONTAL_ALIGNMENT_CENTER, W, csize, ccol)
+	if state.commission_complete():
+		draw_string(font, Vector2(0.0, 242.0), "order filled — surface to cash it in", HORIZONTAL_ALIGNMENT_CENTER, W, 18, Color(0.7, 1.0, 0.85))
 
 	# unbanked haul (center) — the thing you stand to lose
 	var haul_size: float = 36.0 + haul_pulse * 16.0
-	var haul_col := Color(0.6, 1.0, 0.8)
-	if not state.active:
-		haul_col = Color(0.6, 0.7, 0.8, 0.6)
-	draw_string(font, Vector2(0.0, 280.0), "HAUL  %d" % state.haul, HORIZONTAL_ALIGNMENT_CENTER, W, int(haul_size), haul_col)
+	draw_string(font, Vector2(0.0, 290.0), "HAUL  %d" % state.haul, HORIZONTAL_ALIGNMENT_CENTER, W, int(haul_size), Color(0.6, 1.0, 0.8))
 
-	if not state.descending and state.active:
-		draw_string(font, Vector2(0.0, 320.0), "ASCENDING…", HORIZONTAL_ALIGNMENT_CENTER, W, 24, Color(0.6, 0.9, 1.0))
-
-	if not state.active:
-		_draw_surface_screen(font)
+	if not state.descending:
+		draw_string(font, Vector2(0.0, 330.0), "ASCENDING…", HORIZONTAL_ALIGNMENT_CENTER, W, 24, Color(0.6, 0.9, 1.0))
 
 func _draw_surface_screen(font: Font) -> void:
+	# A defined panel container (the scene is already scrim-darkened) so the shop
+	# reads as a distinct screen, not loose HUD text floating on live gameplay.
+	var px: float = 36.0
+	var pw: float = W - 72.0
+	var py: float = 200.0
+	var ph: float = 790.0
+	draw_rect(Rect2(px, py, pw, ph), Color(0.04, 0.05, 0.11, 0.90))
+	draw_rect(Rect2(px, py, pw, 4.0), Color(0.32, 0.78, 0.86, 0.7))                 # top accent
+	draw_rect(Rect2(px, py + ph - 4.0, pw, 4.0), Color(0.32, 0.78, 0.86, 0.30))     # base accent
+	draw_string(font, Vector2(0.0, 258.0), "SURFACE", HORIZONTAL_ALIGNMENT_CENTER, W, 40, Color(0.92, 0.96, 1.0))
+	draw_string(font, Vector2(0.0, 300.0), "banked  %d" % state.banked, HORIZONTAL_ALIGNMENT_CENTER, W, 26, Color(1.0, 0.92, 0.6))
 	# outcome line for the dive that just ended
 	if _last_outcome == "forfeit":
-		draw_string(font, Vector2(0.0, 250.0), "the deep kept your catch", HORIZONTAL_ALIGNMENT_CENTER, W, 26, Color(0.95, 0.5, 0.62))
+		draw_string(font, Vector2(0.0, 342.0), "the deep kept your catch", HORIZONTAL_ALIGNMENT_CENTER, W, 24, Color(1.0, 0.62, 0.72))
 	elif _last_outcome == "banked":
 		var line := "catch banked safely"
 		if _last_commission_filled:
 			line = "ORDER FILLED  +%d bonus" % _last_bonus
-		draw_string(font, Vector2(0.0, 250.0), line, HORIZONTAL_ALIGNMENT_CENTER, W, 26, Color(0.6, 0.95, 0.8))
-	# surface shop header + next order
-	draw_string(font, Vector2(0.0, 330.0), "SURFACE", HORIZONTAL_ALIGNMENT_CENTER, W, 36, Color(0.9, 0.94, 1.0))
+		draw_string(font, Vector2(0.0, 342.0), line, HORIZONTAL_ALIGNMENT_CENTER, W, 24, Color(0.7, 1.0, 0.85))
 	var nz: String = state.zone_name(state.commission_target_zone())
-	draw_string(font, Vector2(0.0, 384.0), "next order: %d %s relics  •  bonus %d" % [DiveStateC.COMMISSION_TARGET, nz, state.commission_bonus()], HORIZONTAL_ALIGNMENT_CENTER, W, 20, Color(0.7, 0.85, 1.0))
-	draw_string(font, Vector2(0.0, 420.0), "upgrade the rig to reach deeper zones ↓", HORIZONTAL_ALIGNMENT_CENTER, W, 18, Color(0.55, 0.68, 0.82))
+	draw_string(font, Vector2(0.0, 394.0), "next order: %d %s relics  •  bonus %d" % [DiveStateC.COMMISSION_TARGET, nz, state.commission_bonus()], HORIZONTAL_ALIGNMENT_CENTER, W, 20, Color(0.75, 0.88, 1.0))
+	draw_string(font, Vector2(0.0, 428.0), "upgrade your gear to reach deeper zones", HORIZONTAL_ALIGNMENT_CENTER, W, 18, Color(0.72, 0.82, 0.92))
