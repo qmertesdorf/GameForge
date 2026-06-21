@@ -73,7 +73,7 @@ export function scoreGeometry(nodes, viewport, { clipTol = 2, opaqueAlpha = 0.9 
       }
     }
     if (!fullyOccluded) {
-      const over = occluders.find((c) => c !== n && isAbove(c, n) && overlapArea(c.rect, n.rect) > 0);
+      const over = occluders.find((occ) => occ !== n && isAbove(occ, n) && overlapArea(occ.rect, n.rect) > 0);
       if (over)
         advisory.push({ kind: "overlap", path: n.path, class: n.class, rect: n.rect, over: over.path });
     }

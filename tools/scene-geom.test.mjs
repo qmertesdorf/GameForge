@@ -110,4 +110,11 @@ describe("scoreGeometry — occlusion", () => {
     const r = scoreGeometry([label, panel({ paint: 1, z_index: 1 })], VP);
     expect(r.hard[0]).toMatchObject({ kind: "occluded" });
   });
+
+  test("a fully-contained NON-victim node is an overlap advisory, not hard-occluded", () => {
+    const deco = node({ path: "/root/Main/Deco", class: "ColorRect", is_text: false, interactive: false, rect: [100, 100, 50, 50], paint: 1 });
+    const r = scoreGeometry([deco, panel()], VP);
+    expect(r.hard).toEqual([]);
+    expect(r.advisory).toEqual([{ kind: "overlap", path: "/root/Main/Deco", class: "ColorRect", rect: [100, 100, 50, 50], over: "/root/Main/Panel" }]);
+  });
 });
