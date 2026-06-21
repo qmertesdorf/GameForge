@@ -54,6 +54,17 @@ attempted a flawed concept three times instead of deepening one). Run `deepen` u
      after day 4; match3-survival's only escalation is a shrinking timer on one static threat).
      Everything past the ceiling is the same system replayed — that's the "weak" the player
      feels. Your job is to push the ceiling out: stage in newness over the session.
+   - **Progression-payoff test (reject DEPTH-AS-MULTIPLIER).** "Newness" must be new
+     *gameplay*, not a bigger number on the same decision. For every progression vector the
+     game offers — going deeper, levelling, scoring, a higher tier/day/wave — name **what the
+     player DOES at tier N that they could not do at tier 1.** If the only answer is "the same
+     action, for more points/value," the ceiling has **not** moved — that progression is a
+     score multiplier wearing a costume, and it is the single most common reason a game with
+     "progression" still feels shallow (diver-0001 shipped exactly this: depth only scaled
+     treasure *value*, so there was no gameplay reason to descend — owner-rejected on
+     playtest). A progression vector earns its keep only when reaching it **unlocks a new
+     decision, a new interaction, or gated content that plays differently** — a destination,
+     not a dial.
    - **Dominant-strategy test:** name the single move a skilled player repeats every beat. If
      it's strictly best (most reward *and* safest), the loop is **solved** and no amount of
      content fixes it — you must add a **cost / tradeoff** that makes the dominant move
@@ -61,6 +72,23 @@ attempted a flawed concept three times instead of deepening one). Run `deepen` u
      when `concept` let a solved loop through, `deepen` is where it gets repaired). match3
      -survival shipped solved (purge = both the safe move and the high-score move); fixing that
      is higher-leverage than any new content on top.
+   - **Core-before-meta gate (don't bolt a wrapper onto a shallow core).** A run-meta or
+     content layer *multiplies whatever the core loop already is*. If the core loop is the thin
+     part — fails the dominant-strategy test, or offers one real decision — adding upgrades / a
+     map / an economy on top just yields a **longer shallow game**, and the meta layer reads as
+     busywork because the thing it wraps isn't worth repeating. Before choosing `run-meta` or
+     `content`, confirm the **core loop itself** clears the dominant-strategy + progression-payoff
+     bars. If it doesn't, the axis is **systemic** (fix the loop first) no matter how tempting the
+     shiny meta layer is. (diver-0001's first deepen got this wrong: it added a run-meta upgrade
+     economy over a one-decision core, so the upgrades had nothing meaningful to deepen.)
+   - **Upgrade / reward-coherence test (for every unlock, upgrade, or reward you add).** Two
+     questions per item: (1) *"what does the player DO differently after getting this?"* — if the
+     answer is only "the same thing, slightly better," it's a dead stat, not a decision; prefer
+     upgrades that **open new play or change a choice** (gate access to new content, enable a new
+     tactic, flip a risk calculus) over flat ±X nudges. (2) *"can the player FEEL it on the very
+     next run/dive?"* — a buff that needs 3–4 stacked levels before it's perceptible is invisible
+     and reads as pointless (diver-0001: +16 air/level barely changed reachable depth, so the shop
+     felt meaningless). Tune so one purchase visibly changes what the player can do.
    Then pick **ONE axis** — the one that addresses the leak the tests found — and the single
    highest-leverage expansion on it. Don't widen three axes at once. Per-axis playbook:
    - **systemic** (fixes a *solved/shallow* loop): add an *interacting* mechanic that creates a
@@ -109,8 +137,27 @@ attempted a flawed concept three times instead of deepening one). Run `deepen` u
    **throwaway real-renderer harness** (a `SceneTree` script that builds the relevant
    state, instantiates the view, waits ~200 frames, saves a PNG) for a visual sanity
    glance. Delete the throwaway; keep the PNG as a probe-data artifact.
-6. **Record + codify.** Write `manifest.depth_pass` (axis, systems added, new-assertion
-   count). Fold durable lessons back into this skill.
+6. **Verify the depth landed — INDEPENDENT design-depth audit (REQUIRED).** The agent that
+   did the deepening cannot grade its own depth: it knows what it *intended* to add and reads
+   the diff as proof, so it ships "bigger" believing it shipped "deeper" (diver-0001's first
+   deepen passed its own assessment and was still owner-rejected as shallow). Fix it the way
+   `visual-audit` fixes the screen — with **fresh, adversarial eyes**, but pointed at the
+   *systems* instead of the pixels. **Dispatch a fresh subagent** (no knowledge of what you
+   set out to add — give it only the running game + the concept) to play/read it and answer,
+   bluntly:
+   - **Is each progression vector a destination or a dial?** For going deeper / levelling /
+     scoring: *what does the player DO at the top that they couldn't at the bottom?* "Same
+     action, more points" = FAIL (depth-as-multiplier).
+   - **Do the new systems change decisions?** Name a concrete moment the new mechanic/upgrade
+     made the player choose differently. If none, it's inert.
+   - **Is it more fun, or just more?** One sentence: did this make the game deeper, or longer?
+   Treat a "just bigger / just longer" verdict as a **failed pass** — iterate (often the real
+   fix is a different axis: the auditor saying "the upgrades are meaningless because the core
+   loop is one decision" means you picked run-meta when the answer was systemic). Record the
+   auditor's verdict in `depth_pass.notes`. Scale the audit to the change: one skeptic for a
+   small content add, a fuller play-and-critique for a systemic/run-meta pass.
+7. **Record + codify.** Write `manifest.depth_pass` (axis, systems added, new-assertion
+   count, **and the independent audit's verdict**). Fold durable lessons back into this skill.
 
 ## manifest.depth_pass
 
