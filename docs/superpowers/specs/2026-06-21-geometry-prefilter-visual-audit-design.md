@@ -68,14 +68,17 @@ Per **visible** node (`is_visible_in_tree()`), emit:
 | `rect` | global on-screen `[x, y, w, h]`. `Control` → `get_global_rect()`. Textured `Node2D`/`Sprite2D` → derived from `texture.get_size() * global_scale`, offset for `centered`/`offset`. |
 | `paint` | walk-order rank (monotonic depth-first counter) — the real front/back order for siblings |
 | `z_index` | effective z (combined with `paint` for ordering JS-side) |
-| `opaque` | bool, computed GD-side (typed API): `Control` with a `StyleBoxFlat` whose `bg_color.a ≥ opaqueAlpha` **and** `modulate.a*self_modulate.a ≥ opaqueAlpha`; textured Node2D with `modulate.a*self_modulate.a ≥ opaqueAlpha`. Else false. |
+| `mod_a` | `modulate.a * self_modulate.a` (float 0..1) — the node's own alpha |
+| `fill_a` | for a `Control` with a `StyleBoxFlat` → `bg_color.a`; else `null` (no introspectable opaque fill) |
+| `has_texture` | node has a non-null texture (opacity base for textured Node2D) |
 | `texture_null` | true for texture-requiring classes (`Sprite2D`/`TextureRect`/`TextureButton`/`NinePatchRect`/`AnimatedSprite2D`) with no texture |
 | `interactive` | `Button`/`TextureButton`/`LineEdit`/`TextEdit`/… |
 | `is_text` | has a non-empty `text` property |
 
-`opaqueAlpha` is passed in via `OS.get_cmdline_user_args()` (default 0.9 — calibrated: diver's
-panels are α=0.92/0.95, visually occluding but not 1.0, so a 1.0 threshold would miss real
-occluders). Prints one line: `SCENE_GEOMETRY {"viewport":[w,h],"nodes":[...]}`. `quit(0)`.
+The probe is **purely a reader** — it emits raw opacity signals (`mod_a`, `fill_a`, `has_texture`)
+and the JS scorer decides opacity against `opaqueAlpha`, so the threshold stays a unit-testable
+knob (the `contrast.mjs` thin-GD / pure-JS split). Prints one line:
+`SCENE_GEOMETRY {"viewport":[w,h],"nodes":[...]}`. `quit(0)`.
 
 **Ordering note (documented approximation):** effective paint order is computed JS-side as
 `(z_index, paint)`. This ignores `CanvasLayer`/`top_level` nuance — acceptable for the in-tree
@@ -96,7 +99,11 @@ scoreGeometry(nodes, viewport, { clipTol = 2, opaqueAlpha = 0.9 }) → {
 }
 ```
 
-Scoring rules (pure geometry; `opaque` already decided GD-side, so the JS stays a pure consumer):
+Opacity is decided JS-side: `opaque(n) = (fill_a ?? (has_texture ? 1 : 0)) * mod_a ≥ opaqueAlpha`.
+Default `opaqueAlpha = 0.9` — calibrated: diver's panels are α=0.92/0.95, visually occluding but
+not 1.0, so a 1.0 threshold would miss real occluders; a 0.5 scrim correctly stays non-opaque.
+
+Scoring rules (pure geometry):
 
 - **off-viewport** — a visible **text/interactive** node whose rect exits the viewport by more than
   `clipTol` px on any side → `hard` `{kind:'offscreen', path, class, rect, clippedPx, fully}`
@@ -109,10 +116,11 @@ Scoring rules (pure geometry; `opaque` already decided GD-side, so the JS stays 
 - **missing-texture** — a visible texture-requiring node with `texture_null` → `advisory`
   `{kind:'missing-texture', path, class, rect}`.
 
-Thin Godot runner (the `textMetricsFile` pattern): `sceneGeometryFile(gameDir, opts)` copies the
-probe into the game dir as `_scene_geometry.gd`, runs
-`godot --headless --path <dir> --script res://_scene_geometry.gd -- <opaqueAlpha>`, parses the
-`SCENE_GEOMETRY` line, scores, and cleans up `_scene_geometry.gd(.uid)` in a `finally`.
+Thin Godot runner (the `textMetricsFile` pattern): `sceneGeometryFile(gameDir, {clipTol, opaqueAlpha})`
+copies the probe into the game dir as `_scene_geometry.gd`, runs
+`godot --headless --path <dir> --script res://_scene_geometry.gd`, parses the `SCENE_GEOMETRY` line,
+calls `scoreGeometry(nodes, viewport, {clipTol, opaqueAlpha})`, and cleans up
+`_scene_geometry.gd(.uid)` in a `finally`.
 
 CLI:
 ```
