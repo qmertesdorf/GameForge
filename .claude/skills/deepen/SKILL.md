@@ -161,9 +161,14 @@ logic assertion stays green. Instead of hand-guessing constants and re-running t
 3. **Declare a `balance.spec.json`** (search space + objective). The objective HARD-REJECTS
    any config failing the playtest invariants, then scores survivors by **distance OUTSIDE
    target BANDS** — never by maximization (maximizing earnings/clear-rate yields a trivially
-   easy game). Use **single-player** metrics + a **retention/engagement proxy** (clear-rate
-   in a *fair* band, low time-to-first-goal, accruing-but-not-instant economy, a smooth
-   difficulty curve). NOT win-rate disparity. The realistic retention bar is top-quartile
+   easy game). Use **single-player** metrics + a **retention/engagement proxy** (low
+   time-to-first-goal, accruing-but-not-instant economy, a smooth/tight difficulty curve via
+   the air/HP margin, did pushing pay off). **Pick floor vs. two-sided band per metric's
+   meaning** (see Lesson 1): a *cautious-bot solvency* rate (does a careful player reliably
+   succeed?) is a **hard floor in `require`**, NOT a two-sided band — banding it penalizes the
+   very robustness you want. Two-sided bands fit metrics whose value reflects *difficulty/pacing*
+   (time-to-first-goal, air margin, commissions filled), or a win-rate that genuinely reflects
+   challenge (a roguelike clear-rate). NOT win-rate disparity. The realistic retention bar is top-quartile
    ~7-8% D7 (GameAnalytics def) — do NOT anchor on the old unverified "20%"; and we do not
    literally measure D7, so the proxy is a heuristic.
 4. **Run** `node tools/balance.mjs <game-dir> <spec.json>` (each candidate is run across K
@@ -178,6 +183,22 @@ logic assertion stays green. Instead of hand-guessing constants and re-running t
 No validated automated fun proxy exists — the search guarantees winnable/fair/well-paced,
 never *fun*. An owner "this isn't fun" verdict overrides any proxy win. Record the chosen
 config + why in `depth_pass.notes`.
+
+**Lessons from first use (diver-0001 dogfood):**
+- **Lesson 1 — solvency is a FLOOR, not a band.** The first objective two-sided-banded
+  `clear_rate` at `[0.6, 0.9]` and the search penalised the diver for the cautious bot
+  *always* banking (100%). But for push-your-luck (and most solo games) a careful player
+  reliably succeeding is exactly the property you want — the *risk* lives in the player
+  *choosing* to push deep, captured by the commission / margin metrics. Model cautious-bot
+  solvency as `require: { clear_rate: ≥X }` and leave it out of `bands`.
+- **Lesson 2 — a result that's FLAT across the whole space is a finding, not a failure.**
+  When every config ties on a residual penalty (diver: `commissions_filled = 1` for all 36
+  configs), the gap is **not tuning-fixable** — it is bot-skill- or structure-limited (here
+  the competent bot can't grab sparse deep qualifying treasures, exactly the limitation
+  `playtest-audit` says to *report, not gate*). **Do NOT change constants to chase a
+  bot-unreachable metric** — that is the maximize-the-proxy mistake. Report it as a
+  human-playtest item and move on; "no change warranted" is a legitimate, honest outcome of a
+  balance pass.
 
 4. **One sub-system at a time**, each independently self-tested and committed. Don't
    batch five then debug the soup. Keep a playable game at every step.
