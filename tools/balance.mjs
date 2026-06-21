@@ -135,7 +135,6 @@ export function enumerateCandidates(space, { random = 0, seed = 1 } = {}) {
   return grid;
 }
 
-// append to tools/balance.mjs
 // Local refinement: from a starting param dict, repeatedly try each param's
 // adjacent grid values and keep any move that lowers the composite. Deterministic.
 export function coordinateDescent(start, space, scoreFn) {

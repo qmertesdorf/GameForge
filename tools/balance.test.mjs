@@ -153,7 +153,6 @@ describe("enumerateCandidates", () => {
   });
 });
 
-// append to tools/balance.test.mjs
 import { runSearch } from "./balance.mjs";
 
 describe("runSearch (injected synthetic evaluator — no Godot)", () => {
