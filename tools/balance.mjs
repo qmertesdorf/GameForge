@@ -30,3 +30,35 @@ export function checkConstraints(agg, require = {}) {
   }
   return null;
 }
+
+// --- aggregators for numeric metrics across seeds ---
+const AGGS = {
+  mean: (a) => a.reduce((s, x) => s + x, 0) / a.length,
+  min: (a) => Math.min(...a),
+  max: (a) => Math.max(...a),
+  median: (a) => {
+    const s = [...a].sort((x, y) => x - y);
+    const m = s.length >> 1;
+    return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+  },
+};
+
+// Aggregate K per-seed metric objects into one candidate-level metric object.
+// clear_rate = fraction of seeds where every invariant boolean is true; each
+// invariant is also reduced with AND (so a numeric floor on clear_rate plus a
+// boolean require both work). Numeric metrics use aggregators[key] (default mean).
+export function aggregateSeeds(perSeed, { invariants = [], aggregators = {} } = {}) {
+  const agg = {};
+  const n = perSeed.length;
+  agg.clear_rate = n === 0 ? 0 : perSeed.filter((m) => invariants.every((k) => Boolean(m[k]))).length / n;
+  for (const k of invariants) agg[k] = n > 0 && perSeed.every((m) => Boolean(m[k]));
+  const numKeys = new Set();
+  for (const m of perSeed) for (const k of Object.keys(m)) if (typeof m[k] === "number") numKeys.add(k);
+  for (const k of numKeys) {
+    const vals = perSeed.map((m) => m[k]).filter((v) => typeof v === "number");
+    if (vals.length === 0) continue;
+    const fn = AGGS[aggregators[k] || "mean"];
+    agg[k] = fn(vals);
+  }
+  return agg;
+}
