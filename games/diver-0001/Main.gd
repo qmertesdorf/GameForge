@@ -11,6 +11,7 @@ extends Node2D
 
 const DiveStateC := preload("res://DiveState.gd")
 const MetaSaveRef := preload("res://MetaSave.gd")
+const TuneRef := preload("res://Tune.gd")
 
 const W: float = 720.0
 const H: float = 1280.0
@@ -80,7 +81,7 @@ const UPGRADE_ICON_COL: Dictionary = {
 
 func _ready() -> void:
 	state = DiveStateC.new()
-	state.seed_rng(20240620)
+	state.seed_rng(TuneRef.seed_of(20240620))
 	_load_meta()
 	_seed_plankton()
 	_load_art()
@@ -220,8 +221,12 @@ func _preseed_treasures() -> void:
 	# this the nearest spawn is SPAWN_AHEAD below the diver, deep past the crush, and
 	# the dive is unwinnable (the balance bot caught exactly this). Seed a column down
 	# through the Shallows and into the Reef so there is always something to bank.
-	var d: float = PRESEED_FROM
-	for _i in range(PRESEED_COUNT):
+	# Geometry is GF_TUNE-overridable (the deep-commission reach lever); defaults match.
+	var preseed_from := TuneRef.num("preseed_from", PRESEED_FROM)
+	var preseed_step := TuneRef.num("preseed_step", PRESEED_STEP)
+	var preseed_count := TuneRef.int_of("preseed_count", PRESEED_COUNT)
+	var d: float = preseed_from
+	for _i in range(preseed_count):
 		objects.append({
 			"x": state.rng.randf_range(60.0, W - 60.0),
 			"d": d,
@@ -230,7 +235,7 @@ func _preseed_treasures() -> void:
 			"alive": true,
 			"vx": 0.0,
 		})
-		d += PRESEED_STEP
+		d += preseed_step
 	_last_treasure_d = d - SPAWN_AHEAD   # let rolling spawn continue below the seeded column
 
 func _refresh_buttons() -> void:
