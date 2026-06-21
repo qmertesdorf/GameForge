@@ -1,6 +1,6 @@
 // tools/balance.test.mjs
 import { test, expect, describe } from "vitest";
-import { bandPenalty, checkConstraints, aggregateSeeds, scoreCandidate, nonDominated } from "./balance.mjs";
+import { bandPenalty, checkConstraints, aggregateSeeds, scoreCandidate, nonDominated, mulberry32, paramValues, enumerateCandidates } from "./balance.mjs";
 
 describe("bandPenalty", () => {
   test("zero inside the band (inclusive ends)", () => {
@@ -112,5 +112,43 @@ describe("nonDominated", () => {
       { id: "y", penalties: { a: 1, b: 1 } },
     ];
     expect(nonDominated(cands, keys).map((c) => c.id).sort()).toEqual(["x", "y"]);
+  });
+});
+
+describe("mulberry32", () => {
+  test("is deterministic for a fixed seed", () => {
+    const a = mulberry32(42), b = mulberry32(42);
+    expect([a(), a(), a()]).toEqual([b(), b(), b()]);
+  });
+  test("returns values in [0,1)", () => {
+    const r = mulberry32(7);
+    for (let i = 0; i < 100; i++) {
+      const v = r();
+      expect(v).toBeGreaterThanOrEqual(0);
+      expect(v).toBeLessThan(1);
+    }
+  });
+});
+
+describe("paramValues", () => {
+  test("stepped range is inclusive of both ends", () => {
+    expect(paramValues({ min: 0, max: 10, step: 5 })).toEqual([0, 5, 10]);
+  });
+  test("choices pass through verbatim", () => {
+    expect(paramValues({ choices: [1, 4, 9] })).toEqual([1, 4, 9]);
+  });
+});
+
+describe("enumerateCandidates", () => {
+  const space = { x: { min: 0, max: 2, step: 1 }, y: { choices: ["a", "b"] } };
+  test("grid is the full cartesian product", () => {
+    const grid = enumerateCandidates(space, { random: 0, seed: 1 });
+    expect(grid).toHaveLength(3 * 2);
+    expect(grid).toContainEqual({ x: 1, y: "b" });
+  });
+  test("random samples are deterministic under a fixed seed", () => {
+    const r1 = enumerateCandidates(space, { random: 4, seed: 9 });
+    const r2 = enumerateCandidates(space, { random: 4, seed: 9 });
+    expect(r1).toEqual(r2);
   });
 });

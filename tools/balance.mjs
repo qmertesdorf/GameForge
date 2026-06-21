@@ -94,3 +94,43 @@ export function nonDominated(candidates, keys) {
       ),
   );
 }
+
+// --- deterministic PRNG (mulberry32) so the whole search is reproducible from --seed. ---
+export function mulberry32(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a |= 0; a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// --- discrete value list for one param: a stepped [min,max] range (inclusive) or ---
+// --- an explicit choices list. ---
+export function paramValues(spec) {
+  if (Array.isArray(spec.choices)) return [...spec.choices];
+  const out = [];
+  // guard against float drift on the last step
+  for (let v = spec.min; v <= spec.max + 1e-9; v += spec.step) out.push(Math.round(v * 1e6) / 1e6);
+  return out;
+}
+
+// --- full grid (cartesian product) + `random` extra random points (deterministic). ---
+export function enumerateCandidates(space, { random = 0, seed = 1 } = {}) {
+  const keys = Object.keys(space);
+  const lists = keys.map((k) => paramValues(space[k]));
+  let grid = [{}];
+  for (let i = 0; i < keys.length; i++) {
+    const next = [];
+    for (const partial of grid) for (const v of lists[i]) next.push({ ...partial, [keys[i]]: v });
+    grid = next;
+  }
+  const rnd = mulberry32(seed);
+  for (let r = 0; r < random; r++) {
+    const cand = {};
+    for (let i = 0; i < keys.length; i++) cand[keys[i]] = lists[i][Math.floor(rnd() * lists[i].length)];
+    grid.push(cand);
+  }
+  return grid;
+}
