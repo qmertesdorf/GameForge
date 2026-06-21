@@ -11,6 +11,8 @@ extends SceneTree
 #
 # LIMITATION: only introspectable CanvasItem geometry (Control rects, textured Node2D).
 # Art drawn via a custom _draw()/draw_texture() is NOT visible here.
+# LIMITATION: mod_a is a node's OWN alpha (modulate * self_modulate); ancestor modulate
+# is NOT walked, so a node under a faded parent still reads opaque to the occlusion check.
 
 # Texture-requiring node classes for the missing-texture check. AnimatedSprite2D is
 # intentionally excluded: it uses sprite_frames (not `texture`) AND, as a Node2D that is

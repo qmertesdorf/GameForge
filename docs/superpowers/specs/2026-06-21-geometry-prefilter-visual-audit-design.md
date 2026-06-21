@@ -68,10 +68,10 @@ Per **visible** node (`is_visible_in_tree()`), emit:
 | `rect` | global on-screen `[x, y, w, h]`. `Control` → `get_global_rect()`. Textured `Node2D`/`Sprite2D` → derived from `texture.get_size() * global_scale`, offset for `centered`/`offset`. |
 | `paint` | walk-order rank (monotonic depth-first counter) — the real front/back order for siblings |
 | `z_index` | effective z (combined with `paint` for ordering JS-side) |
-| `mod_a` | `modulate.a * self_modulate.a` (float 0..1) — the node's own alpha |
+| `mod_a` | `modulate.a * self_modulate.a` (float 0..1) — the node's OWN alpha (ancestor `modulate` is NOT walked; a node under a faded parent still reads opaque) |
 | `fill_a` | for a `Control` with a `StyleBoxFlat` → `bg_color.a`; else `null` (no introspectable opaque fill) |
 | `has_texture` | node has a non-null texture (opacity base for textured Node2D) |
-| `texture_null` | true for texture-requiring classes (`Sprite2D`/`TextureRect`/`TextureButton`/`NinePatchRect`/`AnimatedSprite2D`) with no texture |
+| `texture_null` | true for texture-requiring classes (`Sprite2D`/`TextureRect`/`TextureButton`/`NinePatchRect`) with no texture. `AnimatedSprite2D` is intentionally NOT included — it uses `sprite_frames` (not `texture`) and, as a `Node2D` that is neither `Control` nor `Sprite2D`, `_rect_of()` returns null so it is never emitted anyway. |
 | `interactive` | `Button`/`TextureButton`/`LineEdit`/`TextEdit`/… |
 | `is_text` | has a non-empty `text` property |
 
