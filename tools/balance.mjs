@@ -134,3 +134,66 @@ export function enumerateCandidates(space, { random = 0, seed = 1 } = {}) {
   }
   return grid;
 }
+
+// append to tools/balance.mjs
+// Local refinement: from a starting param dict, repeatedly try each param's
+// adjacent grid values and keep any move that lowers the composite. Deterministic.
+export function coordinateDescent(start, space, scoreFn) {
+  const keys = Object.keys(space);
+  const lists = Object.fromEntries(keys.map((k) => [k, paramValues(space[k])]));
+  let cur = { ...start };
+  let curScore = scoreFn(cur).composite;
+  let improved = true;
+  while (improved) {
+    improved = false;
+    for (const k of keys) {
+      const idx = lists[k].findIndex((v) => v === cur[k]);
+      for (const ni of [idx - 1, idx + 1]) {
+        if (ni < 0 || ni >= lists[k].length) continue;
+        const trial = { ...cur, [k]: lists[k][ni] };
+        const s = scoreFn(trial).composite;
+        if (s < curScore) { cur = trial; curScore = s; improved = true; }
+      }
+    }
+  }
+  return cur;
+}
+
+// Orchestrate the whole search: enumerate (grid + random) → evaluate each via the
+// injected evalFn (the Godot runner in production, a synthetic fn in tests) → score
+// → coordinate-descent refine around the best survivor → rank + Pareto shortlist.
+// evalFn(params) returns an AGGREGATED metric object (already reduced across seeds).
+export function runSearch(spec, evalFn, { seed = 1, random = 8 } = {}) {
+  const space = spec.search_space;
+  const objective = spec.objective;
+  const focus = objective.focus_points || Object.keys(objective.bands || {});
+  const cache = new Map();
+  const key = (p) => JSON.stringify(p);
+  const scoreOf = (params) => {
+    const k = key(params);
+    if (cache.has(k)) return cache.get(k);
+    const agg = evalFn(params);
+    const sc = scoreCandidate(agg, objective);
+    const rec = { params, agg, ...sc };
+    cache.set(k, rec);
+    return rec;
+  };
+
+  for (const params of enumerateCandidates(space, { random, seed })) scoreOf(params);
+  const survivors = [...cache.values()].filter((c) => !c.rejected);
+  if (survivors.length) {
+    const seed0 = survivors.reduce((a, b) => (b.composite < a.composite ? b : a));
+    scoreOf(coordinateDescent(seed0.params, space, scoreOf)); // refine
+  }
+
+  const all = [...cache.values()];
+  const ranked = all.filter((c) => !c.rejected).sort((a, b) => a.composite - b.composite);
+  const shortlist = nonDominated(ranked, focus);
+  return {
+    best: ranked[0] || null,
+    ranked,
+    shortlist,
+    rejectedCount: all.filter((c) => c.rejected).length,
+    focus,
+  };
+}

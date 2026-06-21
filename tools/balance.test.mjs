@@ -152,3 +152,45 @@ describe("enumerateCandidates", () => {
     expect(r1).toEqual(r2);
   });
 });
+
+// append to tools/balance.test.mjs
+import { runSearch } from "./balance.mjs";
+
+describe("runSearch (injected synthetic evaluator — no Godot)", () => {
+  // Synthetic game: the bot "wins" (clear_rate 1) only when x in [3,7]; the ideal
+  // time_to_first_goal sits at x=5. evalFn returns one agg per candidate.
+  const space = { x: { min: 0, max: 10, step: 1 } };
+  const objective = {
+    invariants: ["solvent"],
+    require: { clear_rate: 1, solvent: true },
+    bands: { time_to_first_goal: { band: [1, 1], weight: 1 } },
+    aggregators: { time_to_first_goal: "mean" },
+    focus_points: ["time_to_first_goal"],
+  };
+  const evalFn = ({ x }) => ({
+    solvent: x >= 3 && x <= 7,
+    clear_rate: x >= 3 && x <= 7 ? 1 : 0,
+    time_to_first_goal: 1 + Math.abs(x - 5), // minimised at x=5
+  });
+
+  test("finds the in-band optimum (x=5) and reports it best", () => {
+    const res = runSearch({ search_space: space, objective }, evalFn, { seed: 1 });
+    expect(res.best.params.x).toBe(5);
+    expect(res.best.composite).toBe(0);
+  });
+  test("rejected candidates are excluded from ranking but counted", () => {
+    const res = runSearch({ search_space: space, objective }, evalFn, { seed: 1 });
+    expect(res.rejectedCount).toBeGreaterThan(0);
+    expect(res.ranked.every((c) => !c.rejected)).toBe(true);
+  });
+  test("surfaces a non-dominated shortlist over the focus-points", () => {
+    const res = runSearch({ search_space: space, objective }, evalFn, { seed: 1 });
+    expect(res.shortlist.length).toBeGreaterThanOrEqual(1);
+    expect(res.shortlist).toContainEqual(expect.objectContaining({ params: { x: 5 } }));
+  });
+  test("is deterministic under a fixed seed", () => {
+    const a = runSearch({ search_space: space, objective }, evalFn, { seed: 3 });
+    const b = runSearch({ search_space: space, objective }, evalFn, { seed: 3 });
+    expect(a.best.params).toEqual(b.best.params);
+  });
+});
