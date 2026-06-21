@@ -196,3 +196,12 @@ export function runSearch(spec, evalFn, { seed = 1, random = 8 } = {}) {
     focus,
   };
 }
+
+// Extract the single machine-readable metrics object the bot prints. Tolerant: a
+// crashed/incomplete run (no line, bad JSON) returns null and the runner treats it
+// as a failed seed.
+export function parseMetricsLine(stdout) {
+  const m = String(stdout).match(/PLAYTEST METRICS (\{.*\})/);
+  if (!m) return null;
+  try { return JSON.parse(m[1]); } catch { return null; }
+}

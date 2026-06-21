@@ -1,6 +1,6 @@
 // tools/balance.test.mjs
 import { test, expect, describe } from "vitest";
-import { bandPenalty, checkConstraints, aggregateSeeds, scoreCandidate, nonDominated, mulberry32, paramValues, enumerateCandidates } from "./balance.mjs";
+import { bandPenalty, checkConstraints, aggregateSeeds, scoreCandidate, nonDominated, mulberry32, paramValues, enumerateCandidates, parseMetricsLine } from "./balance.mjs";
 
 describe("bandPenalty", () => {
   test("zero inside the band (inclusive ends)", () => {
@@ -191,5 +191,22 @@ describe("runSearch (injected synthetic evaluator — no Godot)", () => {
     const a = runSearch({ search_space: space, objective }, evalFn, { seed: 3 });
     const b = runSearch({ search_space: space, objective }, evalFn, { seed: 3 });
     expect(a.best.params).toEqual(b.best.params);
+  });
+});
+
+describe("parseMetricsLine", () => {
+  const stdout = [
+    "PLAYTEST dive1 rig0: earned=168 ...",
+    'PLAYTEST METRICS {"solvent":true,"time_to_first_goal":1,"min_margin_min":4.2}',
+    "PLAYTEST OK",
+  ].join("\n");
+  test("extracts the JSON object from the PLAYTEST METRICS line", () => {
+    expect(parseMetricsLine(stdout)).toEqual({ solvent: true, time_to_first_goal: 1, min_margin_min: 4.2 });
+  });
+  test("missing line → null", () => {
+    expect(parseMetricsLine("PLAYTEST OK")).toBeNull();
+  });
+  test("malformed JSON → null", () => {
+    expect(parseMetricsLine("PLAYTEST METRICS {not json}")).toBeNull();
   });
 });
