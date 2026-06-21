@@ -1,5 +1,14 @@
 import { test, expect, describe } from "vitest";
-import { scoreGeometry } from "./scene-geom.mjs";
+import { scoreGeometry, sceneGeometryFile } from "./scene-geom.mjs";
+import { execFileSync } from "node:child_process";
+
+function godotAvailable() {
+  try {
+    execFileSync(process.env.GODOT_BIN || "godot", ["--version"], { stdio: ["ignore", "pipe", "pipe"] });
+    return true;
+  } catch { return false; }
+}
+const hasGodot = godotAvailable();
 
 const VP = [720, 1280];
 // minimal node factory — visible text/interactive node with given rect
@@ -130,5 +139,13 @@ describe("scoreGeometry — missing-texture", () => {
   test("missing-texture findings appear in bboxes for lens hand-off", () => {
     const r = scoreGeometry([node({ class: "Sprite2D", is_text: false, texture_null: true, rect: [10, 10, 44, 44] })], VP);
     expect(r.bboxes.some((b) => b.kind === "missing-texture" && b.rect[2] === 44)).toBe(true);
+  });
+});
+
+describe("sceneGeometryFile (Godot integration, guarded)", () => {
+  test.skipIf(!hasGodot)("diver-0001 chrome is geometrically clean", () => {
+    const r = sceneGeometryFile("games/diver-0001");
+    expect(r.checked).toBeGreaterThan(0);   // it has Control chrome to see
+    expect(r.hard).toEqual([]);             // clip/occlusion bugs were already fixed
   });
 });
