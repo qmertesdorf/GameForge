@@ -19,13 +19,13 @@ function offViewport(rect, [vw, vh], tol) {
   const out = Math.max(-x, -y, x + w - vw, y + h - vh); // worst overshoot on any side
   const clippedPx = Math.max(0, Math.round(out));
   const fully = x >= vw || y >= vh || x + w <= 0 || y + h <= 0;
-  return { clippedPx, fully, clipped: clippedPx > tol };
+  return { clippedPx, fully, clipped: clippedPx > tol }; // clipped only when overshoot EXCEEDS tol (tol px of bleed is tolerated)
 }
 
 export function scoreGeometry(nodes, viewport, { clipTol = 2, opaqueAlpha = 0.9 } = {}) {
   const vis = nodes.filter((n) => n.visible);
   const hard = [];
-  const advisory = [];
+  const advisory = []; // populated by later tasks (occlusion overlap, missing-texture)
   let checked = 0;
   for (const n of vis) {
     const victim = !!(n.is_text || n.interactive);

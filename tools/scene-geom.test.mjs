@@ -45,4 +45,14 @@ describe("scoreGeometry — off-viewport", () => {
     expect(r.checked).toBe(0);
     expect(r.hard).toEqual([]);
   });
+
+  test("bboxes expose a flagged finding's kind/path/rect for lens hand-off", () => {
+    const r = scoreGeometry([node({ class: "Button", interactive: true, is_text: false, rect: [680, 100, 100, 40] })], VP);
+    expect(r.bboxes).toEqual([{ kind: "offscreen", path: "/root/Main/N", rect: [680, 100, 100, 40] }]);
+  });
+
+  test("an empty node list is clean", () => {
+    const r = scoreGeometry([], VP);
+    expect(r).toMatchObject({ ok: true, checked: 0, hard: [], advisory: [], bboxes: [] });
+  });
 });
