@@ -62,3 +62,20 @@ export function aggregateSeeds(perSeed, { invariants = [], aggregators = {} } = 
   }
   return agg;
 }
+
+// Score one aggregated candidate. Hard-reject (composite Infinity) if a constraint
+// fails. Otherwise keep the PER-FOCUS-POINT penalty vector (lower better, 0 = in
+// band) AND a weighted-sum composite — the composite is the search's climb/sort
+// signal and an at-a-glance summary, NOT a standalone verdict.
+export function scoreCandidate(agg, objective) {
+  const reason = checkConstraints(agg, objective.require || {});
+  if (reason) return { rejected: true, reason, penalties: {}, composite: Infinity };
+  const penalties = {};
+  let composite = 0;
+  for (const [k, spec] of Object.entries(objective.bands || {})) {
+    const p = bandPenalty(agg[k], spec.band) * (spec.weight ?? 1);
+    penalties[k] = p;
+    composite += p;
+  }
+  return { rejected: false, reason: null, penalties, composite };
+}

@@ -1,6 +1,6 @@
 // tools/balance.test.mjs
 import { test, expect, describe } from "vitest";
-import { bandPenalty, checkConstraints, aggregateSeeds } from "./balance.mjs";
+import { bandPenalty, checkConstraints, aggregateSeeds, scoreCandidate } from "./balance.mjs";
 
 describe("bandPenalty", () => {
   test("zero inside the band (inclusive ends)", () => {
@@ -58,5 +58,34 @@ describe("aggregateSeeds", () => {
     const agg = aggregateSeeds([], { invariants });
     expect(agg.clear_rate).toBe(0);
     expect(agg.solvent).toBe(false);
+  });
+});
+
+describe("scoreCandidate", () => {
+  const objective = {
+    require: { clear_rate: 0.6, no_death_spiral: true },
+    bands: {
+      clear_rate: { band: [0.6, 0.85], weight: 1 },
+      time_to_first_goal: { band: [1, 2], weight: 2 },
+    },
+  };
+  test("rejected candidate carries the offending key and infinite composite", () => {
+    const agg = { clear_rate: 0.3, no_death_spiral: true, time_to_first_goal: 1 };
+    const r = scoreCandidate(agg, objective);
+    expect(r.rejected).toBe(true);
+    expect(r.reason).toBe("clear_rate");
+    expect(r.composite).toBe(Infinity);
+  });
+  test("survivor keeps a PER-FOCUS-POINT penalty vector AND a weighted composite", () => {
+    const agg = { clear_rate: 0.7, no_death_spiral: true, time_to_first_goal: 4 };
+    const r = scoreCandidate(agg, objective);
+    expect(r.rejected).toBe(false);
+    expect(r.penalties.clear_rate).toBeCloseTo(0, 9);     // in band
+    expect(r.penalties.time_to_first_goal).toBeCloseTo(2 * 2, 9); // (4-2)*weight2
+    expect(r.composite).toBeCloseTo(4, 9);
+  });
+  test("a fully in-band survivor scores composite 0", () => {
+    const agg = { clear_rate: 0.7, no_death_spiral: true, time_to_first_goal: 1.5 };
+    expect(scoreCandidate(agg, objective).composite).toBe(0);
   });
 });
