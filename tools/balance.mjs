@@ -79,3 +79,18 @@ export function scoreCandidate(agg, objective) {
   }
   return { rejected: false, reason: null, penalties, composite };
 }
+
+// A config is DOMINATED if another is <= on every focus-point penalty and < on at
+// least one. The non-dominated set (Pareto front) is what the human chooses from —
+// no focus-point is averaged away. Equal-on-all configs do not dominate each other.
+export function nonDominated(candidates, keys) {
+  return candidates.filter(
+    (c) =>
+      !candidates.some(
+        (o) =>
+          o !== c &&
+          keys.every((k) => o.penalties[k] <= c.penalties[k]) &&
+          keys.some((k) => o.penalties[k] < c.penalties[k]),
+      ),
+  );
+}

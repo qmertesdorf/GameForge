@@ -1,6 +1,6 @@
 // tools/balance.test.mjs
 import { test, expect, describe } from "vitest";
-import { bandPenalty, checkConstraints, aggregateSeeds, scoreCandidate } from "./balance.mjs";
+import { bandPenalty, checkConstraints, aggregateSeeds, scoreCandidate, nonDominated } from "./balance.mjs";
 
 describe("bandPenalty", () => {
   test("zero inside the band (inclusive ends)", () => {
@@ -87,5 +87,30 @@ describe("scoreCandidate", () => {
   test("a fully in-band survivor scores composite 0", () => {
     const agg = { clear_rate: 0.7, no_death_spiral: true, time_to_first_goal: 1.5 };
     expect(scoreCandidate(agg, objective).composite).toBe(0);
+  });
+});
+
+describe("nonDominated", () => {
+  const keys = ["a", "b"];
+  test("drops a config beaten on EVERY focus-point", () => {
+    const cands = [
+      { id: "x", penalties: { a: 1, b: 1 } },
+      { id: "y", penalties: { a: 2, b: 2 } }, // dominated by x
+    ];
+    expect(nonDominated(cands, keys).map((c) => c.id)).toEqual(["x"]);
+  });
+  test("keeps Pareto-incomparable configs (better on one, worse on another)", () => {
+    const cands = [
+      { id: "x", penalties: { a: 1, b: 3 } },
+      { id: "y", penalties: { a: 3, b: 1 } },
+    ];
+    expect(nonDominated(cands, keys).map((c) => c.id).sort()).toEqual(["x", "y"]);
+  });
+  test("equal-on-all duplicates are not dropped (no strict domination)", () => {
+    const cands = [
+      { id: "x", penalties: { a: 1, b: 1 } },
+      { id: "y", penalties: { a: 1, b: 1 } },
+    ];
+    expect(nonDominated(cands, keys).map((c) => c.id).sort()).toEqual(["x", "y"]);
   });
 });
