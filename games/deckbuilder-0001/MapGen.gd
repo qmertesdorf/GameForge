@@ -4,6 +4,63 @@ const MapModel := preload("res://MapModel.gd")
 
 const FLOORS := 10
 
+# Generate-and-verify budget: how many candidates make_verified() will reject
+# before falling back to the guaranteed-good template. Kept small because the
+# generator below is built to satisfy is_solvable() on the first try (selftest
+# asserts the fallback rate stays rare).
+const MAX_VERIFY_TRIES := 40
+
+# Winnable-by-construction entry point (per the `builder` generate-and-verify gate):
+# propose a candidate, VERIFY it is solvable, reject + retry, else fall back to a
+# known-good template — so every map the player ever traverses is path-complete.
+# Takes the run's already-seeded rng (project convention) so the whole run stays
+# deterministic; on the normal first-try-success path it advances `rng` exactly as
+# a bare generate(rng) would.
+static func make_verified(rng: RandomNumberGenerator) -> MapModel:
+	for attempt in range(MAX_VERIFY_TRIES):
+		var m: MapModel = generate(rng)
+		if is_solvable(m):
+			return m
+	return _fallback_map()
+
+# The SOLVER (exact, structural): a run map is solvable iff the last floor is a
+# single terminal boss, there is at least one floor-0 entry, and EVERY node can
+# still reach the boss along forward edges — so no choice can ever trap the player.
+# This is a real yes/no, never a rubber stamp (selftest feeds it a broken map and
+# requires `false`). NEVER weaken this to make a generation assertion pass.
+static func is_solvable(m: MapModel) -> bool:
+	var last: int = m.floor_count() - 1
+	if last < 1:
+		return false
+	var boss_ids: Array = m.nodes_on_floor(last)
+	if boss_ids.size() != 1:
+		return false
+	if m.node(boss_ids[0]).get("type", "") != "boss":
+		return false
+	if m.nodes_on_floor(0).is_empty():
+		return false
+	return m.all_nodes_reach(boss_ids[0])
+
+# The known-good fallback: a single-column chain that is solvable by construction
+# and honors the same content guarantees as generate(). The safety net must itself
+# be safe (selftest asserts is_solvable(_fallback_map())).
+static func _fallback_map() -> MapModel:
+	var m := MapModel.new()
+	for fl in range(FLOORS):
+		m.add_node(fl, 0, "combat")
+	var ids: Array = []
+	for fl in range(FLOORS):
+		ids.append(m.nodes_on_floor(fl)[0])
+	for fl in range(FLOORS - 1):
+		m.add_edge(ids[fl], ids[fl + 1])
+	m.node(ids[FLOORS - 1])["type"] = "boss"
+	m.node(ids[FLOORS - 2])["type"] = "campfire"
+	m.node(ids[0])["type"] = "combat"
+	if FLOORS >= 4:
+		m.node(ids[1])["type"] = "shop"
+		m.node(ids[2])["type"] = "event"
+	return m
+
 # Generate a deterministic branching map from a seeded rng.
 static func generate(rng: RandomNumberGenerator) -> MapModel:
 	var m = MapModel.new()

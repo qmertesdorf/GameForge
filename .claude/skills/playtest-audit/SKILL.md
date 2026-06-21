@@ -36,6 +36,18 @@ A validation gate, like `selftest`/`uitest` — run it after `builder` and after
 nothing to the manifest — its outputs are the pass/fail gate + a balance-metrics report
 (and any code/tuning fixes that follow).
 
+**Discovery vs. confirmation — where this gate sits relative to generate-and-verify.** When a
+game generates discrete content instances (puzzle boards, procedural maps, wave compositions,
+shop economies), `builder`'s **generate-and-verify** gate already guarantees *each instance is
+solvable at creation* via an in-game solver (`make_verified` + `Solver`). For those games this
+bot is **confirmation**, not discovery: it verifies the per-instance guarantee *survived
+assembly* — that collision × resource-drain × the difficulty ramp didn't make a
+provably-solvable instance unwinnable in practice. It stays a hard gate regardless. Where no
+such upstream gate exists (winnability is a pure tuning/spatial property of the assembled loop
+— diver-0001's crush line vs. treasure depth), this bot remains the **only** place winnability
+is checked, and is in full discovery mode. Either way: a `PLAYTEST FAIL` is a tuning/generator
+bug, never license to weaken `selftest` or `Solver`.
+
 ## The harness — drive the REAL loop, deterministically
 
 A `SceneTree` script that instantiates the actual scene and steps it by hand so the bot

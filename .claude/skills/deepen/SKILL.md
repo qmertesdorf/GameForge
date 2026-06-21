@@ -123,6 +123,17 @@ attempted a flawed concept three times instead of deepening one). Run `deepen` u
      assertion stays green (the `playtest-audit` skill exists because of exactly this).
      Re-run the balance bot after the pass; a `PLAYTEST FAIL` on re-validation is attributed
      to **this `deepen` pass**, and the fix is tuning, never weakening `selftest`.
+   - **Keep the generate-and-verify gate green if the game has one (`make_verified` +
+     `Solver`, per `builder`).** Adding content on the **content axis** is the classic way to
+     silently introduce unsolvable instances: every new tile / recipe / wave type / map piece
+     *widens the instance space the generator can deal*, and the solver guarantee only held
+     over the *old* space. Re-run the generate-and-verify selftest assertions (every
+     `make_verified` solvable over K seeds; fallback rate still rare; fallback still solvable)
+     after the pass — a regression here is attributed to **this `deepen` pass**, and the fix is
+     the generator / new content, **never weakening `Solver.is_solvable`**. If the depth pass
+     adds discrete generated content to a game that *didn't* have the gate (e.g. the content
+     axis turns a fixed layout into a procedural one), that is exactly when to **introduce**
+     `make_verified` — treat it as a new sub-system with its own RED→GREEN assertions.
    - For each new system, **write its assertion first (RED) → implement → GREEN.**
      Prove new mechanics the same deterministic, headless way the original logic was.
    - **Never weaken or delete an existing assertion to make room.** If a new system
