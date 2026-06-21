@@ -12,7 +12,10 @@ extends SceneTree
 # LIMITATION: only introspectable CanvasItem geometry (Control rects, textured Node2D).
 # Art drawn via a custom _draw()/draw_texture() is NOT visible here.
 
-const TEX_CLASSES := ["Sprite2D", "TextureRect", "TextureButton", "NinePatchRect", "AnimatedSprite2D"]
+# Texture-requiring node classes for the missing-texture check. AnimatedSprite2D is
+# intentionally excluded: it uses sprite_frames (not `texture`) AND, as a Node2D that is
+# neither Control nor Sprite2D, _rect_of() returns null for it so it is never emitted anyway.
+const TEX_CLASSES := ["Sprite2D", "TextureRect", "TextureButton", "NinePatchRect"]
 const TEXT_CLASSES := ["Label", "RichTextLabel", "Button", "LineEdit", "TextEdit", "CheckBox", "CheckButton", "OptionButton"]
 const INTERACTIVE_CLASSES := ["Button", "TextureButton", "LineEdit", "TextEdit", "CheckBox", "CheckButton", "OptionButton", "HSlider", "VSlider"]
 
@@ -62,6 +65,8 @@ func _walk(node: Node, out: Array) -> void:
 		_walk(child, out)
 
 # On-screen rect [x,y,w,h] as ints, or null if the node has no measurable extent.
+# Only Control (get_global_rect) and textured Sprite2D are measured; any other CanvasItem
+# (e.g. a bare Node2D / custom _draw container) returns null here and is skipped by _walk.
 func _rect_of(ci: CanvasItem):
 	if ci is Control:
 		var r: Rect2 = (ci as Control).get_global_rect()
