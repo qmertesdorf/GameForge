@@ -56,3 +56,58 @@ describe("scoreGeometry — off-viewport", () => {
     expect(r).toMatchObject({ ok: true, checked: 0, hard: [], advisory: [], bboxes: [] });
   });
 });
+
+describe("scoreGeometry — occlusion", () => {
+  const panel = (over = {}) => node({
+    path: "/root/Main/Panel", class: "Panel", is_text: false, interactive: false,
+    fill_a: 0.95, rect: [0, 0, 720, 1280], paint: 5, ...over,
+  });
+
+  test("a text node fully under an opaque higher-paint panel is hard-occluded", () => {
+    const label = node({ path: "/root/Main/Label", rect: [100, 100, 200, 40], paint: 1 });
+    const r = scoreGeometry([label, panel()], VP);
+    expect(r.ok).toBe(false);
+    expect(r.hard[0]).toMatchObject({ kind: "occluded" });
+    expect(r.hard[0].victim.path).toBe("/root/Main/Label");
+    expect(r.hard[0].occluder.path).toBe("/root/Main/Panel");
+  });
+
+  test("a node under a 0.5-alpha scrim is NOT occluded (scrim is not opaque)", () => {
+    const label = node({ rect: [100, 100, 200, 40], paint: 1 });
+    const r = scoreGeometry([label, panel({ fill_a: 0.5 })], VP);
+    expect(r.hard).toEqual([]);
+  });
+
+  test("opaqueAlpha boundary: 0.92 panel occludes at default, not at a 0.95 threshold", () => {
+    const label = node({ rect: [100, 100, 200, 40], paint: 1 });
+    const nodes = [label, panel({ fill_a: 0.92 })];
+    expect(scoreGeometry(nodes, VP).ok).toBe(false);                     // default 0.9
+    expect(scoreGeometry(nodes, VP, { opaqueAlpha: 0.95 }).ok).toBe(true);
+  });
+
+  test("a LOWER-paint opaque panel does NOT occlude the text above it", () => {
+    const label = node({ rect: [100, 100, 200, 40], paint: 9 });
+    const r = scoreGeometry([label, panel({ paint: 1 })], VP);
+    expect(r.hard).toEqual([]);
+  });
+
+  test("mod_a knocks a textured occluder below the opaque bar", () => {
+    const label = node({ rect: [100, 100, 200, 40], paint: 1 });
+    const sprite = node({ path: "/root/Main/Cover", class: "Sprite2D", is_text: false, has_texture: true, mod_a: 0.4, rect: [0, 0, 720, 1280], paint: 5 });
+    expect(scoreGeometry([label, sprite], VP).hard).toEqual([]);
+  });
+
+  test("partial overlap (not full containment) is advisory, not hard", () => {
+    const label = node({ rect: [100, 100, 400, 40], paint: 1 });
+    const half = panel({ rect: [300, 0, 720, 1280], paint: 5 }); // covers right half only
+    const r = scoreGeometry([label, half], VP);
+    expect(r.hard).toEqual([]);
+    expect(r.advisory.some((a) => a.kind === "overlap")).toBe(true);
+  });
+
+  test("z_index outranks paint order", () => {
+    const label = node({ rect: [100, 100, 200, 40], paint: 9, z_index: 0 });
+    const r = scoreGeometry([label, panel({ paint: 1, z_index: 1 })], VP);
+    expect(r.hard[0]).toMatchObject({ kind: "occluded" });
+  });
+});
