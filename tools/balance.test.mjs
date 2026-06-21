@@ -1,4 +1,5 @@
 // tools/balance.test.mjs
+import { execFileSync } from "node:child_process";
 import { test, expect, describe } from "vitest";
 import { bandPenalty, checkConstraints, aggregateSeeds, scoreCandidate, nonDominated, mulberry32, paramValues, enumerateCandidates, parseMetricsLine } from "./balance.mjs";
 
@@ -153,7 +154,7 @@ describe("enumerateCandidates", () => {
   });
 });
 
-import { runSearch } from "./balance.mjs";
+import { runSearch, makeGodotEvaluator } from "./balance.mjs";
 
 describe("runSearch (injected synthetic evaluator — no Godot)", () => {
   // Synthetic game: the bot "wins" (clear_rate 1) only when x in [3,7]; the ideal
@@ -208,5 +209,23 @@ describe("parseMetricsLine", () => {
   });
   test("malformed JSON → null", () => {
     expect(parseMetricsLine("PLAYTEST METRICS {not json}")).toBeNull();
+  });
+});
+
+function godotAvailable() {
+  try { execFileSync(process.env.GODOT_BIN || "godot", ["--version"], { stdio: ["ignore", "pipe", "pipe"] }); return true; }
+  catch { return false; }
+}
+const hasGodot = godotAvailable();
+
+describe("makeGodotEvaluator", () => {
+  test("returns a function", () => {
+    const ev = makeGodotEvaluator("games/diver-0001", { seeds: 2 });
+    expect(typeof ev).toBe("function");
+  });
+  test.skipIf(!hasGodot)("evaluates a candidate to an aggregated metric object", () => {
+    const ev = makeGodotEvaluator("games/diver-0001", { seeds: 2, invariants: ["solvent"] });
+    const agg = ev({}); // empty GF_TUNE = production defaults
+    expect(typeof agg.clear_rate).toBe("number");
   });
 });

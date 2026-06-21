@@ -10,6 +10,11 @@
 // CLI:
 //   node tools/balance.mjs <game-dir> <spec.json> [--seed N] [--budget N] [--seeds K]
 
+import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
+
 // --- band penalty: distance a metric falls OUTSIDE its [lo,hi] band (0 inside) ---
 export function bandPenalty(value, [lo, hi]) {
   if (value < lo) return lo - value;
@@ -205,3 +210,78 @@ export function parseMetricsLine(stdout) {
   if (!m) return null;
   try { return JSON.parse(m[1]); } catch { return null; }
 }
+
+function godotBin() { return process.env.GODOT_BIN || "godot"; }
+
+// Run the game's playtest.gd once with a given GF_TUNE + GF_SEED. Returns the parsed
+// metrics object, or null if the run produced no usable metrics line.
+function runOneSeed(gameDir, tuneJson, seed, timeout) {
+  try {
+    const out = execFileSync(
+      godotBin(),
+      ["--headless", "--path", resolve(gameDir), "--script", "res://playtest.gd"],
+      { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout,
+        env: { ...process.env, GF_TUNE: JSON.stringify(tuneJson), GF_SEED: String(seed) } },
+    );
+    return parseMetricsLine(out);
+  } catch (e) {
+    return parseMetricsLine(e.stdout || ""); // timeout/non-zero exit can still have emitted metrics
+  }
+}
+
+// Build the production evaluator: for a candidate, run K seeds, drop failed seeds,
+// aggregate. Closes over the game dir + objective's invariants/aggregators.
+export function makeGodotEvaluator(gameDir, { seeds = 5, invariants = [], aggregators = {}, timeout = 60000 } = {}) {
+  return (params) => {
+    const perSeed = [];
+    for (let s = 0; s < seeds; s++) {
+      const m = runOneSeed(gameDir, params, 1000 + s, timeout);
+      if (m) perSeed.push(m);
+    }
+    return aggregateSeeds(perSeed, { invariants, aggregators });
+  };
+}
+
+// --- CLI -----------------------------------------------------------------
+function fmtPct(x) { return (x * 100).toFixed(0) + "%"; }
+
+function main(argv) {
+  const args = argv.slice(2);
+  const pos = args.filter((a) => !a.startsWith("--"));
+  const flag = (name, def) => { const i = args.indexOf(name); return i >= 0 ? Number(args[i + 1]) : def; };
+  const gameDir = pos[0];
+  const specPath = pos[1];
+  if (!gameDir || !specPath) {
+    console.error("usage: balance.mjs <game-dir> <spec.json> [--seed N] [--budget N] [--seeds K]");
+    process.exit(2);
+  }
+  const spec = JSON.parse(readFileSync(specPath, "utf8"));
+  const obj = spec.objective;
+  const evalFn = makeGodotEvaluator(gameDir, {
+    seeds: flag("--seeds", 5),
+    invariants: obj.invariants || [],
+    aggregators: obj.aggregators || {},
+  });
+  const res = runSearch(spec, evalFn, { seed: flag("--seed", 1), random: flag("--budget", 8) });
+
+  console.log("\n=== BALANCE SEARCH (advisory — proposes a config; the human playtest decides fun) ===");
+  console.log(`evaluated ${res.ranked.length + res.rejectedCount} configs (${res.rejectedCount} rejected by hard constraints)\n`);
+  console.log("Best by composite engagement proxy (heuristic — a sort key, NOT a verdict):");
+  if (res.best) {
+    console.log("  params:    " + JSON.stringify(res.best.params));
+    console.log("  composite: " + res.best.composite.toFixed(3));
+    console.log("  focus-points (penalty / value):");
+    for (const k of res.focus)
+      console.log(`    ${k}: penalty ${(res.best.penalties[k] ?? 0).toFixed(3)}  value ${res.best.agg[k]}`);
+    console.log("  clear_rate: " + fmtPct(res.best.agg.clear_rate ?? 0));
+  } else {
+    console.log("  (no config satisfied the hard constraints — widen the search space)");
+  }
+  console.log(`\nNon-dominated shortlist (${res.shortlist.length} configs — weigh the tradeoffs yourself):`);
+  for (const c of res.shortlist.slice(0, 10))
+    console.log("  " + JSON.stringify(c.params) + "  composite " + c.composite.toFixed(3) +
+      "  [" + res.focus.map((k) => `${k} ${(c.penalties[k] ?? 0).toFixed(2)}`).join(", ") + "]");
+  console.log("\nReminder: apply a chosen config to the game defaults, then re-run SELFTEST / UITEST / PLAYTEST.");
+}
+
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) main(process.argv);
