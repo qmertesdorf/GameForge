@@ -154,7 +154,23 @@ describe("enumerateCandidates", () => {
   });
 });
 
-import { runSearch, makeGodotEvaluator } from "./balance.mjs";
+import { runSearch, makeGodotEvaluator, coordinateDescent } from "./balance.mjs";
+
+describe("coordinateDescent (direct, synthetic scoreFn)", () => {
+  const space1 = { x: { min: 0, max: 10, step: 1 } };
+  const scoreFn1 = (p) => ({ composite: Math.abs(p.x - 7) });
+  test("descends from a start point to the local optimum", () => {
+    expect(coordinateDescent({ x: 2 }, space1, scoreFn1).x).toBe(7);
+  });
+  test("a start already at the optimum stays put", () => {
+    expect(coordinateDescent({ x: 7 }, space1, scoreFn1).x).toBe(7);
+  });
+  test("refines every axis on a multi-param space", () => {
+    const space2 = { x: { min: 0, max: 5, step: 1 }, y: { min: 0, max: 5, step: 1 } };
+    const sf = (p) => ({ composite: Math.abs(p.x - 3) + Math.abs(p.y - 4) });
+    expect(coordinateDescent({ x: 0, y: 0 }, space2, sf)).toEqual({ x: 3, y: 4 });
+  });
+});
 
 describe("runSearch (injected synthetic evaluator — no Godot)", () => {
   // Synthetic game: the bot "wins" (clear_rate 1) only when x in [3,7]; the ideal
