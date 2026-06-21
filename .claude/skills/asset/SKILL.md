@@ -101,6 +101,8 @@ Do the normal Step 0, plus:
 
 **(a) Select the per-game style profile explicitly.** Style is a *first-class, per-game parameter* — it's what lets one skill make different-looking games. From `art_direction`, choose a **checkpoint** (painterly vs. flat-cartoon vs. pixel-art finetune), optional **LoRA(s)**, and the **style fragment** (e.g. `"painterly, illustrated, soft brushwork"`). Justify "this art_direction → this profile" as you justify the visual system. Record in `asset_pass.visual_system.style` (`{checkpoint, loras[], style_prompt}`). Two games *should* look deliberately different — that's the goal, not a failure.
 
+**Record the palette as MACHINE-READABLE hex.** The prose `visual_system.palette` (e.g. "deep teal surface") is for humans and the model; the **deterministic palette-lock QC gate cannot read it.** Also fill `visual_system.palette_hex` — the same colours as `#rrggbb` strings, *in the same order* as `palette[]` — so the gate (below) has concrete targets. This is the locked palette the whole asset set is checked against.
+
 **(b) Fix the shared prompt scaffold.** One base prompt (style fragment + shared scene/lighting terms) and one fixed sampler/steps/cfg. **Every** sprite is `scaffold + this actor's subject`, so the set reads as one family. Record in `asset_pass.visual_system.prompt_scaffold`. Always include `"single centered subject, full body, clean transparent background"` in the scaffold, and put scene/multiplicity terms — `"scene, multiple characters, frame, border, ring, wreath, ground, floor, shadow"` — in the shared `negative`. Without this, an over-described minor prop comes back as a wreath/row-of-blobs; the negatives don't fire if the positive prompt itself invites a scene.
 
 Incoherence has two kinds: **style** divergence (caught by profile/scaffold/params) and **subject-world** divergence (caught by the world bible). A cyan-robot hero next to a red-ogre hazard is the latter — a finding about the world bible, never about one PNG.
@@ -147,6 +149,21 @@ For each entity you make raster:
      Set-Content path/Main.gd $out
      ```
      For a single line, `$lines[$i] = 'new line'` then `Set-Content`. Prefer this over repeated Edit retries when a splice isn't landing.
+
+## Deterministic QC gate — palette-lock + seamless-tiling (REQUIRED after every generation)
+
+A diffusion model drifts off the locked palette and produces tiles with visible seams, and the eyeball audit above is subjective + easy to rationalize ("close enough"). Before you accept a PNG, run the **deterministic, GPU-free** QC gate — it computes the answer from the pixels, so it can't be talked out of:
+
+```
+node tools/comfy.mjs qc games/<id>/art/<name>.png '{"palette": ["#145a5a","#04080c","#30e0ff", ...], "tiling": false}'
+```
+
+- **palette-lock** — coarse-quantizes the image, takes the colours that cover most of it, and measures each dominant colour's CIELAB ΔE to the **nearest** `visual_system.palette_hex` entry, weighted by area. Catches gross hue drift (a warm asset in a cold-palette game) without false-flagging the many in-between shades that anti-aliasing and gradients legitimately produce. Pass the locked `palette_hex`.
+- **seamless-tiling** — set `"tiling": true` ONLY for assets meant to repeat (a tileable background/texture). Measures wrap-around edge ΔE (right↔left, bottom↔top), gated on the 90th percentile (one bright mismatched streak is what the eye catches). Leave it off for one-shot full-frame backgrounds and sprites — they aren't tiled, so a "seam" there is meaningless.
+
+Exit `0` = pass; `2` = a check FAILED (prints an actionable `WARN`); `1` = usage/IO error. Tunable thresholds (`deltaEMax`, `coverage`, …) ride in the same JSON — defaults are tuned to pass good art and bite on real drift (proven on diver-0001: clean assets scored ΔE ~9–11, the known-desaturated jelly the worst at ~26, a deliberately-wrong palette ~106).
+
+**How to react:** a FAIL is a generation defect — **regenerate** (tighten the palette/subject prompt, or swap the checkpoint per the section above), don't ship it. A genuinely intentional off-palette asset (a single deliberate accent that breaks the palette for emphasis) may pass review only if you **say so explicitly in `asset_pass.notes`** — same legible-exception discipline as a skipped self-test, never a silent override. The gate is deterministic and runs with no GPU/ComfyUI, so it also re-runs cheaply in any later validation. (The model-based **aesthetic-score auto-reject** is deliberately NOT wired yet — it needs a ComfyUI VLM node validated against the pinned v0.3.16 stack without breaking the LayerDiffuse/save_audio patches.)
 
 ## Backgrounds & composition (where art quality actually lives)
 Playtests proved sprites are usually already fine; "terrible" comes from **flat primitive backgrounds + heroes too small**, not sprite quality. So generate environment art and size the hero deliberately.

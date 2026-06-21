@@ -345,7 +345,13 @@ async function cli(argv) {
     console.log(`wrote ${res.path} (prompt ${res.prompt_id})`);
     return;
   }
-  console.error("usage: node tools/comfy.mjs <--check | gen <id> <asset-name> '<recipe-json>' | gen-audio <id> <clip-name> '<recipe-json>'>");
+  if (cmd === "qc") {
+    // Deterministic, GPU-free asset QC (palette-lock + seamless-tiling). No
+    // ComfyUI needed — runs on any generated PNG. Delegates to asset-qc.mjs.
+    const { qcCli } = await import("./asset-qc.mjs");
+    process.exit(qcCli(rest));
+  }
+  console.error("usage: node tools/comfy.mjs <--check | gen <id> <asset-name> '<recipe-json>' | gen-audio <id> <clip-name> '<recipe-json>' | qc <png-path> '<json-opts>'>");
   process.exit(2);
 }
 

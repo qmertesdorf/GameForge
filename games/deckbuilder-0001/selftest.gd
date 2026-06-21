@@ -177,6 +177,40 @@ func _init() -> void:
 	var map2 = MapGen.generate(rng7b)
 	if map.fingerprint() != map2.fingerprint():
 		_fail("map generation is not deterministic for a fixed seed"); return
+	# Stage 7b: generate-and-verify gate — winnability is guaranteed by CONSTRUCTION,
+	# not discovered later. (Stage 7 only proved ONE seed; this proves the contract
+	# holds across the whole seed space + that the solver discriminates + the fallback.)
+	var MapModel_gv := load("res://MapModel.gd")
+	var gv_K: int = 200
+	var gv_first_try: int = 0          # how often the raw generator proposes a solvable map
+	for gv_s in range(gv_K):
+		# (G1) every make_verified() output is solvable — the core guarantee.
+		var gv_rng := RandomNumberGenerator.new(); gv_rng.seed = gv_s
+		var gv_map = MapGen.make_verified(gv_rng)
+		if not MapGen.is_solvable(gv_map):
+			_fail("make_verified produced an UNSOLVABLE map at seed %d" % gv_s); return
+		# (G2) measure the raw first-try solvable rate (fallback must stay rare).
+		var gv_rng2 := RandomNumberGenerator.new(); gv_rng2.seed = gv_s
+		if MapGen.is_solvable(MapGen.generate(gv_rng2)):
+			gv_first_try += 1
+	# (G2 assert) fallback is the exception, not the rule (>=95% solvable on first try);
+	# a low rate means the GENERATOR is mistuned — never "fix" it by raising MAX_VERIFY_TRIES.
+	if gv_first_try < int(0.95 * gv_K):
+		_fail("raw generator first-try solvable rate too low: %d/%d (generator mistuned)" % [gv_first_try, gv_K]); return
+	# (G3) the fallback template must itself be solvable — the safety net must be safe.
+	if not MapGen.is_solvable(MapGen._fallback_map()):
+		_fail("fallback map is not solvable"); return
+	# (G4) the solver is a real gate, not a rubber stamp: a path-broken map => false.
+	var gv_broken = MapModel_gv.new()
+	gv_broken.add_node(0, 0, "combat")          # entry
+	gv_broken.add_node(1, 0, "boss")            # boss, with NO incoming edge => unreachable
+	if MapGen.is_solvable(gv_broken):
+		_fail("is_solvable rubber-stamped a path-broken (unreachable-boss) map"); return
+	# (G5) make_verified is deterministic for a fixed seed.
+	var gv_rdet1 := RandomNumberGenerator.new(); gv_rdet1.seed = SEED
+	var gv_rdet2 := RandomNumberGenerator.new(); gv_rdet2.seed = SEED
+	if MapGen.make_verified(gv_rdet1).fingerprint() != MapGen.make_verified(gv_rdet2).fingerprint():
+		_fail("make_verified is not deterministic for a fixed seed"); return
 	# Stage 8: run traverses the generated map by choosing among available next nodes.
 	var RC8 := load("res://RunController.gd")
 	var r8 = RC8.new()

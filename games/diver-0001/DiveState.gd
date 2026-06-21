@@ -1,5 +1,6 @@
 extends RefCounted
 class_name DiveState
+const TuneRef := preload("res://Tune.gd")
 # Pure push-your-luck dive economy. No nodes, no rendering. Seedable RNG so
 # selftest.gd is deterministic. Main.gd owns spatial positions/collision and
 # calls collect()/hit_hazard(); this class owns air, haul, banking, depth ZONES,
@@ -99,7 +100,9 @@ func lamp_range() -> float:
 
 func max_safe_depth() -> float:
 	# The Pressure Rig's job: each level unlocks deeper water before the crush bites.
-	return BASE_SAFE_DEPTH + float(_lvl("rig")) * RIG_STEP
+	var base_safe := TuneRef.num("base_safe_depth", BASE_SAFE_DEPTH)
+	var rig_step := TuneRef.num("rig_step", RIG_STEP)
+	return base_safe + float(_lvl("rig")) * rig_step
 
 func is_crushing() -> bool:
 	return active and depth > max_safe_depth()
@@ -110,9 +113,11 @@ func drain_mult() -> float:
 	return capped
 
 func current_drain() -> float:
-	var base: float = BASE_DRAIN + depth * DEPTH_DRAIN_FACTOR
+	var base_drain := TuneRef.num("base_drain", BASE_DRAIN)
+	var crush := TuneRef.num("crush_mult", CRUSH_MULT)
+	var base: float = base_drain + depth * DEPTH_DRAIN_FACTOR
 	if depth > max_safe_depth():
-		base *= CRUSH_MULT          # the crush: past your rig, the deep eats your air
+		base *= crush          # the crush: past your rig, the deep eats your air
 	return base * drain_mult()
 
 func air_frac() -> float:

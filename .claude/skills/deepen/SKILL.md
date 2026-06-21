@@ -123,6 +123,17 @@ attempted a flawed concept three times instead of deepening one). Run `deepen` u
      assertion stays green (the `playtest-audit` skill exists because of exactly this).
      Re-run the balance bot after the pass; a `PLAYTEST FAIL` on re-validation is attributed
      to **this `deepen` pass**, and the fix is tuning, never weakening `selftest`.
+   - **Keep the generate-and-verify gate green if the game has one (`make_verified` +
+     `Solver`, per `builder`).** Adding content on the **content axis** is the classic way to
+     silently introduce unsolvable instances: every new tile / recipe / wave type / map piece
+     *widens the instance space the generator can deal*, and the solver guarantee only held
+     over the *old* space. Re-run the generate-and-verify selftest assertions (every
+     `make_verified` solvable over K seeds; fallback rate still rare; fallback still solvable)
+     after the pass — a regression here is attributed to **this `deepen` pass**, and the fix is
+     the generator / new content, **never weakening `Solver.is_solvable`**. If the depth pass
+     adds discrete generated content to a game that *didn't* have the gate (e.g. the content
+     axis turns a fixed layout into a procedural one), that is exactly when to **introduce**
+     `make_verified` — treat it as a new sub-system with its own RED→GREEN assertions.
    - For each new system, **write its assertion first (RED) → implement → GREEN.**
      Prove new mechanics the same deterministic, headless way the original logic was.
    - **Never weaken or delete an existing assertion to make room.** If a new system
@@ -132,6 +143,63 @@ attempted a flawed concept three times instead of deepening one). Run `deepen` u
      already covered, pin it with a **characterization assertion first** (one that
      passes both before and after the refactor), then refactor. Pure refactors add no
      *new-behavior* assertions.
+
+### Balance tuning (parameter search) — propose a config, don't hand-guess
+
+A pass that changes **tuning** (systemic/run-meta retunes costs, gate depths, drain,
+spawn geometry, the ramp) is exactly what makes a game unwinnable or unfair while every
+logic assertion stays green. Instead of hand-guessing constants and re-running the bot,
+**search** the tuning space against `playtest-audit`'s metrics:
+
+1. **Add the `GF_TUNE`/`GF_SEED` seam** (a `preload`-able `Tune` static, per
+   `games/diver-0001/Tune.gd`): the data layer reads each tunable from `Tune.num(...)`
+   defaulting to its `const`. UNSET env → identical production behavior. Only seam the
+   constants you intend to search.
+2. **Emit the metrics contract:** `playtest.gd` must print one `PLAYTEST METRICS {json}`
+   line (see `playtest-audit`) carrying the numbers it already computes + the invariant
+   booleans.
+3. **Declare a `balance.spec.json`** (search space + objective). The objective HARD-REJECTS
+   any config failing the playtest invariants, then scores survivors by **distance OUTSIDE
+   target BANDS** — never by maximization (maximizing earnings/clear-rate yields a trivially
+   easy game). Use **single-player** metrics + a **retention/engagement proxy** (low
+   time-to-first-goal, accruing-but-not-instant economy, a smooth/tight difficulty curve via
+   the air/HP margin, did pushing pay off). **Pick floor vs. two-sided band per metric's
+   meaning** (see Lesson 1): a *cautious-bot solvency* rate (does a careful player reliably
+   succeed?) is a **hard floor in `require`**, NOT a two-sided band — banding it penalizes the
+   very robustness you want. Two-sided bands fit metrics whose value reflects *difficulty/pacing*
+   (time-to-first-goal, air margin, commissions filled), or a win-rate that genuinely reflects
+   challenge (a roguelike clear-rate). NOT win-rate disparity. The realistic retention bar is top-quartile
+   ~7-8% D7 (GameAnalytics def) — do NOT anchor on the old unverified "20%"; and we do not
+   literally measure D7, so the proxy is a heuristic.
+4. **Run** `node tools/balance.mjs <game-dir> <spec.json>` (each candidate is run across K
+   seeds so "clear-rate" is meaningful and the config isn't seed-lucky).
+5. **READ the per-focus-point breakdown + the non-dominated shortlist and CHOOSE** — weigh
+   the tradeoffs yourself (great pacing vs. borderline economy); do not blindly take the
+   lowest composite. The composite is a heuristic sort key, not a verdict.
+6. **Apply** the chosen config to the defaults, then re-run the **full** gate set
+   (`SELFTEST` / `UITEST` / `PLAYTEST`) with env unset.
+
+**Honesty rule (load-bearing):** the tool **proposes**; the **human playtest decides fun**.
+No validated automated fun proxy exists — the search guarantees winnable/fair/well-paced,
+never *fun*. An owner "this isn't fun" verdict overrides any proxy win. Record the chosen
+config + why in `depth_pass.notes`.
+
+**Lessons from first use (diver-0001 dogfood):**
+- **Lesson 1 — solvency is a FLOOR, not a band.** The first objective two-sided-banded
+  `clear_rate` at `[0.6, 0.9]` and the search penalised the diver for the cautious bot
+  *always* banking (100%). But for push-your-luck (and most solo games) a careful player
+  reliably succeeding is exactly the property you want — the *risk* lives in the player
+  *choosing* to push deep, captured by the commission / margin metrics. Model cautious-bot
+  solvency as `require: { clear_rate: ≥X }` and leave it out of `bands`.
+- **Lesson 2 — a result that's FLAT across the whole space is a finding, not a failure.**
+  When every config ties on a residual penalty (diver: `commissions_filled = 1` for all 36
+  configs), the gap is **not tuning-fixable** — it is bot-skill- or structure-limited (here
+  the competent bot can't grab sparse deep qualifying treasures, exactly the limitation
+  `playtest-audit` says to *report, not gate*). **Do NOT change constants to chase a
+  bot-unreachable metric** — that is the maximize-the-proxy mistake. Report it as a
+  human-playtest item and move on; "no change warranted" is a legitimate, honest outcome of a
+  balance pass.
+
 4. **One sub-system at a time**, each independently self-tested and committed. Don't
    batch five then debug the soup. Keep a playable game at every step.
 5. **Grow the UI per system**, reusing established chrome. Hand composited-screen

@@ -2,7 +2,7 @@
   "id": "diver-0001",
   "name": "Fathom",
   "created_at": "2026-06-20T22:19:56.286Z",
-  "updated_at": "2026-06-21T03:06:15.324Z",
+  "updated_at": "2026-06-21T19:11:55.513Z",
   "status": "validated",
   "concept": {
     "theme": {
@@ -50,8 +50,8 @@
     {
       "type": "sprite",
       "name": "diver",
-      "source": "placeholder",
-      "origin": "primitive"
+      "source": "art/diver.png",
+      "origin": "raster"
     },
     {
       "type": "sprite",
@@ -62,14 +62,14 @@
     {
       "type": "sprite",
       "name": "hazard",
-      "source": "placeholder",
-      "origin": "primitive"
+      "source": "art/hazard_jelly.png",
+      "origin": "raster"
     },
     {
       "type": "sprite",
       "name": "background",
-      "source": "placeholder",
-      "origin": "primitive"
+      "source": "art/background.png",
+      "origin": "raster"
     },
     {
       "type": "sprite",
@@ -107,5 +107,120 @@
     ],
     "selftest_assertions_added": 22,
     "notes": "RE-DEEPEN that corrects the prior run-meta pass (which bolted an upgrade shop onto a one-decision core — the core-before-meta mistake). Owner playtest rejected v1 as shallow: depth was pure value-multiplier and upgrades barely mattered. Applied the upgraded deepen diagnostic (progression-payoff + upgrade-coherence + core-before-meta) and made depth a DESTINATION: zones gated by the crush, a commission that requires reaching them, darkness the lantern fights, and homing deep predators. INDEPENDENT design-depth audit verdict (required new step, fresh subagent, no knowledge of intent): 'DEEPER, not just bigger — the commission + crush + zone-homing + darkness make depth a destination with distinct verbs, clearing the depth-as-multiplier trap.' The audit caught one real weakness the implementer missed — Fins was a flat ~17% ascend nudge — which was then fixed (Fins now sharpens steering to dodge the deep's homing predators, a felt decision-relevant effect). Surfaced frozen-logic changes (surface-don't-swallow): DiveState.collect signature changed to (zone); treasure value is now zone-based not depth-based; the Rebreather upgrade was replaced by the Rig; MAX_AIR stays dynamic. selftest fully rewritten (12 stages: zones, crush, rig gating, commission fill+forfeit, upgrade coherence, persistence); UITEST OK retained. status unchanged (validated) — deepen does not advance status."
+  },
+  "asset_pass": {
+    "method": "raster",
+    "visual_system": {
+      "world_bible": "A breath-held bioluminescent ocean trench at dusk. One world, one creature family: a lone female free-diver in a pale teal-grey wetsuit descends through teal-lit surface water that fades to inky-black abyss; the inhabitants are deep-sea creatures (a translucent glowing jellyfish in the Shallows/Reef, a sinister bioluminescent eel in the Trench) and the rewards are glowing pearls and relics (kept as luminous code motes). Everything shares deep teal-to-black water and soft cyan/magenta bioluminescent glow.",
+      "palette": [
+        "deep teal surface",
+        "inky black abyss",
+        "cyan glow",
+        "magenta glow (jelly/hazard)",
+        "sickly green (trench eel)",
+        "warm gold (treasure + headlamp)"
+      ],
+      "form": "painterly-realistic, soft organic forms; luminous points in deep dark, not flat arcade neon",
+      "shading": "cinematic volumetric underwater lighting with soft glow halos; the background carries baked god rays, the sprites carry a soft cyan rim light",
+      "scale": "diver hero drawn ~150px (well above the 26px hitbox) so it reads prominently; hazards ~92px; background full-frame; treasures small code glow-motes",
+      "prompt_scaffold": "bioluminescent deep-sea painterly concept art, dark moody underwater, soft cyan glow, cinematic, single centered subject, full body, clean transparent background + this actor as a member of the world-bible family",
+      "style": {
+        "checkpoint": "juggernautXL_v9.safetensors",
+        "loras": [],
+        "style_prompt": "bioluminescent deep-sea painterly concept art, dark moody underwater, soft cyan and magenta glow, cinematic volumetric lighting"
+      },
+      "palette_hex": [
+        "#145a5a",
+        "#04080c",
+        "#30e0ff",
+        "#e040c0",
+        "#7ac050",
+        "#f0c040"
+      ]
+    },
+    "reskinned": [
+      "background",
+      "diver",
+      "hazard_jelly",
+      "hazard_eel"
+    ],
+    "left_primitive": [
+      "treasure",
+      "plankton",
+      "hud_air_bar"
+    ],
+    "art_path": "games/diver-0001/art/",
+    "notes": "Swap strategy: draw_texture* in place inside the existing single _draw() — preserves z-order, the screen-shake transform, and all juice (headlamp cone, bubbles, glow, flash, crush vignette) for free, null-guarded with the original primitive draw as fallback so the game still runs if a texture is missing. Background is a full-frame OPAQUE painted trench (surface-lit teal top to inky-black bottom) drawn as the bottom layer, with a DEPTH-DRIVEN black darkening overlay on top so descending still visibly darkens the water — preserving the gameplay depth-read the old code strip-gradient gave (a static painted gradient alone would have lost it). Treasures LEFT PRIMITIVE deliberately: tiny (~11px) zone-tinted, lantern-dimmed glow pickups — the canonical medium-fight where SDXL cannot render a coherent sprite and a code glow-mote is the right call. Plankton left primitive (drifting juice). hud_air_bar and all HUD chrome left as styled CODE: UI chrome is the canonical code/svg case (the clean bar reads as designed; raster-generating it would distort). Two hazard textures (jelly for Shallows/Reef zone<2, eel for Trench zone>=2) selected by obj.zone, replacing the old magenta/green circles; their stale code glow-halos were removed to avoid a disc artifact, and lantern darkness now dims them via modulate alpha with a 0.4 floor so a hazard is never fully invisible (fairness). The diver's fins/mask did not render across regens, but the free-diver silhouette reads clearly at small in-game size and the headlamp is a code cone, so it was accepted. Checkpoint juggernautXL_v9 (painterly-realistic) fits the atmospheric trench, and all four subjects sit in one register so cross-asset cohesion holds. SELFTEST OK and UITEST OK retained after the re-skin; live composite eyeballed at Shallows and at Reef (crush state) before handoff.",
+    "recipes": [
+      {
+        "name": "background",
+        "checkpoint": "juggernautXL_v9.safetensors",
+        "prompt": "fully submerged underwater scene deep beneath the ocean, camera far below the surface looking forward into vast open water, top of the frame glows soft teal with delicate god ray shafts filtering down from the distant surface far above, the water smoothly and continuously darkens downward into deep teal then total inky pitch black bottomless abyss filling the lower half of the frame, a few suspended drifting glowing plankton motes, vast empty deep open water with nothing below, painterly deep-sea concept art, dark moody serene, cinematic underwater atmosphere",
+        "negative": "seabed, seafloor, ocean floor, sand, sandy bottom, seagrass, kelp, grass, plants, vegetation, reef, ground, rocks, debris, above water, waves, ocean surface, seascape, horizon, sky, canyon, cave, characters, people, diver, fish, jellyfish, creatures, text, watermark, logo, frame, border, ui",
+        "seed": 70073,
+        "sampler": "euler",
+        "steps": 28,
+        "cfg": 7,
+        "width": 768,
+        "height": 1344,
+        "layerdiffuse": false,
+        "import_settings": {
+          "mipmaps": true,
+          "filter": "linear",
+          "compression": "lossless"
+        }
+      },
+      {
+        "name": "diver",
+        "checkpoint": "juggernautXL_v9.safetensors",
+        "prompt": "bioluminescent deep-sea painterly concept art, dark moody underwater, soft cyan rim light, cinematic, single centered subject, full body, clean transparent background, a lone female free-diver in a sleek pale silver-grey wetsuit and long swim fins, body upright and vertical descending downward into the deep, streamlined and graceful with arms relaxed at her sides, a small warm headlamp glowing on her dive mask, a few tiny trailing bubbles, serene and calm",
+        "negative": "scuba tank, oxygen tank, heavy scuba gear, regulator, multiple divers, two people, crowd, boat, ship, sky, above water, sitting, chair, frame, border, ring, wreath, ground, floor, seabed, shadow, scene, text, watermark, logo, signature, trademarked character, brand, celebrity likeness, bright daylight, neon arcade",
+        "seed": 51020,
+        "sampler": "euler",
+        "steps": 24,
+        "cfg": 7,
+        "master_resolution": 1024,
+        "layerdiffuse": true,
+        "import_settings": {
+          "mipmaps": true,
+          "filter": "linear",
+          "compression": "lossless"
+        }
+      },
+      {
+        "name": "hazard_jelly",
+        "checkpoint": "juggernautXL_v9.safetensors",
+        "prompt": "bioluminescent deep-sea painterly concept art, dark moody underwater, soft cyan glow, cinematic, single centered subject, full body, clean transparent background, a single translucent bioluminescent jellyfish, glowing cyan and magenta dome bell with long delicate trailing tentacles streaming downward, ethereal and luminous, drifting in dark water",
+        "negative": "diver, person, human, fish, eel, octopus, multiple jellyfish, swarm, scene, frame, border, ring, wreath, ground, floor, seabed, shadow, text, watermark, logo, signature, bright daylight, neon arcade, photo",
+        "seed": 33010,
+        "sampler": "euler",
+        "steps": 24,
+        "cfg": 7,
+        "master_resolution": 768,
+        "layerdiffuse": true,
+        "import_settings": {
+          "mipmaps": true,
+          "filter": "linear",
+          "compression": "lossless"
+        }
+      },
+      {
+        "name": "hazard_eel",
+        "checkpoint": "juggernautXL_v9.safetensors",
+        "prompt": "bioluminescent deep-sea painterly concept art, dark moody underwater, sickly green-cyan glow, cinematic, single centered subject, full body, clean transparent background, a single sinister deep-sea predator eel, long sleek serpentine body coiling, a faint glowing bioluminescent lure and a wide fanged jaw, menacing and grotesque, lurking in the black abyss",
+        "negative": "cute, adorable, friendly, chibi, mascot, jellyfish, diver, person, human, multiple eels, swarm, scene, frame, border, ground, floor, seabed, shadow, text, watermark, logo, signature, bright daylight, neon arcade, photo",
+        "seed": 34010,
+        "sampler": "euler",
+        "steps": 24,
+        "cfg": 7,
+        "master_resolution": 768,
+        "layerdiffuse": true,
+        "import_settings": {
+          "mipmaps": true,
+          "filter": "linear",
+          "compression": "lossless"
+        }
+      }
+    ]
   }
 }

@@ -36,6 +36,18 @@ A validation gate, like `selftest`/`uitest` — run it after `builder` and after
 nothing to the manifest — its outputs are the pass/fail gate + a balance-metrics report
 (and any code/tuning fixes that follow).
 
+**Discovery vs. confirmation — where this gate sits relative to generate-and-verify.** When a
+game generates discrete content instances (puzzle boards, procedural maps, wave compositions,
+shop economies), `builder`'s **generate-and-verify** gate already guarantees *each instance is
+solvable at creation* via an in-game solver (`make_verified` + `Solver`). For those games this
+bot is **confirmation**, not discovery: it verifies the per-instance guarantee *survived
+assembly* — that collision × resource-drain × the difficulty ramp didn't make a
+provably-solvable instance unwinnable in practice. It stays a hard gate regardless. Where no
+such upstream gate exists (winnability is a pure tuning/spatial property of the assembled loop
+— diver-0001's crush line vs. treasure depth), this bot remains the **only** place winnability
+is checked, and is in full discovery mode. Either way: a `PLAYTEST FAIL` is a tuning/generator
+bug, never license to weaken `selftest` or `Solver`.
+
 ## The harness — drive the REAL loop, deterministically
 
 A `SceneTree` script that instantiates the actual scene and steps it by hand so the bot
@@ -103,6 +115,15 @@ Print enough to *tune* from, not just a verdict: earnings/clear per session, the
 resource margin** seen (how close to death a careful player runs), depth/wave/turn reached,
 time-to-first-upgrade, commission/objective fill rate. These numbers are how the owner sets
 difficulty — surface them even when the run passes.
+
+**Machine-readable contract (the tuning signal).** In addition to the human lines and the
+`PLAYTEST OK`/`FAIL` verdict, print exactly one final line `PLAYTEST METRICS {json}` carrying
+the numbers above **plus** the invariant booleans (`solvent`, `first_goal_reachable`,
+`no_death_spiral`, `no_trivial_dominant`) so they coincide with the gate verdict. This line is
+the contract `deepen`'s balance-search (`tools/balance.mjs`) consumes: it aggregates the metrics
+across K seeds, hard-rejects configs whose invariants are false, and scores the rest against
+target bands. The metrics are not just a human dump — they are the tuning oracle. Nothing new is
+simulated to produce the line; it serialises what the bot already computed.
 
 ## Honest reporting
 

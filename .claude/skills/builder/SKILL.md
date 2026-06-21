@@ -222,3 +222,40 @@ Expect exit 0 and `SELFTEST OK`. Fix the loop logic (not the assertion) until it
 ## Balance / playability self-test (REQUIRED for any game with a win/economy/progression loop — emit `games/<id>/playtest.gd`)
 
 `selftest` drives the engine **directly**, so it proves the rules in the abstract and is **blind to whether the assembled loop is winnable** — a game can pass every logic/UI gate and be physically unplayable (diver-0001 shipped 100% unwinnable: its resource gate sat past the nearest reward, so a player could never make progress, with every other gate green). For any game with a win condition, an economy, or progression, emit **`games/<id>/playtest.gd`** per the **`playtest-audit`** skill: a headless competent-player bot that drives the **real** loop (real spawns/collision/resource math, stepping `_process` at a fixed dt) and asserts the game is winnable, fair, and progressable, printing `PLAYTEST OK`/`PLAYTEST FAIL`. The `validator` runs it (Method 1.8). A trivially-endless arcade toy with no economy may skip it — say so in the build notes. **A `PLAYTEST FAIL` is a tuning bug (spawn geometry, gate depths, costs, the ramp) — fix the tuning, never weaken `selftest` to match.**
+
+## Winnable-by-construction: generate-and-verify for discrete generated content (REQUIRED when applicable)
+
+`playtest.gd` *discovers* unwinnability after the fact, by sampling whatever instances the run's RNG happened to produce. That is the right gate for the *assembled* loop — but if your game **generates discrete content instances** (a puzzle board, a procedural map/layout, a wave composition, a shop's offered economy), you can do better than sampling: make each instance **verifiably solvable at the moment it is created**, so an unsolvable one can never reach the player. This pushes winnability *upstream* of `playtest.gd`, which then becomes confirmation (the per-instance guarantee survived assembly) rather than the first and only place it's checked.
+
+**Applicability decision test — do this FIRST; the gate is not universal.** Apply generate-and-verify only when **solvability is a combinatorial / emergent property of a discrete generated instance** that you cannot prove with a closed-form formula:
+- ✅ **Applies:** puzzle boards (nonogram / sort / block / path), generated maps or room layouts, enemy-wave compositions, a generated shop/economy the player must be able to afford a path through, any "deal the player a situation" step.
+- ❌ **Does NOT apply:** continuous action games whose winnability is a *spacing/timing* property already provable by closed form (a runner's obstacle gaps — keep using the existing "derive limits from the player's own capabilities" math under **Tuning & fairness**). Don't bolt a solver onto a game that doesn't deal discrete instances.
+
+If it applies, the running game itself carries a generator **and** a fast in-game solver/feasibility checker, and every instance is produced through a verified path:
+
+```gdscript
+# On the seedable RefCounted rules engine — the same substrate selftest/playtest drive.
+const MAX_TRIES := 40
+
+func make_verified(seed: int) -> Instance:
+    var rng := RandomNumberGenerator.new()
+    rng.seed = seed
+    for attempt in MAX_TRIES:
+        var inst := _generate(rng)              # propose a candidate
+        if Solver.is_solvable(inst):            # VERIFY before it can ship
+            return inst                         # guaranteed winnable
+    return _fallback_template()                 # known-good; loop always terminates winnable
+```
+
+**The solver has two tiers — match it to the genre (this is the "solver / simulator" gate):**
+- **Exact solver** — combinatorial puzzles. Actually solve it (or prove a solution exists): a constraint pass for a nonogram, a BFS/DFS reachability for a path/maze, a deal-out check that a sort/stack is unscramblable. GameForge boards are small, so exact is cheap. Returns a real yes/no.
+- **Simulation feasibility checker** — systemic games (survivors / economy / roguelike) where exact solving is intractable. Run a **bounded competent-policy forward-simulation** of the instance and assert a *reachable* good outcome exists (the wave can be survived; the shop offers an affordable path to the next tier). Reuse the `playtest.gd` competent-bot policy as a **library** here — same harness, called as a generation-time feasibility oracle — don't fork a second copy.
+
+**`selftest.gd` gains generate-and-verify regression assertions** (RED→GREEN like any other system). Over K seeds (e.g. K=200):
+1. **Every `make_verified(seed)` output passes `Solver.is_solvable`** — the core guarantee.
+2. **The retry budget is rarely exhausted.** Count fallbacks; assert they're the exception (e.g. `< 5%`). A high fallback rate means the *generator* is mistuned (it mostly proposes garbage and leans on the template) — a real defect, not something to paper over by raising `MAX_TRIES`.
+3. **The fallback template is itself solvable** — assert `Solver.is_solvable(_fallback_template())`. The safety net must be safe.
+
+**Guard culture (mirrors `playtest`'s):** a failing solver gate is a **generator/tuning bug** — fix the generator or the instance space so it proposes solvable instances. **Never weaken `Solver.is_solvable` to make the assertion pass** — a solver that rubber-stamps everything guarantees nothing, exactly as a weakened `selftest` proves nothing. This needs no manifest change (the guarantee is enforced by `selftest`, which the `validator` already runs).
+
+**Reference implementation:** `games/deckbuilder-0001/MapGen.gd` — a Slay-the-Spire-style run map. `is_solvable()` is an exact structural solver (single terminal boss + every node still reaches the boss, so no choice traps the player); `make_verified(rng)` rejection-samples and falls back to `_fallback_map()`; `RunController.start_run` ships only verified maps. `selftest.gd` Stage 7b is the regression spine: over 200 seeds every `make_verified` output is solvable, the raw generator's first-try solvable rate stays ≥ 95% (else the generator is mistuned), the fallback is itself solvable, and the solver is fed a path-broken map to prove it returns `false` (not a rubber stamp).

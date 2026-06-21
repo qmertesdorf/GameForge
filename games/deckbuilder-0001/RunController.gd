@@ -33,7 +33,7 @@ func start_run(seed_value: int) -> void:
 
 	deck = CardDB.starter_deck().duplicate()
 
-	map = MapGen.generate(rng)
+	map = MapGen.make_verified(rng)   # winnable-by-construction: only a solvable map ships
 	# Start on the lowest-id floor-0 entry node.
 	var entries: Array = map.nodes_on_floor(0)
 	entries.sort()

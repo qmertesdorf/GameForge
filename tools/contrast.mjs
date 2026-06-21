@@ -10,6 +10,7 @@
 //   node tools/contrast.mjs cvd <frame.png> <outdir>              # grayscale + deuteranopia + protanopia renders
 
 import { execFileSync } from "node:child_process";
+import { copyFileSync, rmSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
 
@@ -115,6 +116,27 @@ export function measureCrop(rgb) {
   return { contrast: wcagContrast(dark, light), threshold, dark, light, counts };
 }
 
+// --- Min-text-size (pure) ------------------------------------------------
+// Score the text-node list emitted by text_metrics.gd: any VISIBLE text node whose
+// RESOLVED font size is below the mobile-readability floor is a finding. Nodes whose
+// size couldn't resolve (font_size 0 — e.g. an empty theme) are reported separately,
+// not failed. Default floor 18px suits the 720×1280 portrait design; pass minPx for
+// other design resolutions. Custom _draw() text isn't in `nodes` at all (see
+// text_metrics.gd) — this gate covers Control text and says so.
+export function scoreTextMetrics(nodes, { minPx = 18, includeHidden = false } = {}) {
+  const findings = [];
+  const unresolved = [];
+  let checked = 0;
+  for (const n of nodes) {
+    if (!includeHidden && !n.visible) continue;
+    if (!n.font_size || n.font_size <= 0) { unresolved.push({ path: n.path, class: n.class }); continue; }
+    checked++;
+    if (n.font_size < minPx)
+      findings.push({ path: n.path, class: n.class, text: n.text, font_size: n.font_size, rect: n.rect, minPx });
+  }
+  return { ok: findings.length === 0, minPx, checked, findings, unresolved };
+}
+
 // --- thin Godot pixel ops ------------------------------------------------
 function godotBin() {
   return process.env.GODOT_BIN || "godot";
@@ -135,6 +157,26 @@ export function measureCropFile(cropPath, { large = false } = {}) {
   const { rgb } = JSON.parse(m[1]);
   const r = measureCrop(rgb);
   return { ...r, contrast: Math.round(r.contrast * 100) / 100, verdict: contrastVerdict(r.contrast, { large }) };
+}
+
+// Probe the game's Control text via text_metrics.gd (copied into the game dir,
+// screenshot.gd-style, then cleaned up) and score min-text-size. Returns
+// { viewport, ok, minPx, checked, findings, unresolved }. The findings' rects also
+// give the legibility/colour lenses deterministically-located text regions.
+export function textMetricsFile(gameDir, { minPx = 18 } = {}) {
+  const dir = resolve(gameDir);
+  const tmp = join(dir, "_text_metrics.gd");
+  copyFileSync(join(GODOT_DIR, "text_metrics.gd"), tmp);
+  try {
+    const out = runGodot(["--headless", "--path", dir, "--script", "res://_text_metrics.gd"], "text_metrics");
+    const m = out.match(/TEXT_METRICS (\{.*\})/);
+    if (!m) throw new Error(`contrast: text_metrics emitted no data:\n${out}`);
+    const { viewport, nodes } = JSON.parse(m[1]);
+    return { viewport, ...scoreTextMetrics(nodes, { minPx }) };
+  } finally {
+    rmSync(tmp, { force: true });
+    rmSync(`${tmp}.uid`, { force: true });
+  }
 }
 
 // Write grayscale + deuteranopia + protanopia renders of a frame (via cvd_sim.gd).
@@ -164,8 +206,14 @@ function main(argv) {
     console.log(JSON.stringify(measureCropFile(pos[1], { large }), null, 2));
   } else if (cmd === "cvd") {
     console.log(JSON.stringify(cvdRenderFile(pos[1], pos[2]), null, 2));
+  } else if (cmd === "text-metrics") {
+    const mi = args.indexOf("--min");
+    const minPx = mi >= 0 ? Number(args[mi + 1]) : 18;
+    const res = textMetricsFile(pos[1], { minPx });
+    console.log(JSON.stringify(res, null, 2));
+    process.exit(res.ok ? 0 : 2);
   } else {
-    console.error("usage: contrast.mjs ratio <#hex> <#hex> [--large] | measure <crop.png> [--large] | cvd <frame.png> <outdir>");
+    console.error("usage: contrast.mjs ratio <#hex> <#hex> [--large] | measure <crop.png> [--large] | cvd <frame.png> <outdir> | text-metrics <game-dir> [--min N]");
     process.exit(2);
   }
 }

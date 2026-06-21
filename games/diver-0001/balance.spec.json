@@ -1,0 +1,23 @@
+{
+  "search_space": {
+    "preseed_step": { "choices": [48, 56, 64] },
+    "preseed_count": { "choices": [12, 16] },
+    "base_safe_depth": { "min": 220, "max": 260, "step": 20 },
+    "crush_mult": { "choices": [3.0, 4.0] }
+  },
+  "objective": {
+    "invariants": ["solvent", "first_goal_reachable", "no_death_spiral", "no_trivial_dominant"],
+    "require": { "clear_rate": 0.6, "no_death_spiral": true, "no_trivial_dominant": true },
+    "bands": {
+      "time_to_first_goal_dives": { "band": [1, 2], "weight": 2 },
+      "commissions_filled": { "band": [2, 6], "weight": 1 },
+      "min_margin_min": { "band": [2, 12], "weight": 1 }
+    },
+    "aggregators": {
+      "min_margin_min": "min",
+      "time_to_first_goal_dives": "mean",
+      "commissions_filled": "mean"
+    },
+    "focus_points": ["time_to_first_goal_dives", "commissions_filled", "min_margin_min"]
+  }
+}
