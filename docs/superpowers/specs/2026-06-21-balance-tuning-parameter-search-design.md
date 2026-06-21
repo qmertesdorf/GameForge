@@ -120,16 +120,19 @@ Godot-spawning I/O shell + a CLI.
 - **Search (pure core, seeded → deterministic):** grid over the declared space, plus random
   sampling and coordinate-descent refinement around the best grid point (climbing the internal
   scalar). A fixed seed makes the whole search reproducible.
-- **Output:** the verdict is presented **per focus-point, not collapsed** — a table whose
-  columns are the distinct band-targets (clear-rate, time-to-first-goal, economy solvency,
-  curve smoothness), each cell showing the metric value + its band penalty, so the human sees
-  the *tradeoffs* ("great pacing, borderline economy") instead of one averaged number. The
-  harness surfaces a **non-dominated shortlist** (configs not beaten by another on *every*
-  focus-point — a Pareto front), not just the single argmin of the internal scalar. An
-  explicit **advisory** banner: this proposes; the human playtest decides. Rationale: a single
-  composite reifies "fun" into one figure (the overclaim the no-validated-fun-proxy finding
-  warns against) and hides the very tradeoffs the human is there to weigh; this mirrors
-  visual-audit's validated **per-lens fan-out** over a collapsed pointwise score.
+- **Output:** the verdict is presented **per focus-point** — a table whose columns are the
+  distinct band-targets (clear-rate, time-to-first-goal, economy solvency, curve smoothness),
+  each cell showing the metric value + its band penalty, so the human sees the *tradeoffs*
+  ("great pacing, borderline economy"). The **composite total is shown too**, as an
+  at-a-glance summary column labeled "engagement proxy (heuristic)" — surfaced *alongside* the
+  breakdown, never *instead of* it, so it reads as a rough one-glance sort key, not a verdict.
+  The harness also surfaces a **non-dominated shortlist** (configs not beaten by another on
+  *every* focus-point — a Pareto front), not just the single argmin of the composite. An
+  explicit **advisory** banner: this proposes; the human playtest decides. Rationale: showing
+  *only* a composite reifies "fun" into one figure (the overclaim the no-validated-fun-proxy
+  finding warns against) and hides the tradeoffs the human is there to weigh — so the
+  breakdown leads and the total rides alongside; this mirrors visual-audit's validated
+  **per-lens fan-out** over a collapsed-only pointwise score.
 - **CLI:** `node tools/balance.mjs <game-dir> <spec.json> [--seed N] [--budget N]`.
 
 ### 4. The objective (band targets, not maximization)
@@ -145,12 +148,13 @@ Godot-spawning I/O shell + a CLI.
     (no grind) — a band on gross-earned-vs-cost pacing;
   - **difficulty-curve smoothness** — `min_margin_series` has no cliff/spike across the ramp
     (band on the max step-to-step drop).
-- **Kept as distinct focus-points, never collapsed into one headline number.** The four
-  band-targets are reported separately (the per-focus-point penalty vector + a non-dominated
-  shortlist, per §3); the weighted-sum composite exists only as the search's internal climb
-  signal and is surfaced — if at all — under the label **"engagement proxy (heuristic), search
-  signal only"**. No focus-point is averaged away; the proxy is never presented as truth and
-  never overrides an owner "this isn't fun".
+- **Reported as distinct focus-points, with the composite alongside — not collapsed into it.**
+  The four band-targets are reported separately (the per-focus-point penalty vector + a
+  non-dominated shortlist, per §3). The weighted-sum composite is **also surfaced** as an
+  at-a-glance summary / sort key under the label **"engagement proxy (heuristic)"** — it rides
+  *alongside* the breakdown, never replaces it. It doubles as the search's internal climb
+  signal. No focus-point is averaged away; the proxy is never presented as truth and never
+  overrides an owner "this isn't fun".
 
 ### 5. Skill prose
 
