@@ -95,6 +95,7 @@
           "additionalProperties": false,
           "properties": {
             "palette": { "type": "array", "items": { "type": "string" } },
+            "palette_hex": { "type": "array", "items": { "type": "string" }, "$comment": "machine-readable hex colours (e.g. \"#145a5a\") matching palette[] order — consumed by the deterministic palette-lock QC gate (tools/asset-qc.mjs)" },
             "stroke": { "type": "string" },
             "form": { "type": "string" },
             "shading": { "type": "string" },

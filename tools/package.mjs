@@ -3,6 +3,7 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, join, basename } from "node:path";
 import { readManifest } from "./manifest.mjs"; // single manifest-dir resolver (honors GAMEFORGE_MANIFEST_DIR)
+import { labDeltaE } from "./color.mjs"; // shared CIELAB ΔE76 (also used by asset-qc.mjs)
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, "..");
@@ -460,27 +461,9 @@ export function generateIcons(id, { gamesDir = GAMES_DIR, bg, bgStyle } = {}) {
 }
 
 // --- Icon legibility scoring (pure) --------------------------------------
-// CIELAB ΔE76 between two sRGB colours given as [r,g,b] 0..255. ΔE (not plain
-// luminance) is deliberate: a complementary pairing like coral-on-teal reads as
-// high contrast yet has near-equal luminance — only a chromatic metric scores it.
-function srgbToLinear(c) {
-  const x = c / 255;
-  return x <= 0.04045 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4);
-}
-function rgbToLab([r, g, b]) {
-  const rl = srgbToLinear(r), gl = srgbToLinear(g), bl = srgbToLinear(b);
-  const x = (0.4124 * rl + 0.3576 * gl + 0.1805 * bl) / 0.95047;
-  const y = (0.2126 * rl + 0.7152 * gl + 0.0722 * bl) / 1.0;
-  const z = (0.0193 * rl + 0.1192 * gl + 0.9505 * bl) / 1.08883;
-  const f = (t) => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116);
-  const fx = f(x), fy = f(y), fz = f(z);
-  return [116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)];
-}
-export function labDeltaE(a, b) {
-  const [l1, a1, b1] = rgbToLab(a);
-  const [l2, a2, b2] = rgbToLab(b);
-  return Math.hypot(l1 - l2, a1 - a2, b1 - b2);
-}
+// CIELAB ΔE76 (labDeltaE) now lives in ./color.mjs and is re-exported so existing
+// importers of `package.mjs` keep working.
+export { labDeltaE };
 
 // Score figure/ground legibility from an aligned thumbnail grid:
 //   n     – grid edge length (the gate uses 48)
