@@ -1,5 +1,5 @@
 import { test, expect, describe } from "vitest";
-import { relativeLuminance, wcagContrast, cvdTransform, measureCrop, contrastVerdict, measureCropFile } from "./contrast.mjs";
+import { relativeLuminance, wcagContrast, cvdTransform, measureCrop, contrastVerdict, measureCropFile, scoreTextMetrics } from "./contrast.mjs";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -12,6 +12,36 @@ function godotAvailable() {
   } catch { return false; }
 }
 const hasGodot = godotAvailable();
+
+describe("scoreTextMetrics", () => {
+  const nodes = [
+    { path: "/root/Main/Score", class: "Label", text: "0", font_size: 40, rect: [0, 0, 60, 48], visible: true },
+    { path: "/root/Main/Hint", class: "Label", text: "tap to start", font_size: 12, rect: [0, 60, 200, 16], visible: true },
+    { path: "/root/Main/Hidden", class: "Label", text: "debug", font_size: 8, rect: [0, 80, 50, 10], visible: false },
+    { path: "/root/Main/Themeless", class: "Button", text: "OK", font_size: 0, rect: [0, 100, 40, 20], visible: true },
+  ];
+
+  test("flags a visible sub-floor font, passes the large one", () => {
+    const r = scoreTextMetrics(nodes, { minPx: 18 });
+    expect(r.ok).toBe(false);
+    expect(r.findings.map((f) => f.path)).toEqual(["/root/Main/Hint"]);
+    expect(r.checked).toBe(2); // Score + Hint (Hidden skipped, Themeless unresolved)
+  });
+
+  test("hidden nodes are skipped unless includeHidden", () => {
+    const r = scoreTextMetrics(nodes, { minPx: 18, includeHidden: true });
+    expect(r.findings.map((f) => f.path).sort()).toEqual(["/root/Main/Hidden", "/root/Main/Hint"]);
+  });
+
+  test("unresolved (font_size 0) nodes are reported, not failed", () => {
+    const r = scoreTextMetrics(nodes, { minPx: 18 });
+    expect(r.unresolved.map((u) => u.path)).toEqual(["/root/Main/Themeless"]);
+  });
+
+  test("a generous floor passes everything visible+resolved", () => {
+    expect(scoreTextMetrics(nodes, { minPx: 10 }).ok).toBe(true);
+  });
+});
 
 describe("relativeLuminance", () => {
   test("white → 1, black → 0", () => {
