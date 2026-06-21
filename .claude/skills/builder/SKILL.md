@@ -218,3 +218,7 @@ Run your own self-test before handing off:
 & "<godot exe>" --headless --path games/<id>/ --script res://selftest.gd
 ```
 Expect exit 0 and `SELFTEST OK`. Fix the loop logic (not the assertion) until it passes.
+
+## Balance / playability self-test (REQUIRED for any game with a win/economy/progression loop — emit `games/<id>/playtest.gd`)
+
+`selftest` drives the engine **directly**, so it proves the rules in the abstract and is **blind to whether the assembled loop is winnable** — a game can pass every logic/UI gate and be physically unplayable (diver-0001 shipped 100% unwinnable: its resource gate sat past the nearest reward, so a player could never make progress, with every other gate green). For any game with a win condition, an economy, or progression, emit **`games/<id>/playtest.gd`** per the **`playtest-audit`** skill: a headless competent-player bot that drives the **real** loop (real spawns/collision/resource math, stepping `_process` at a fixed dt) and asserts the game is winnable, fair, and progressable, printing `PLAYTEST OK`/`PLAYTEST FAIL`. The `validator` runs it (Method 1.8). A trivially-endless arcade toy with no economy may skip it — say so in the build notes. **A `PLAYTEST FAIL` is a tuning bug (spawn geometry, gate depths, costs, the ramp) — fix the tuning, never weaken `selftest` to match.**

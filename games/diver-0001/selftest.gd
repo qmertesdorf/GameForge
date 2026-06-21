@@ -78,8 +78,10 @@ func _init() -> void:
 	s7.upgrades["rig"] = 2
 	var safe7_hi: float = s7.max_safe_depth()
 	if safe7_hi <= safe7_lo: fails.append("Pressure Rig did not extend max_safe_depth")
-	# rig 0 can't safely reach the Reef; rig high can reach the Trench
-	if safe7_lo >= float(DiveStateC.ZONE_BOUNDS[1]): fails.append("rig 0 should NOT safely reach the Reef")
+	# rig 0 reaches the Reef (so the first commission is achievable) but NOT the Trench;
+	# an upgraded rig reaches the Trench.
+	if safe7_lo < float(DiveStateC.ZONE_BOUNDS[1]): fails.append("rig 0 should safely reach the Reef (first commission must be achievable)")
+	if safe7_lo >= float(DiveStateC.ZONE_BOUNDS[2]): fails.append("rig 0 should NOT reach the Trench")
 	if safe7_hi < float(DiveStateC.ZONE_BOUNDS[2]): fails.append("upgraded rig should reach the Trench")
 
 	# --- Stage 8: COMMISSION fills and pays a bonus on surfacing; the order advances ---

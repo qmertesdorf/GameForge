@@ -12,7 +12,7 @@ class_name DiveState
 # target zone, so you descend to reach a place, not to multiply a number.
 
 # ---- depth zones ----
-const ZONE_BOUNDS: Array = [0.0, 240.0, 520.0]      # start depth of each zone
+const ZONE_BOUNDS: Array = [0.0, 160.0, 380.0]      # start depth of each zone
 const ZONE_NAMES: Array = ["Shallows", "Reef", "Trench"]
 const ZONE_VALUE: Array = [10, 24, 52]              # treasure value per zone (the deep pays)
 
@@ -28,8 +28,8 @@ const DRAIN_RAMP_PER_DIVE: float = 0.04
 const MAX_DRAIN_MULT: float = 1.5
 
 # ---- upgrade-derived parameters ----
-const BASE_SAFE_DEPTH: float = 200.0
-const RIG_STEP: float = 180.0                        # each Pressure Rig level extends safe depth
+const BASE_SAFE_DEPTH: float = 240.0                 # rig 0 safely works the Shallows + upper Reef
+const RIG_STEP: float = 160.0                        # each Pressure Rig level extends safe depth
 const TANK_STEP: float = 22.0
 const FINS_STEP: float = 26.0
 const BASE_LAMP_RANGE: float = 150.0

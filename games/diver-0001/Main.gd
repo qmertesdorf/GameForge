@@ -16,8 +16,11 @@ const W: float = 720.0
 const H: float = 1280.0
 const DIVER_Y: float = 520.0          # fixed screen-y of the diver; the world scrolls past
 const PX_PER_DEPTH: float = 3.0       # 1 depth unit = 3 px
-const SPAWN_AHEAD: float = 270.0      # depth units below the diver where objects appear
+const SPAWN_AHEAD: float = 150.0      # depth units below the diver where objects appear
 const DESPAWN_BEHIND: float = 90.0    # depth units above the diver before recycling
+const PRESEED_FROM: float = 80.0      # first pre-seeded treasure depth (safe, collectible early)
+const PRESEED_STEP: float = 52.0      # spacing of the pre-seeded column
+const PRESEED_COUNT: int = 12         # seed a column from the Shallows down into the Trench
 const COLLIDE_R: float = 48.0
 const DIVER_R: float = 26.0
 const TREASURE_SPACING: float = 62.0  # 1 treasure per this much descent
@@ -111,23 +114,40 @@ func _seed_plankton() -> void:
 
 func _start_dive() -> void:
 	state.start_dive()
-	objects.clear()
-	bubbles.clear()
-	diver_x = W * 0.5
-	target_x = W * 0.5
-	_last_treasure_d = 0.0
-	_last_hazard_d = 0.0
+	_reset_dive_field()
 	_refresh_buttons()
 
 func _next_dive() -> void:
 	state.start_next_dive()
+	_reset_dive_field()
+	_refresh_buttons()
+
+func _reset_dive_field() -> void:
 	objects.clear()
 	bubbles.clear()
 	diver_x = W * 0.5
 	target_x = W * 0.5
 	_last_treasure_d = 0.0
 	_last_hazard_d = 0.0
-	_refresh_buttons()
+	_preseed_treasures()
+
+func _preseed_treasures() -> void:
+	# Guarantee collectible treasure in safe water from the first second — without
+	# this the nearest spawn is SPAWN_AHEAD below the diver, deep past the crush, and
+	# the dive is unwinnable (the balance bot caught exactly this). Seed a column down
+	# through the Shallows and into the Reef so there is always something to bank.
+	var d: float = PRESEED_FROM
+	for _i in range(PRESEED_COUNT):
+		objects.append({
+			"x": state.rng.randf_range(60.0, W - 60.0),
+			"d": d,
+			"kind": "treasure",
+			"zone": state.zone_for(d),
+			"alive": true,
+			"vx": 0.0,
+		})
+		d += PRESEED_STEP
+	_last_treasure_d = d - SPAWN_AHEAD   # let rolling spawn continue below the seeded column
 
 func _refresh_buttons() -> void:
 	ascend_button.visible = state.active

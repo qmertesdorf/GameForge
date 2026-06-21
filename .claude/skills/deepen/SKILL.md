@@ -117,6 +117,12 @@ attempted a flawed concept three times instead of deepening one). Run `deepen` u
      screens and controls, and a new view that renders fine can still swallow taps
      or skip its rebuild event (invisible to selftest, which bypasses the view).
      New tappable screens get new `uitest.gd` checks, same RED→GREEN discipline.
+   - **`PLAYTEST OK` too if a `games/<id>/playtest.gd` exists — deepening changes TUNING,
+     which is exactly what breaks winnability.** A depth pass that retunes costs, gate
+     depths, spawn geometry, or the ramp can make the game unwinnable while every logic
+     assertion stays green (the `playtest-audit` skill exists because of exactly this).
+     Re-run the balance bot after the pass; a `PLAYTEST FAIL` on re-validation is attributed
+     to **this `deepen` pass**, and the fix is tuning, never weakening `selftest`.
    - For each new system, **write its assertion first (RED) → implement → GREEN.**
      Prove new mechanics the same deterministic, headless way the original logic was.
    - **Never weaken or delete an existing assertion to make room.** If a new system

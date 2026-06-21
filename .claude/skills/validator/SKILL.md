@@ -81,6 +81,16 @@ godot --headless --path games/<id>/ --script res://uitest.gd
 - **FAIL** = `UITEST FAIL: <n> checks failed` or non-zero exit. Record each failing `UITEST FAIL:` check line verbatim in `issues`, set `interaction_functional: false`, `set-status <id> failed`, and STOP. Attribute it to `builder` on a fresh build, or to **whichever skill last reworked the view** (asset / deepen / visual-audit fix pass) on a re-validation — with the precise check (e.g. "asset: shelf_tap_sells — full-screen container with MOUSE_FILTER_PASS swallows shelf taps").
 - **No `uitest.gd` for a tap/click-driven game** is itself a `builder` finding — note it ("shipped no automated proof its controls receive input"), then proceed on the other gates and lean harder on Method 2.
 
+## Method 1.8 — Balance / playability audit (automated; REQUIRED if `games/<id>/playtest.gd` exists)
+
+Methods 1.5–1.7 prove the rules, the math, and that taps land — none can see whether the assembled loop is **winnable**. A game can pass every one of them and be **physically unplayable** (diver-0001 shipped 100% unwinnable — the crush line sat shallower than the nearest treasure, so a player could never bank anything — with all logic/UI gates green). The `playtest-audit` skill emits `games/<id>/playtest.gd`: a headless competent-player bot that drives the **real** game loop (real spawns/collision/resource math) and asserts the game is winnable, fair, and progressable. Run it:
+```
+godot --headless --path games/<id>/ --script res://playtest.gd
+```
+- **PASS** = exit 0 AND output contains `PLAYTEST OK`. The bot reports balance metrics (earnings/clear, min resource margin, objective fill rate) alongside the verdict — note any difficulty it only barely cleared for the human playtest (Method 2).
+- **FAIL** = `PLAYTEST FAIL: <reason>` or non-zero exit. Record the reason verbatim, `set-status <id> failed`, and STOP. Attribute it to the skill that owns the tuning — `builder` on a fresh build, **`deepen`** on a re-validation after a depth/tuning pass (e.g. "deepen: crush depth shallower than the first commission zone — unwinnable"). The fix is **tuning** (spawn geometry, gate depths, costs, the ramp), NOT weakening `selftest`.
+- **No `playtest.gd` for a game with a win/economy/progression loop** is itself a `builder`/`deepen` finding — note it ("shipped no automated proof the game is winnable"), then lean harder on Method 2. A trivially-endless arcade toy with no economy may legitimately skip it — say so.
+
 ## Method 2 — Human playtest (manual now)
 
 4. Ask the owner to open the project in the Godot editor and play for ~60 seconds, confirming the core loop from `concept.core_loop` (e.g. tap → jump, score climbs, game-over → restart works).
