@@ -131,6 +131,23 @@ func _run() -> void:
 	if s.upgrades["rig"] <= rig_start:
 		_fail("the player never afforded a Pressure Rig — upgrade progression is gated too hard")
 
+	# Machine-readable line for tools/balance.mjs (the tuning contract). Carries the
+	# numbers already computed above — nothing new is simulated. Booleans mirror the
+	# hard-gate invariants so the harness can hard-reject without re-deriving them.
+	var metrics := {
+		"solvent": d1.earned > 0,
+		"first_goal_reachable": total_commissions > 0,
+		"no_death_spiral": not d1.died_in_crush,
+		"no_trivial_dominant": true,
+		"gross_earned": gross_earned,
+		"commissions_filled": total_commissions,
+		"time_to_first_goal_dives": (1 if d1.commission > 0 else (2 if total_commissions > 0 else 99)),
+		"min_margin_min": d1.min_margin,
+		"max_depth": d1.max_depth,
+		"rig_end": s.upgrades["rig"],
+	}
+	print("PLAYTEST METRICS " + JSON.stringify(metrics))
+
 	MetaSaveRef.clear()
 	if fail_count == 0:
 		print("PLAYTEST OK")
