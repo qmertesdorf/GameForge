@@ -118,3 +118,17 @@ describe("scoreGeometry — occlusion", () => {
     expect(r.advisory).toEqual([{ kind: "overlap", path: "/root/Main/Deco", class: "ColorRect", rect: [100, 100, 50, 50], over: "/root/Main/Panel" }]);
   });
 });
+
+describe("scoreGeometry — missing-texture", () => {
+  test("a visible texture-requiring node with no texture is advisory", () => {
+    const r = scoreGeometry([node({ path: "/root/Main/Icon", class: "TextureRect", is_text: false, texture_null: true, rect: [10, 10, 44, 44] })], VP);
+    expect(r.hard).toEqual([]);
+    expect(r.advisory).toHaveLength(1);
+    expect(r.advisory[0]).toMatchObject({ kind: "missing-texture", path: "/root/Main/Icon" });
+  });
+
+  test("missing-texture findings appear in bboxes for lens hand-off", () => {
+    const r = scoreGeometry([node({ class: "Sprite2D", is_text: false, texture_null: true, rect: [10, 10, 44, 44] })], VP);
+    expect(r.bboxes.some((b) => b.kind === "missing-texture" && b.rect[2] === 44)).toBe(true);
+  });
+});

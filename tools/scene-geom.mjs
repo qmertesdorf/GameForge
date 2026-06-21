@@ -77,6 +77,8 @@ export function scoreGeometry(nodes, viewport, { clipTol = 2, opaqueAlpha = 0.9 
       if (over)
         advisory.push({ kind: "overlap", path: n.path, class: n.class, rect: n.rect, over: over.path });
     }
+    if (n.texture_null)
+      advisory.push({ kind: "missing-texture", path: n.path, class: n.class, rect: n.rect });
   }
   const ok = hard.length === 0;
   const bboxes = [...hard, ...advisory].map((f) => ({ kind: f.kind, path: f.path ?? f.victim?.path, rect: f.rect ?? f.victim?.rect }));
