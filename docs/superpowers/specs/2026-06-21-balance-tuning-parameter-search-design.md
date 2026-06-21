@@ -110,15 +110,26 @@ Godot-spawning I/O shell + a CLI.
     the required floor, or any seed exhibiting a death-spiral / trivial dominant win / first
     goal unreachable. (A config must be robustly winnable across seeds, not just on a lucky
     one.) Rejected configs are reported but never rank.
-  - For survivors, **objective = Σ weightᵢ · penaltyᵢ**, where `penaltyᵢ` is the distance the
-    metric falls *outside* its band (0 inside the band). **Lower is better; the goal is
-    in-band, not extremal.** This is what keeps "fair, not trivially easy".
+  - **Two layers — focus-points for the human, one scalar only for the machine.** Each band
+    target is kept as a **distinct focus-point**: `penaltyᵢ` = the distance the metric falls
+    *outside* its band (0 inside). The harness retains the **per-focus-point penalty vector**
+    (not just its sum). The summed `Σ weightᵢ · penaltyᵢ` exists **only as the optimizer's
+    internal climb signal** (coordinate-descent / grid-ranking need a scalar to hill-climb) —
+    it is plumbing, never a headline "engagement score". **Lower is better; the goal is
+    in-band, not extremal** — this keeps "fair, not trivially easy".
 - **Search (pure core, seeded → deterministic):** grid over the declared space, plus random
-  sampling and coordinate-descent refinement around the best grid point. A fixed seed makes
-  the whole search reproducible.
-- **Output:** a ranked table of candidate configs with their metric values and band-penalty
-  breakdown, the best in-band config highlighted, and an explicit **advisory** banner: this
-  proposes; the human playtest decides.
+  sampling and coordinate-descent refinement around the best grid point (climbing the internal
+  scalar). A fixed seed makes the whole search reproducible.
+- **Output:** the verdict is presented **per focus-point, not collapsed** — a table whose
+  columns are the distinct band-targets (clear-rate, time-to-first-goal, economy solvency,
+  curve smoothness), each cell showing the metric value + its band penalty, so the human sees
+  the *tradeoffs* ("great pacing, borderline economy") instead of one averaged number. The
+  harness surfaces a **non-dominated shortlist** (configs not beaten by another on *every*
+  focus-point — a Pareto front), not just the single argmin of the internal scalar. An
+  explicit **advisory** banner: this proposes; the human playtest decides. Rationale: a single
+  composite reifies "fun" into one figure (the overclaim the no-validated-fun-proxy finding
+  warns against) and hides the very tradeoffs the human is there to weigh; this mirrors
+  visual-audit's validated **per-lens fan-out** over a collapsed pointwise score.
 - **CLI:** `node tools/balance.mjs <game-dir> <spec.json> [--seed N] [--budget N]`.
 
 ### 4. The objective (band targets, not maximization)
@@ -134,8 +145,12 @@ Godot-spawning I/O shell + a CLI.
     (no grind) — a band on gross-earned-vs-cost pacing;
   - **difficulty-curve smoothness** — `min_margin_series` has no cliff/spike across the ramp
     (band on the max step-to-step drop).
-- **Composite = weighted sum of band penalties**, surfaced under the label **"engagement proxy
-  (heuristic)"**. It is never presented as truth and never overrides an owner "this isn't fun".
+- **Kept as distinct focus-points, never collapsed into one headline number.** The four
+  band-targets are reported separately (the per-focus-point penalty vector + a non-dominated
+  shortlist, per §3); the weighted-sum composite exists only as the search's internal climb
+  signal and is surfaced — if at all — under the label **"engagement proxy (heuristic), search
+  signal only"**. No focus-point is averaged away; the proxy is never presented as truth and
+  never overrides an owner "this isn't fun".
 
 ### 5. Skill prose
 
@@ -143,8 +158,10 @@ Godot-spawning I/O shell + a CLI.
   method:
   - *When:* after a pass that changes tuning (systemic/run-meta), or when `playtest.gd`
     metrics sit near a cliff / outside a band.
-  - *How:* declare the search space + objective bands → run `balance.mjs` → **read** the ranked
-    configs → apply the chosen one to the defaults → re-run the **full** gate set
+  - *How:* declare the search space + objective bands → run `balance.mjs` → **read the
+    per-focus-point breakdown + the non-dominated shortlist** (weigh the tradeoffs across
+    clear-rate / pacing / economy / smoothness yourself — do not just take the lowest composite)
+    → apply the chosen config to the defaults → re-run the **full** gate set
     (`SELFTEST OK` / `UITEST OK` / `PLAYTEST OK`).
   - *Honesty rule (load-bearing):* the tool **proposes**, the human playtest **decides** fun;
     the objective targets **bands, not maxima**; an owner "not fun" verdict overrides any proxy
@@ -167,10 +184,13 @@ Godot-spawning I/O shell + a CLI.
 ## Testing
 
 - **`tools/balance.test.mjs`** unit-tests the pure core with **no Godot**: band-penalty math
-  (inside band = 0, outside = distance, weights applied), hard-reject on a false invariant,
-  search determinism under a fixed seed, coordinate-descent improves a synthetic objective,
-  metrics-line parsing (well-formed, malformed, missing → reject). Mock the runner so the
-  search logic is exercised against synthetic metric vectors.
+  (inside band = 0, outside = distance, weights applied), the **per-focus-point penalty vector
+  is retained, not just its sum**, the **non-dominated shortlist** correctly drops dominated
+  configs and keeps Pareto-incomparable ones (a config better on pacing but worse on economy
+  survives), hard-reject on a false invariant, search determinism under a fixed seed,
+  coordinate-descent improves the internal scalar on a synthetic objective, metrics-line
+  parsing (well-formed, malformed, missing → reject). Mock the runner so the search logic is
+  exercised against synthetic metric vectors.
 - Full vitest suite stays green.
 - Dogfood gates (`SELFTEST`/`UITEST`/`PLAYTEST`) green on the real game after the chosen
   config is applied.
