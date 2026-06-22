@@ -6,6 +6,7 @@ const ShopState := preload("res://ShopState.gd")
 const ItemDB := preload("res://data/ItemDB.gd")
 const UpgradeDB := preload("res://data/UpgradeDB.gd")
 const MetaSave := preload("res://MetaSave.gd")
+const TuneRef := preload("res://Tune.gd")  # GF_SEED seam — UNSET → ticks-based random seed
 
 # Painted full-frame backdrop (raster asset pass); waves/froth/boardwalk stay code.
 const TEX_BG := preload("res://art/bg_beach.png")
@@ -55,6 +56,7 @@ var shake_mag: float = 0.0
 var hud_gold: Label
 var hud_phase: Label
 var hud_day: Label
+var hud_rep: Label
 
 # gather refs
 var tide_fill: ColorRect
@@ -93,7 +95,7 @@ func _ready() -> void:
 	ui.mouse_filter = Control.MOUSE_FILTER_PASS
 	add_child(ui)
 	S = ShopState.new()
-	S.setup(int(Time.get_ticks_usec()) % 2147483647, MetaSave.read())
+	S.setup(TuneRef.seed_of(int(Time.get_ticks_usec()) % 2147483647), MetaSave.read())
 	_handle_events(S.start_day())
 	_rebuild_ui()
 
@@ -217,7 +219,9 @@ func _handle_events(events: Array) -> void:
 				_play_sfx("sale")
 				var amt: int = ev["amount"]
 				var bonus: bool = ev["bonus"]
-				if bonus:
+				if bool(ev.get("order_filled", false)):
+					_toast("★ ORDER FILLED +%dg" % amt, GOLD.darkened(0.25))
+				elif bonus:
 					_toast("SOLD +%dg  (in demand!)" % amt, GOLD.darkened(0.25))
 				else:
 					_toast("SOLD +%dg" % amt, GREEN)
@@ -225,6 +229,9 @@ func _handle_events(events: Array) -> void:
 					_pulse(hud_gold, 1.35)
 				_refresh_shelves()
 				_refresh_patrons()
+			"register_busy":
+				# Serving occupies the register for a beat — tell the player to wait.
+				_toast("Ringing up…", WOOD_DARK)
 			"wrong_item":
 				_play_sfx("error")
 				_toast("\"That's not what I want!\"", RED)
@@ -355,6 +362,7 @@ func _rebuild_ui() -> void:
 	patrons_left_label = null
 	sell_shelves_box = null
 	sell_patrons_box = null
+	hud_rep = null
 	_build_hud()
 	var ph: int = S.phase
 	if ph == ShopState.Phase.GATHER:
@@ -644,6 +652,19 @@ func _build_craft() -> void:
 		none_lbl.position = Vector2(40, wy + 48)
 		none_lbl.size = Vector2(400, 26)
 		ui.add_child(none_lbl)
+	# Standing orders (reputation's destination): pre-stock these top-tier goods
+	# for big bonuses — the planning decision reputation unlocks in CRAFT.
+	if not S.standing_orders.is_empty():
+		var onames: Array = []
+		for o in S.standing_orders:
+			var od: Dictionary = o
+			onames.append(ItemDB.recipe_name(String(od["item"])))
+		var ord_panel := _panel(Rect2(32, 1036, 656, 70), Color(GOLD.r, GOLD.g, GOLD.b, 0.22), GOLD.darkened(0.1), 3, 14)
+		ui.add_child(ord_panel)
+		var ord_lbl := _label("★ STANDING ORDERS — craft & stock: %s" % ", ".join(PackedStringArray(onames)), 20, WOOD_DARK)
+		ord_lbl.position = Vector2(48, 1050)
+		ord_lbl.size = Vector2(624, 44)
+		ui.add_child(ord_lbl)
 	# Open shop.
 	var open_btn := _button("Open Shop →", CORAL)
 	open_btn.position = Vector2(140, 1124)
@@ -666,6 +687,14 @@ func _build_sell() -> void:
 	hint.position = Vector2(60, 112)
 	hint.size = Vector2(600, 24)
 	ui.add_child(hint)
+	# Reputation badge (left of the header) — the meta the sell decision feeds:
+	# serving locals/regulars grows it; at tiers it unlocks Regular standing orders.
+	var rep_pill := _panel(Rect2(12, 78, 92, 64), CREAM, GOLD.darkened(0.1), 3, 16)
+	ui.add_child(rep_pill)
+	hud_rep = _label("", 17, WOOD_DARK, HORIZONTAL_ALIGNMENT_CENTER)
+	hud_rep.position = Vector2(12, 84)
+	hud_rep.size = Vector2(92, 52)
+	ui.add_child(hud_rep)
 	sell_shelves_box = Control.new()
 	sell_shelves_box.position = Vector2.ZERO
 	sell_shelves_box.size = Vector2(720, 1280)
@@ -806,6 +835,25 @@ func _refresh_patrons() -> void:
 		alert.size = Vector2(30, 34)
 		alert.visible = false
 		pv.add_child(alert)
+		# Patron archetype tag — the serve decision's key input (tourist premium-now
+		# vs. local/regular reputation-for-later). Text + colour, so it survives CVD.
+		var kind: String = String(p.get("kind", "local"))
+		var tag_col: Color = SEA_LIGHT
+		var tag_txt: String = "LOCAL"
+		if kind == "tourist":
+			tag_col = CORAL
+			tag_txt = "TOURIST"
+		elif kind == "regular":
+			tag_col = GOLD
+			tag_txt = "★ REGULAR"
+		var tag_pill := _panel(Rect2(22, 104, 120, 26), tag_col, WOOD_DARK, 2, 10)
+		tag_pill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		pv.add_child(tag_pill)
+		var tag_lbl := _label(tag_txt, 15, INK, HORIZONTAL_ALIGNMENT_CENTER)
+		tag_lbl.position = Vector2(22, 107)
+		tag_lbl.size = Vector2(120, 20)
+		tag_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		pv.add_child(tag_lbl)
 		var p_idx: int = i
 		pv.tapped.connect(func() -> void: _on_patron_tapped(p_idx))
 		sell_patrons_box.add_child(pv)
@@ -822,6 +870,9 @@ func _update_sell_hud() -> void:
 	if patrons_left_label != null:
 		var total_left: int = S.patrons_to_come + S.patrons.size()
 		patrons_left_label.text = "Patrons still coming: %d" % total_left
+	if hud_rep != null:
+		var rtier: int = S.reputation_tier()
+		hud_rep.text = "★%d\nReg T%d" % [S.reputation, rtier]
 	var mp: float = S.max_patience()
 	for i in range(patron_views.size()):
 		if i >= S.patrons.size():
@@ -916,6 +967,21 @@ func _build_results() -> void:
 	income.position = Vector2(28, 184)
 	income.size = Vector2(664, 30)
 	ui.add_child(income)
+	# Standing-order outcome — reputation's stakes made visible.
+	if not S.standing_orders.is_empty():
+		var filled: int = 0
+		for o in S.standing_orders:
+			var od: Dictionary = o
+			if bool(od["filled"]):
+				filled += 1
+		var tot: int = S.standing_orders.size()
+		var ord_line: String = "★ Standing orders filled: %d / %d" % [filled, tot]
+		if filled < tot:
+			ord_line += "   (−%d rep)" % (ShopState.REP_ON_ORDER_MISSED * (tot - filled))
+		var ord_lbl := _label(ord_line, 21, SEA_DEEP if filled == tot else CORAL_DARK, HORIZONTAL_ALIGNMENT_CENTER)
+		ord_lbl.position = Vector2(28, 216)
+		ord_lbl.size = Vector2(664, 28)
+		ui.add_child(ord_lbl)
 	# (Gold total lives in the HUD pill right above — stating it twice flattened
 	# the header.)
 	var up_title := _label("— SPEND YOUR GOLD —", 24, WOOD_DARK, HORIZONTAL_ALIGNMENT_CENTER)

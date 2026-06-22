@@ -277,3 +277,83 @@ config + why in `depth_pass.notes`.
   moment (e.g. run-start) is dormant for anything acquired *after* that moment. When you
   add hook points, confirm the real in-game path that grants the thing actually triggers
   the hook — or record the limitation explicitly instead of shipping a dead feature.
+
+## Lessons from second use (shopkeep-0001 systemic dogfood — a "triage" loop)
+
+The stated hook (a cashier triage: "who do I serve next?") was INERT, and it took THREE
+iterations under the independent audit to fix. Each round failed for a *different* reason
+the implementer couldn't see — the audit is what caught them. The durable lessons:
+
+- **A "choice" loop needs CONTENTION — a scarce resource the action itself consumes —
+  before any decision exists.** `serve()` was an instant, free, exact-match action on
+  independent shelves, so "who next?" had a trivially optimal answer (serve whoever's about
+  to leave) and was a *reflex*. **Adding more options or values does NOT help while you can
+  satisfy everyone.** Decoupling value from urgency (tourist = cheap+impatient vs. regular =
+  rich+patient) was completely inert until a **serve-time cost** (a register cooldown =
+  throughput) made serving A literally spend a resource B needed. Diagnose missing contention
+  FIRST when a "decision" loop feels flat; a serve/triage/allocation loop with no action
+  budget, cooldown, or contested stock is a reflex no matter how many patron types you add.
+- **A "destination" must add a VERB or gated content — a price multiplier is a dial in a
+  costume,** even pre-announced or flavored. Reputation "unlocking Regulars" who wanted the
+  same demand items you'd already craft, paying 2×, was just a multiplier. It only became a
+  real destination when Regulars placed **pre-announced standing orders for top-tier goods
+  you must deliberately pre-stock** — i.e. it changed the *CRAFT* decision, a new verb.
+- **A reward/commitment with no penalty for ignoring it is optional flavor, not a decision.**
+  Standing orders changed nothing until an **unfilled order cost reputation** — only then did
+  spending scarce materials to pre-stock them become a genuine bet.
+- **Structure can LAND while the verdict stays "conditional on tuning" — and that is the
+  STOP signal, not a cue to keep twiddling constants.** After three iterations the audit went
+  from "inert" to "genuinely well-constructed decision … JUST BIGGER/LONGER, conditional on
+  tuning": the *mechanism* was right, but whether the contention BITES often enough is a
+  tuning question (serve time vs. patience fuses vs. queue size vs. spawn rate). That belongs
+  to a **`playtest.gd` bot + `tools/balance.mjs` search + the human fun check**, NOT to blind
+  hand-tuning toward the proxy auditor (that is the maximize-the-proxy mistake). Recognize the
+  boundary: once the structure is sound, stop iterating it and hand tuning to the balance pass.
+- **The independent audit pays for itself every single round.** Three rounds, three "just
+  bigger" verdicts, three *different* real flaws pinpointed (dial-reputation → no-contention →
+  toothless-orders). Self-assessment would have shipped after round 1 believing it was deep.
+  Re-dispatch a FRESH subagent each iteration — a re-used one anchors on its prior read.
+- **A packaged game with no `depth_pass` and no `playtest.gd` is the loud symptom of the
+  original POC gap** (polish shipped on an unverified-deep, unverified-winnable core). When you
+  re-open one, expect the depth pass to *also* surface the missing winnability bot — record it
+  as a required follow-up even if you don't build it in the same pass.
+
+## Lessons from the shopkeep-0001 BALANCE pass (building the playtest bot + running the search)
+
+The required-next from the systemic pass — build `playtest.gd`, add the `GF_TUNE` seam, run
+`tools/balance.mjs` — and what the bot actually *found* turned a "conditional on tuning"
+verdict into a live decision. The durable lessons:
+
+- **A new contention mechanic can be silently MASKED by a co-located scarcity — measure WHICH
+  constraint binds before assuming your mechanic drives the decision.** The serve-time cooldown
+  was completely inert at the shipped tuning, not because the cooldown was too short, but
+  because a *different* scarce resource bound first: the shop is shelf-stock-limited and the
+  "empty shelves end the day" rule is a soft landing that sells out before the register ever
+  saturates (`blocked_ticks = 0`, `soldout_days = every day`). The fix needed dense arrivals
+  (spawn_interval) to make the register the bottleneck. **Instrument the candidate bottlenecks**
+  (a "register-busy-while-a-servable-patron-waits" counter, a "sold-out" flag) and confirm your
+  new mechanic is the one that binds — a green winnability gate hides which constraint is live.
+- **`forced_walkouts` was the WRONG oracle; prove "it's a real decision" by POLICY DIVERGENCE.**
+  The intuitive metric (a patron times out with their item still on a shelf) ~never fired,
+  because the stockout ended the day first. The honest test: run TWO reasonable policies on the
+  **same seed** (here value-first vs urgent-first cashier) and compare outcomes. Convergence
+  (Δ≈0) = the choice is inert; **bidirectional** divergence (policy A wins some seeds, B wins
+  others — *no dominant policy*) is the signature of a genuine tradeoff. This is stronger and
+  more honest than any single bot's score, and it directly answers the audit's "do the new
+  systems change decisions?" — empirically, by playing, not on paper.
+- **Decision-pressure is often SEED-DEPENDENT — judge it in AGGREGATE (a banded mean), never as
+  a per-seed hard gate.** Whether a given run pits value against urgency depends on the random
+  patron mix; ~half the seeds were inert even on a good config. Gating `no_trivial_dominant` on
+  per-seed divergence flaked the whole search to "0 configs survive." Fix: **hard-floor the
+  ROBUST winnability invariants per-seed** (solvent / first-goal / no-death-spiral / excess-
+  demand-exists), and put the **intermittent decision-quality metric in a banded mean** the
+  search optimises across seeds. (Pairs with Lesson 1 from the diver dogfood: floors vs bands.)
+- **A balance search can park a real decision on a fragile tuning KNIFE-EDGE — record that as a
+  limitation, not a win, and do NOT chase it with more tuning.** The independent audit confirmed
+  the triage is real but only in `serve_time ≈ 2.5–3.5` (it vanishes at 2.0), and that the
+  sharpest tension turned out to be a *strategic* gold-now-vs-reputation-later axis, not the
+  split-second patience triage the concept advertised. That fragility is honest signal for the
+  HUMAN playtest and a possible *future structural* iteration (e.g. remove the sellout soft-
+  landing so stock-scarcity stops masking the register) — not a cue to keep twiddling constants
+  toward the proxy. Once the structure is proven real, the remaining "is it FUN / does the
+  knife-edge feel good" is the human's call, full stop.

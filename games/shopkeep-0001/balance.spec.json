@@ -1,0 +1,32 @@
+{
+  "_comment": "Tide & Tally serve-contention tuning. The deepen pass added a serve-time register cooldown to make 'who do I serve next?' a real triage, but the playtest bot found it INERT at the shipped tuning (serve_time 1.5): the shop sells out daily and the register is never the bottleneck (blocked_ticks 0), so value-first and urgent-first reach identical gold/rep (Δ=0). This search hunts tuning where demand SATURATES (you can't serve everyone) AND the allocation genuinely matters (value-first vs urgent-first diverge) while the game stays winnable + progressable. Knobs: serve_time (register throughput), spawn_interval (arrival density), queue_visible (how many pile up at once), base_patience (fuse length).",
+  "search_space": {
+    "serve_time":     { "choices": [2.0, 2.5, 3.0] },
+    "spawn_interval": { "choices": [1.2, 1.5] },
+    "queue_visible":  { "choices": [5, 6] },
+    "base_patience":  { "choices": [9, 11] }
+  },
+  "objective": {
+    "invariants": ["solvent", "first_goal_reachable", "no_death_spiral", "no_trivial_dominant"],
+    "require": {
+      "clear_rate": 0.75,
+      "solvent": true,
+      "first_goal_reachable": true,
+      "no_death_spiral": true,
+      "no_trivial_dominant": true
+    },
+    "bands": {
+      "unserved_frac":   { "band": [0.22, 0.40], "weight": 2 },
+      "triage_div_gold": { "band": [80, 400], "weight": 2 },
+      "orders_filled":   { "band": [3, 9], "weight": 1 }
+    },
+    "aggregators": {
+      "unserved_frac": "mean",
+      "triage_div_gold": "mean",
+      "triage_div_rep": "mean",
+      "orders_filled": "mean",
+      "blocked_ticks": "mean"
+    },
+    "focus_points": ["unserved_frac", "triage_div_gold", "orders_filled"]
+  }
+}
