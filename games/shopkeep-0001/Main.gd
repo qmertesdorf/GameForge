@@ -6,6 +6,7 @@ const ShopState := preload("res://ShopState.gd")
 const ItemDB := preload("res://data/ItemDB.gd")
 const UpgradeDB := preload("res://data/UpgradeDB.gd")
 const MetaSave := preload("res://MetaSave.gd")
+const TuneRef := preload("res://Tune.gd")  # GF_SEED seam — UNSET → ticks-based random seed
 
 # Painted full-frame backdrop (raster asset pass); waves/froth/boardwalk stay code.
 const TEX_BG := preload("res://art/bg_beach.png")
@@ -94,7 +95,7 @@ func _ready() -> void:
 	ui.mouse_filter = Control.MOUSE_FILTER_PASS
 	add_child(ui)
 	S = ShopState.new()
-	S.setup(int(Time.get_ticks_usec()) % 2147483647, MetaSave.read())
+	S.setup(TuneRef.seed_of(int(Time.get_ticks_usec()) % 2147483647), MetaSave.read())
 	_handle_events(S.start_day())
 	_rebuild_ui()
 

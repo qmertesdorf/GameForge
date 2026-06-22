@@ -6,6 +6,7 @@ extends RefCounted
 const ItemDB := preload("res://data/ItemDB.gd")
 const UpgradeDB := preload("res://data/UpgradeDB.gd")
 const MetaSave := preload("res://MetaSave.gd")
+const TuneRef := preload("res://Tune.gd")  # GF_TUNE balance-search seam (UNSET → defaults)
 
 enum Phase { GATHER, CRAFT, SELL, RESULTS, DAY_FAILED }
 
@@ -45,13 +46,19 @@ const TIDE_PER_LEVEL: float = 6.0
 const NODE_COUNT: int = 12
 const BASE_PATRONS: int = 4
 const MAX_PATRONS: int = 12
-const QUEUE_VISIBLE: int = 4
-const BASE_PATIENCE: float = 12.0
+# Contention tuning below (QUEUE_VISIBLE / BASE_PATIENCE / SPAWN_INTERVAL / SERVE_TIME)
+# was set by the playtest-bot balance search (tools/balance.mjs + balance.spec.json),
+# NOT hand-guessed. See the SERVE_TIME note for the finding it fixed.
+const QUEUE_VISIBLE: int = 5            # was 4 — one more can pile up = more choice moments
+const BASE_PATIENCE: float = 9.0        # was 12 — shorter fuses so the rush bites
 const PATIENCE_PER_LEVEL: float = 0.25  # +25% wait per Cozy Decor level
 const DRAIN_BASE: float = 1.0
 const DRAIN_PER_DAY: float = 0.06
 const DRAIN_CAP: float = 1.6
-const SPAWN_INTERVAL: float = 2.5
+const SPAWN_INTERVAL: float = 1.2       # was 2.5 — DENSE arrivals are what make the
+                                        # register the bottleneck (the key knob: at 2.5
+                                        # the register cleared each patron before the
+                                        # next arrived, so the triage never fired)
 const FIRST_SPAWN: float = 0.8
 const SHELF_WANT_CHANCE: float = 0.7    # fairness: patrons mostly want what you actually stocked
 
@@ -85,10 +92,16 @@ const REGULAR_PATIENCE_MULT: float = 1.25 # regulars are loyal — they wait
 # shared resource that makes "who do I serve next?" a real triage with an
 # opportunity cost (serving A literally spends time A's rival needed) — not a
 # free reflex. This is the structural fix that makes value-vs-urgency bite.
-# PROVISIONAL value: tuned up from 1.1 so the contention bites on a busy rush
-# (the design-depth audit found 1.1 too short vs. the patience fuses). The final
-# value belongs to a playtest-bot balance search + the human fun check.
-const SERVE_TIME: float = 1.5
+#
+# BALANCE-SEARCH RESULT (tools/balance.mjs, 2026-06-21): at the shipped 1.5 the
+# contention was INERT — the playtest bot found the shop sells OUT every day
+# (stock, not the register, was the limiter: blocked_ticks 0), so a value-first and
+# an urgent-first cashier reached IDENTICAL gold/rep (the triage was a non-decision).
+# The search picked serve_time 2.5 (with the dense SPAWN_INTERVAL above): the register
+# now genuinely blocks while patrons wait (blocked_ticks ~700/run) and value-first vs
+# urgent-first diverge on every seed (Δgold ~60-180g) — the triage is now a real
+# decision. Whether it's FUN is the human playtest's call (no automated fun proxy).
+const SERVE_TIME: float = 2.5
 
 
 # ---------------------------------------------------------------- setup ----
@@ -151,7 +164,7 @@ func patron_count() -> int:
 
 func max_patience() -> float:
 	var lvl: int = upgrades["patience"]
-	return BASE_PATIENCE * (1.0 + PATIENCE_PER_LEVEL * float(lvl))
+	return TuneRef.num("base_patience", BASE_PATIENCE) * (1.0 + PATIENCE_PER_LEVEL * float(lvl))
 
 
 func patience_drain() -> float:
@@ -449,10 +462,10 @@ func tick_sell(dt: float) -> Array:
 	var events: Array = []
 	serve_cooldown = maxf(0.0, serve_cooldown - dt)
 	# Arrivals.
-	if patrons_to_come > 0 and patrons.size() < QUEUE_VISIBLE:
+	if patrons_to_come > 0 and patrons.size() < TuneRef.int_of("queue_visible", QUEUE_VISIBLE):
 		spawn_timer -= dt
 		if spawn_timer <= 0.0:
-			spawn_timer = SPAWN_INTERVAL
+			spawn_timer = TuneRef.num("spawn_interval", SPAWN_INTERVAL)
 			patrons_to_come -= 1
 			var kind: String
 			var want: String
@@ -527,7 +540,7 @@ func serve(patron_idx: int, shelf_idx: int) -> Array:
 				break
 	shelves.remove_at(shelf_idx)
 	patrons.remove_at(patron_idx)
-	serve_cooldown = SERVE_TIME
+	serve_cooldown = TuneRef.num("serve_time", SERVE_TIME)
 	return [{"type": "sale", "item": item, "amount": price, "bonus": bonus, "kind": kind, "order_filled": order_filled}]
 
 
