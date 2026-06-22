@@ -277,3 +277,43 @@ config + why in `depth_pass.notes`.
   moment (e.g. run-start) is dormant for anything acquired *after* that moment. When you
   add hook points, confirm the real in-game path that grants the thing actually triggers
   the hook — or record the limitation explicitly instead of shipping a dead feature.
+
+## Lessons from second use (shopkeep-0001 systemic dogfood — a "triage" loop)
+
+The stated hook (a cashier triage: "who do I serve next?") was INERT, and it took THREE
+iterations under the independent audit to fix. Each round failed for a *different* reason
+the implementer couldn't see — the audit is what caught them. The durable lessons:
+
+- **A "choice" loop needs CONTENTION — a scarce resource the action itself consumes —
+  before any decision exists.** `serve()` was an instant, free, exact-match action on
+  independent shelves, so "who next?" had a trivially optimal answer (serve whoever's about
+  to leave) and was a *reflex*. **Adding more options or values does NOT help while you can
+  satisfy everyone.** Decoupling value from urgency (tourist = cheap+impatient vs. regular =
+  rich+patient) was completely inert until a **serve-time cost** (a register cooldown =
+  throughput) made serving A literally spend a resource B needed. Diagnose missing contention
+  FIRST when a "decision" loop feels flat; a serve/triage/allocation loop with no action
+  budget, cooldown, or contested stock is a reflex no matter how many patron types you add.
+- **A "destination" must add a VERB or gated content — a price multiplier is a dial in a
+  costume,** even pre-announced or flavored. Reputation "unlocking Regulars" who wanted the
+  same demand items you'd already craft, paying 2×, was just a multiplier. It only became a
+  real destination when Regulars placed **pre-announced standing orders for top-tier goods
+  you must deliberately pre-stock** — i.e. it changed the *CRAFT* decision, a new verb.
+- **A reward/commitment with no penalty for ignoring it is optional flavor, not a decision.**
+  Standing orders changed nothing until an **unfilled order cost reputation** — only then did
+  spending scarce materials to pre-stock them become a genuine bet.
+- **Structure can LAND while the verdict stays "conditional on tuning" — and that is the
+  STOP signal, not a cue to keep twiddling constants.** After three iterations the audit went
+  from "inert" to "genuinely well-constructed decision … JUST BIGGER/LONGER, conditional on
+  tuning": the *mechanism* was right, but whether the contention BITES often enough is a
+  tuning question (serve time vs. patience fuses vs. queue size vs. spawn rate). That belongs
+  to a **`playtest.gd` bot + `tools/balance.mjs` search + the human fun check**, NOT to blind
+  hand-tuning toward the proxy auditor (that is the maximize-the-proxy mistake). Recognize the
+  boundary: once the structure is sound, stop iterating it and hand tuning to the balance pass.
+- **The independent audit pays for itself every single round.** Three rounds, three "just
+  bigger" verdicts, three *different* real flaws pinpointed (dial-reputation → no-contention →
+  toothless-orders). Self-assessment would have shipped after round 1 believing it was deep.
+  Re-dispatch a FRESH subagent each iteration — a re-used one anchors on its prior read.
+- **A packaged game with no `depth_pass` and no `playtest.gd` is the loud symptom of the
+  original POC gap** (polish shipped on an unverified-deep, unverified-winnable core). When you
+  re-open one, expect the depth pass to *also* surface the missing winnability bot — record it
+  as a required follow-up even if you don't build it in the same pass.
