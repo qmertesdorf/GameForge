@@ -12,7 +12,8 @@ export function pixelize(img, { native = 64, palette = DB32, alphaThreshold = 12
   const pal = palette.map((c) => (Array.isArray(c) ? c : hexToRgb(c)));
   if (pal.length === 0) throw new Error("pixelize: empty palette");
   const { width: W, height: H, channels, data } = img;
-  const scale = native / Math.max(W, H);
+  // Downscale-only: never upscale a source already at/below native (cap scale at 1).
+  const scale = Math.min(1, native / Math.max(W, H));
   const tw = Math.max(1, Math.round(W * scale));
   const th = Math.max(1, Math.round(H * scale));
   const out = new Uint8Array(tw * th * channels);
@@ -21,6 +22,10 @@ export function pixelize(img, { native = 64, palette = DB32, alphaThreshold = 12
       // source box this target pixel averages over
       const x0 = Math.floor((tx * W) / tw), x1 = Math.max(x0 + 1, Math.floor(((tx + 1) * W) / tw));
       const y0 = Math.floor((ty * H) / th), y1 = Math.max(y0 + 1, Math.floor(((ty + 1) * H) / th));
+      // Straight-alpha box average (RGB is NOT premultiplied by alpha): a coloured
+      // transparent halo contributes full RGB weight. Acceptable here — the palette
+      // quantize below absorbs the small drift. Revisit with alpha-weighted averaging
+      // only if proving-ground sprites show edge-colour contamination.
       let r = 0, g = 0, b = 0, a = 0, n = 0;
       for (let sy = y0; sy < y1; sy++) {
         for (let sx = x0; sx < x1; sx++) {

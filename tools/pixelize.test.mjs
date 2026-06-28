@@ -36,15 +36,25 @@ describe("pixelize", () => {
     for (let i = 0; i < out2.width * out2.height; i++) expect(out2.data[i * 4 + 3]).toBe(255);
   });
 
-  test("never emits a partial-alpha pixel", () => {
-    // a 50/50 alpha mix would average to ~127 — must still snap to 0 or 255
+  test("never emits a partial-alpha pixel — snaps each box to 0 or 255", () => {
+    // Left half fully transparent, right half fully opaque. With native=2 the two
+    // output columns average to a=0 and a=255 respectively — exercising BOTH snap
+    // directions; neither box can land on a partial value.
     const d = new Uint8Array(4 * 4 * 4);
-    for (let i = 0; i < 16; i++) { d[i * 4] = 255; d[i * 4 + 3] = i % 2 ? 255 : 0; }
+    for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) {
+      const o = (y * 4 + x) * 4;
+      d[o] = 255; d[o + 1] = 0; d[o + 2] = 0; d[o + 3] = x < 2 ? 0 : 255;
+    }
     const out = pixelize({ width: 4, height: 4, channels: 4, data: d }, { native: 2, palette: PAL });
+    let sawTransparent = false, sawOpaque = false;
     for (let i = 0; i < out.width * out.height; i++) {
       const a = out.data[i * 4 + 3];
       expect(a === 0 || a === 255).toBe(true);
+      if (a === 0) sawTransparent = true;
+      if (a === 255) sawOpaque = true;
     }
+    expect(sawTransparent).toBe(true);
+    expect(sawOpaque).toBe(true);
   });
 
   test("handles 3-channel (opaque background) input", () => {
@@ -53,5 +63,15 @@ describe("pixelize", () => {
     const out = pixelize({ width: 8, height: 8, channels: 3, data: d }, { native: 4, palette: PAL });
     expect(out.channels).toBe(3);
     expect(out.data[0]).toBe(0); expect(out.data[1]).toBe(0); expect(out.data[2]).toBe(255);
+  });
+
+  test("handles a 1x1 image (downscale guard)", () => {
+    const out = pixelize({ width: 1, height: 1, channels: 4, data: new Uint8Array([250, 8, 8, 255]) }, { native: 4, palette: PAL });
+    expect(out.width).toBe(1); expect(out.height).toBe(1);
+    expect(out.data[0]).toBe(255); expect(out.data[1]).toBe(0); expect(out.data[2]).toBe(0);
+  });
+
+  test("throws on an empty palette", () => {
+    expect(() => pixelize(solidRGBA(4, 4, [255, 0, 0, 255]), { native: 2, palette: [] })).toThrow(/empty palette/);
   });
 });
