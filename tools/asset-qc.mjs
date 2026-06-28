@@ -142,7 +142,7 @@ export function qcImage(pngPath, opts = {}) {
     checks.tiling = r;
     if (!r.ok) warnings.push(`visible tile seam: edge ΔE p90 ${Math.max(r.seam_h_p90, r.seam_v_p90)} > ${r.deltaEMax} (h ${r.seam_h_p90} / v ${r.seam_v_p90}) — enable tiling generation or fix the edges`);
   }
-  if (opts.pixel) {
+  if (opts.pixel && opts.pixel.palette && opts.pixel.palette.length) {
     const palette = (opts.pixel.palette || []).map((c) => (Array.isArray(c) ? c : hexToRgb(c)));
     const r = scorePixelPurity(img, palette, opts.pixel);
     checks.pixel = r;

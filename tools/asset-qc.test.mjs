@@ -207,6 +207,12 @@ describe("scorePixelPurity", () => {
     const r = scorePixelPurity(img(4, 4, (i) => (i === 0 ? [9, 9, 9, 0] : [255, 0, 0, 255])), PAL, { native: 4 });
     expect(r.ok).toBe(true); expect(r.offPalette).toBe(0);
   });
+  test("treats 3-channel input as fully opaque and palette-checks it", () => {
+    const d = new Uint8Array(4 * 4 * 3);
+    for (let i = 0; i < 16; i++) { d[i*3]=255; } // pure red, 3-channel
+    const r = scorePixelPurity({ width: 4, height: 4, channels: 3, data: d }, PAL, { native: 4 });
+    expect(r.ok).toBe(true); expect(r.softAlpha).toBe(0); expect(r.offPalette).toBe(0);
+  });
 });
 
 describe("qcImage pixel gate", () => {
@@ -220,6 +226,20 @@ describe("qcImage pixel gate", () => {
       const res = qcImage(p, { pixel: { palette: ["#ff0000", "#000000"], native: 4 } });
       expect(res.ok).toBe(true);
       expect(res.checks.pixel.offPalette).toBe(0);
+    } finally { rmSync(p, { force: true }); }
+  });
+  test("fails qcImage when the PNG is pixel-impure", () => {
+    const dir = tmpdir();
+    const p = join(dir, `qcpxbad-${process.pid}.png`);
+    const d = new Uint8Array(4 * 4 * 4);
+    for (let i = 0; i < 16; i++) { d[i*4]=255; d[i*4+3]=255; } // start all pure red
+    d[0]=10; d[1]=200; d[2]=30; // one off-palette pixel
+    writeFileSync(p, encodePng(4, 4, 4, d));
+    try {
+      const res = qcImage(p, { pixel: { palette: ["#ff0000", "#000000"], native: 4 } });
+      expect(res.ok).toBe(false);
+      expect(res.checks.pixel.offPalette).toBe(1);
+      expect(res.warnings.length).toBeGreaterThan(0);
     } finally { rmSync(p, { force: true }); }
   });
 });
