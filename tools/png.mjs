@@ -1,4 +1,4 @@
-import { inflateSync } from "node:zlib";
+import { inflateSync, deflateSync } from "node:zlib";
 
 // Minimal, dependency-free PNG decoder for the asset-QC gate. ComfyUI's SaveImage
 // emits 8-bit, non-interlaced PNGs — RGB (colour type 2) for opaque sdxl and RGBA
@@ -83,4 +83,40 @@ export function decodePng(buf) {
     prev = cur;
   }
   return { width, height, channels, data: out };
+}
+
+// --- Encoder -------------------------------------------------------------
+// Minimal filter-None PNG encoder: enough to write the pixelize output (small
+// native-res sprites/backgrounds). 8-bit, non-interlaced, RGB (type 2) or RGBA
+// (type 6) — the mirror of decodePng's supported set. Pure: pixels in, Buffer out.
+const CRC_TABLE = (() => {
+  const t = new Int32Array(256);
+  for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c; }
+  return t;
+})();
+function crc32(buf) {
+  let c = ~0;
+  for (let i = 0; i < buf.length; i++) c = CRC_TABLE[(c ^ buf[i]) & 0xff] ^ (c >>> 8);
+  return (~c) >>> 0;
+}
+function pngChunk(type, data) {
+  const len = Buffer.alloc(4); len.writeUInt32BE(data.length);
+  const td = Buffer.concat([Buffer.from(type, "ascii"), data]);
+  const crc = Buffer.alloc(4); crc.writeUInt32BE(crc32(td));
+  return Buffer.concat([len, td, crc]);
+}
+
+// Encode raw row-major pixels → PNG Buffer. channels: 3 (RGB) or 4 (RGBA).
+export function encodePng(width, height, channels, data) {
+  if (channels !== 3 && channels !== 4) throw new Error(`png: encode supports 3 or 4 channels, got ${channels}`);
+  const stride = width * channels;
+  const raw = Buffer.alloc((stride + 1) * height);
+  for (let y = 0; y < height; y++) {
+    raw[y * (stride + 1)] = 0; // filter: None
+    Buffer.from(data.subarray(y * stride, y * stride + stride)).copy(raw, y * (stride + 1) + 1);
+  }
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(width, 0); ihdr.writeUInt32BE(height, 4);
+  ihdr[8] = 8; ihdr[9] = channels === 4 ? 6 : 2; ihdr[10] = 0; ihdr[11] = 0; ihdr[12] = 0;
+  return Buffer.concat([SIG, pngChunk("IHDR", ihdr), pngChunk("IDAT", deflateSync(raw)), pngChunk("IEND", Buffer.alloc(0))]);
 }

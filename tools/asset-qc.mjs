@@ -97,6 +97,32 @@ export function scoreSeamTiling(img, { deltaEMax = 12 } = {}) {
   };
 }
 
+// --- Pixel-purity (pure) -------------------------------------------------
+// The EXACTNESS gate on a post-pixelize canonical PNG (vs. scorePaletteLock,
+// which tolerates ΔE drift on raw generations). A clean pixel asset has: every
+// opaque pixel EXACTLY a palette colour, hard alpha (0 or 255 only — no AA
+// fringe), and a long side at/under native res. Any violation fails — re-run
+// pixelize. Pure: counts computed from pixels.
+//   img     – { width, height, channels, data } from decodePng
+//   palette – array of [r,g,b] (0..255)
+// Returns { ok, offPalette, softAlpha, longSide, native }.
+export function scorePixelPurity(img, palette, { native = 64 } = {}) {
+  if (!palette || palette.length === 0) throw new Error("asset-qc: scorePixelPurity needs a non-empty palette");
+  const set = new Set(palette.map((c) => (c[0] << 16) | (c[1] << 8) | c[2]));
+  const { width, height, channels, data } = img;
+  let offPalette = 0, softAlpha = 0;
+  for (let i = 0; i < width * height; i++) {
+    const o = i * channels;
+    const a = channels === 4 ? data[o + 3] : 255;
+    if (a !== 0 && a !== 255) softAlpha++;
+    if (a === 0) continue; // fully transparent — colour irrelevant
+    const key = (data[o] << 16) | (data[o + 1] << 8) | data[o + 2];
+    if (!set.has(key)) offPalette++;
+  }
+  const longSide = Math.max(width, height);
+  return { ok: offPalette === 0 && softAlpha === 0 && longSide <= native, offPalette, softAlpha, longSide, native };
+}
+
 // --- File orchestrator ---------------------------------------------------
 // Run the applicable checks on a PNG file. `opts.palette` (hex or [r,g,b] entries)
 // enables palette-lock; `opts.tiling` enables the seam check. Returns
@@ -115,6 +141,12 @@ export function qcImage(pngPath, opts = {}) {
     const r = scoreSeamTiling(img, opts);
     checks.tiling = r;
     if (!r.ok) warnings.push(`visible tile seam: edge ΔE p90 ${Math.max(r.seam_h_p90, r.seam_v_p90)} > ${r.deltaEMax} (h ${r.seam_h_p90} / v ${r.seam_v_p90}) — enable tiling generation or fix the edges`);
+  }
+  if (opts.pixel && opts.pixel.palette && opts.pixel.palette.length) {
+    const palette = (opts.pixel.palette || []).map((c) => (Array.isArray(c) ? c : hexToRgb(c)));
+    const r = scorePixelPurity(img, palette, opts.pixel);
+    checks.pixel = r;
+    if (!r.ok) warnings.push(`pixel impurity: ${r.offPalette} off-palette px, ${r.softAlpha} soft-alpha px, long side ${r.longSide} (native ${r.native}) — re-run pixelize`);
   }
   const ran = Object.values(checks);
   return { ok: ran.every((c) => c.ok), checks, warnings, dimensions: { w: img.width, h: img.height, channels: img.channels } };
