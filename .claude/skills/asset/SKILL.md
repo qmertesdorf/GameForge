@@ -192,6 +192,34 @@ SVG covered every Android density bucket (mdpi → xxxhdpi) from one file; raste
 - **Footprint mapping is unchanged at runtime** — the texture scales to the primitive's on-screen footprint; the master being *larger* than that footprint is correct high-DPI headroom, **not** waste to "fix" by shrinking the master.
 - Texture **atlasing** and whole-title APK **size budgeting** are **M2** packaging concerns, out of scope here. Generating proper masters now is what makes that step possible.
 
+### Pixel-art path (`art_direction: pixel`)
+
+When `art_direction` is `pixel`, the look is GUARANTEED by a deterministic
+post-process, not by hoping the LoRA holds a palette:
+
+1. **Generate** at the normal 1024px master via `sdxl-layerdiffuse-lora` with
+   `lora: "pixel-art-xl"` (sprites) or the opaque `sdxl` template + pixel prompt
+   terms (backgrounds, no LoRA node). Style fragment: `"pixel art, …"`.
+2. **Pixelize** every master through `tools/pixelize.mjs`:
+   `node tools/pixelize.mjs <master.png> <out.png> '{"native":64}'`
+   (sprites ~64px long side; backgrounds larger, e.g. `{"native":256}`). It
+   downscales (downscale-only — never upscales a source already ≤ native) →
+   quantizes to the **DB32 house palette** (`tools/palette.mjs`, the default
+   palette) → hardens alpha. The pixelized PNG is the committed canonical asset.
+3. **Gate** each committed PNG with the asset-qc pixel-purity check:
+   `node tools/asset-qc.mjs <out.png> '{"pixel":{"palette":<DB32 hex array>,"native":64}}'`
+   Exit 2 = off-palette / soft-alpha / wrong-res → re-run pixelize (or regenerate
+   if the subject is illegible at native res). Do NOT commit a PNG that fails.
+4. **Record** in `asset_pass.visual_system.style`:
+   `{ loras: ["pixel-art-xl"], style_prompt: "pixel art, …", native: 64, palette: "DB32" }`.
+5. **Crispness:** set `rendering/textures/canvas_textures/default_texture_filter = 0`
+   (Nearest) in the game's `project.godot` so pixels stay crisp project-wide, and
+   draw textures at integer-scaled destination sizes.
+
+The DB32 palette and pixel-purity are the cohesion guarantee — visual-audit does
+NOT re-litigate softness/palette (those are gated deterministically upstream); it
+judges composition, legibility, and sizing on the composited screen as usual.
+
 ## Content & IP safety
 SDXL can emit outputs resembling trademarked/copyrighted characters — an app-store rejection and legal risk:
 - Put IP guards in **every** recipe's `negative`: `"logo, watermark, text, trademarked character, brand, celebrity likeness"`.
