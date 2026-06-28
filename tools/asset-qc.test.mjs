@@ -4,7 +4,7 @@ import { writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { decodePng } from "./png.mjs";
-import { scorePaletteLock, scoreSeamTiling, qcImage } from "./asset-qc.mjs";
+import { scorePaletteLock, scoreSeamTiling, qcImage, scorePixelPurity } from "./asset-qc.mjs";
 import { hexToRgb, labDeltaE } from "./color.mjs";
 
 // --- Hermetic PNG encoder (test fixture only) ----------------------------
@@ -176,5 +176,50 @@ describe("qcImage (file orchestrator)", () => {
     } finally {
       rmSync(p, { force: true });
     }
+  });
+});
+
+describe("scorePixelPurity", () => {
+  const PAL = [[255, 0, 0], [0, 0, 0], [255, 255, 255]];
+  function img(w, h, fill) { // fill(i)->[r,g,b,a]
+    const d = new Uint8Array(w * h * 4);
+    for (let i = 0; i < w * h; i++) { const [r, g, b, a] = fill(i); d[i*4]=r; d[i*4+1]=g; d[i*4+2]=b; d[i*4+3]=a; }
+    return { width: w, height: h, channels: 4, data: d };
+  }
+  test("passes a clean on-palette, hard-alpha, native-res image", () => {
+    const r = scorePixelPurity(img(4, 4, () => [255, 0, 0, 255]), PAL, { native: 4 });
+    expect(r.ok).toBe(true);
+    expect(r.offPalette).toBe(0); expect(r.softAlpha).toBe(0);
+  });
+  test("fails on an off-palette pixel", () => {
+    const r = scorePixelPurity(img(4, 4, (i) => (i === 0 ? [10, 200, 30, 255] : [255, 0, 0, 255])), PAL, { native: 4 });
+    expect(r.ok).toBe(false); expect(r.offPalette).toBe(1);
+  });
+  test("fails on a soft-alpha pixel", () => {
+    const r = scorePixelPurity(img(4, 4, (i) => (i === 0 ? [255, 0, 0, 128] : [255, 0, 0, 255])), PAL, { native: 4 });
+    expect(r.ok).toBe(false); expect(r.softAlpha).toBe(1);
+  });
+  test("fails when long side exceeds native", () => {
+    const r = scorePixelPurity(img(8, 4, () => [255, 0, 0, 255]), PAL, { native: 4 });
+    expect(r.ok).toBe(false); expect(r.longSide).toBe(8);
+  });
+  test("ignores colour of fully transparent pixels", () => {
+    const r = scorePixelPurity(img(4, 4, (i) => (i === 0 ? [9, 9, 9, 0] : [255, 0, 0, 255])), PAL, { native: 4 });
+    expect(r.ok).toBe(true); expect(r.offPalette).toBe(0);
+  });
+});
+
+describe("qcImage pixel gate", () => {
+  test("runs pixel-purity when opts.pixel is set", () => {
+    const dir = tmpdir();
+    const p = join(dir, `qcpx-${process.pid}.png`);
+    const d = new Uint8Array(4 * 4 * 4);
+    for (let i = 0; i < 16; i++) { d[i*4]=255; d[i*4+3]=255; } // pure red, hard alpha
+    writeFileSync(p, encodePng(4, 4, 4, d));
+    try {
+      const res = qcImage(p, { pixel: { palette: ["#ff0000", "#000000"], native: 4 } });
+      expect(res.ok).toBe(true);
+      expect(res.checks.pixel.offPalette).toBe(0);
+    } finally { rmSync(p, { force: true }); }
   });
 });
