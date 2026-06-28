@@ -46,3 +46,27 @@ export function pixelize(img, { native = 64, palette = DB32, alphaThreshold = 12
   }
   return { width: tw, height: th, channels, data: out };
 }
+
+// Read a PNG, pixelize it, write the canonical PNG. Returns the output dimensions.
+export function pixelizeFile(inPath, outPath, opts = {}) {
+  const img = decodePng(readFileSync(inPath));
+  const out = pixelize(img, opts);
+  writeFileSync(outPath, encodePng(out.width, out.height, out.channels, out.data));
+  return { width: out.width, height: out.height, channels: out.channels };
+}
+
+// CLI: node tools/pixelize.mjs <in.png> <out.png> '<json {native?, palette?, alphaThreshold?}>'
+export function pixelizeCli(argv, { log = console.log, err = console.error } = {}) {
+  const [inPath, outPath, optsJson] = argv;
+  if (!inPath || !outPath) { err("usage: pixelize <in.png> <out.png> '<json opts>'"); return 1; }
+  let opts = {};
+  if (optsJson) { try { opts = JSON.parse(optsJson); } catch (e) { err(`pixelize: bad JSON opts: ${e.message}`); return 1; } }
+  let res;
+  try { res = pixelizeFile(inPath, outPath, opts); } catch (e) { err(`pixelize: ${e.message}`); return 1; }
+  log(`PIXELIZE ${JSON.stringify(res)}`);
+  return 0;
+}
+
+if (fileURLToPath(import.meta.url) === process.argv[1]) {
+  process.exit(pixelizeCli(process.argv.slice(2)));
+}

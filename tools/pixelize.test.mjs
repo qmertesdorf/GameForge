@@ -1,5 +1,9 @@
 import { test, expect, describe } from "vitest";
-import { pixelize } from "./pixelize.mjs";
+import { pixelize, pixelizeFile, pixelizeCli } from "./pixelize.mjs";
+import { writeFileSync, rmSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { encodePng, decodePng } from "./png.mjs";
 
 // A pure-colour palette so nearest-colour is unambiguous in the assertions.
 const PAL = ["#ff0000", "#00ff00", "#0000ff", "#000000", "#ffffff"];
@@ -73,5 +77,31 @@ describe("pixelize", () => {
 
   test("throws on an empty palette", () => {
     expect(() => pixelize(solidRGBA(4, 4, [255, 0, 0, 255]), { native: 2, palette: [] })).toThrow(/empty palette/);
+  });
+});
+
+describe("pixelizeFile", () => {
+  test("reads a PNG, writes a clean native-res PNG", () => {
+    const dir = tmpdir();
+    const inP = join(dir, `pxin-${process.pid}.png`);
+    const outP = join(dir, `pxout-${process.pid}.png`);
+    const d = new Uint8Array(16 * 16 * 4);
+    for (let i = 0; i < 256; i++) { d[i * 4] = 250; d[i * 4 + 1] = 8; d[i * 4 + 2] = 8; d[i * 4 + 3] = 255; }
+    writeFileSync(inP, encodePng(16, 16, 4, d));
+    try {
+      const res = pixelizeFile(inP, outP, { native: 4, palette: ["#ff0000", "#000000"] });
+      expect(res).toEqual({ width: 4, height: 4, channels: 4 });
+      const back = decodePng(readFileSync(outP));
+      expect(back.width).toBe(4);
+      expect(back.data[0]).toBe(255); expect(back.data[1]).toBe(0); expect(back.data[2]).toBe(0);
+    } finally { rmSync(inP, { force: true }); rmSync(outP, { force: true }); }
+  });
+});
+
+describe("pixelizeCli", () => {
+  test("returns 1 on missing args", () => {
+    const errs = [];
+    expect(pixelizeCli([], { log() {}, err: (m) => errs.push(m) })).toBe(1);
+    expect(errs[0]).toMatch(/usage/);
   });
 });
